@@ -318,22 +318,20 @@ p {
   overflow-y: auto;
 }
 
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px 0 14px;
-  border-bottom: 1px solid var(--border);
-  background: #fff;
-}
-
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
+.logo-full {
+  width: 140px;   /* main control */
+  max-width: 100%;
+  height: auto;
   display: block;
 }
 
+/* Sidebar logo container */
+.sidebar-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px 10px 14px;
+  border-bottom: 1px solid var(--bord
 .sidebar-nav {
   flex: 1;
   padding: 16px 12px;
