@@ -1,1 +1,18 @@
-index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart — Campus Marketplace</title>
+  <script src="js/auth.js"></script>
+  <script>
+    // Route to app or login based on session
+    if (Auth.getUser()) {
+      window.location.replace('search.html');
+    } else {
+      window.location.replace('login.html');
+    }
+  </script>
+</head>
+<body></body>
+</html>
