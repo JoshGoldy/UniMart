@@ -8,184 +8,655 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <style>
-    .coming-soon-card {
+    .listing-layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
       background: #fff;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 56px 40px;
-      text-align: center;
-      max-width: 480px;
-      margin: 0 auto;
+      box-shadow: var(--shadow-sm);
     }
-    .coming-soon-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--sand);
-      color: var(--muted);
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      padding: 5px 12px;
-      border-radius: 99px;
-      margin-bottom: 20px;
+
+    .panel-header {
+      padding: 20px 20px 14px;
+      border-bottom: 1px solid var(--border);
     }
-    .coming-soon-icon {
-      font-size: 3rem;
-      margin-bottom: 16px;
-      display: block;
+
+    .panel-header h2 {
+      margin-bottom: 4px;
     }
-    .coming-soon-card h2 { margin-bottom: 10px; }
-    .coming-soon-card p { margin-bottom: 24px; max-width: 320px; margin-left: auto; margin-right: auto; }
-    .feature-list {
-      text-align: left;
+
+    .panel-body {
+      padding: 20px;
+    }
+
+    .listing-form {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: 28px;
+      gap: 16px;
     }
-    .feature-item {
+
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      font-size: 0.9rem;
+      outline: none;
+      transition: 0.2s ease;
+      color: var(--ink);
+    }
+
+    .form-textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .form-select:focus,
+    .form-textarea:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 3px rgba(58, 102, 69, 0.12);
+    }
+
+    .form-actions {
       display: flex;
-      align-items: center;
       gap: 10px;
-      font-size: 0.875rem;
+      flex-wrap: wrap;
+    }
+
+    .helper-text {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: -4px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .toolbar-search {
+      max-width: 320px;
+      width: 100%;
+    }
+
+    .listing-count {
+      font-size: 0.85rem;
       color: var(--muted);
     }
-    .feature-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--border);
-      flex-shrink: 0;
+
+    .listing-table-wrap {
+      overflow-x: auto;
+    }
+
+    .listing-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .listing-table th,
+    .listing-table td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .listing-table th {
+      font-size: 0.76rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      background: #fcfbf8;
+    }
+
+    .listing-title {
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .listing-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 74px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .status-active {
+      background: var(--mint);
+      color: var(--sage);
+    }
+
+    .status-sold {
+      background: var(--sand);
+      color: var(--muted);
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .action-btn:hover {
+      border-color: var(--sage);
+      color: var(--sage);
+      background: var(--mint);
+    }
+
+    .action-btn-danger:hover {
+      border-color: #c0392b;
+      color: #c0392b;
+      background: #fff5f5;
+    }
+
+    .inline-empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+
+    .inline-empty h3 {
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .price-cell {
+      font-weight: 700;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    @media (max-width: 980px) {
+      .listing-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-body,
+      .panel-header {
+        padding: 16px;
+      }
     }
   </style>
 </head>
 <body>
- 
-<div class="overlay" id="sidebar-overlay"></div>
- 
-<div class="app-shell">
- 
-  <!-- ===== SIDEBAR ===== -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-  <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
-</div>
- 
-    <nav class="sidebar-nav">
-      <div class="sidebar-section-label">Main</div>
- 
-      <a href="search.html" class="nav-item" data-page="search.html">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-          <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
-        </svg>
-        Search Listings
-      </a>
- 
-      <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-          <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
-          <rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/>
-          <rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/>
-          <rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/>
-        </svg>
-        Dashboard
-      </a>
- 
-      <div class="sidebar-section-label">Manage</div>
- 
-      <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
-        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
-        </svg>
-        Listing Management
-        <span class="nav-badge">Soon</span>
-      </a>
-    </nav>
- 
-    <div class="sidebar-footer">
-      <div class="sidebar-user dropdown">
-        <div class="user-avatar" data-user-initials>?</div>
-        <div class="user-info">
-          <div class="user-name" data-user-name>Loading…</div>
-          <div class="user-role" data-user-role></div>
-        </div>
-        <span class="user-chevron" data-dropdown-trigger="user-menu">▾</span>
+  <div class="overlay" id="sidebar-overlay"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="unimart-logo.png" alt="UniMart Logo" class="logo-full" />
       </div>
- 
-      <div class="dropdown-menu" id="user-menu">
-        <div class="dropdown-item"><span>👤</span> My Profile</div>
-        <div class="dropdown-item"><span>⚙️</span> Settings</div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
-      </div>
-    </div>
-  </aside>
- 
-  <!-- ===== MAIN ===== -->
-  <div class="main-content">
- 
-    <header class="topbar">
-      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
-        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <span class="topbar-title">Listing Management</span>
-      <div class="topbar-actions" style="margin-left:auto">
-        <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
-      </div>
-      <div class="dropdown-menu" id="topbar-user-menu">
-        <div class="dropdown-item"><span>👤</span> <span data-user-name>My Account</span></div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
-      </div>
-    </header>
- 
-    <main class="page-content">
- 
-      <div class="page-header">
-        <h1>Listing Management</h1>
-        <p>Create, edit, and manage your marketplace listings</p>
-      </div>
- 
-      <!-- Coming soon card -->
-      <div class="coming-soon-card">
-        <span class="coming-soon-badge">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-            <circle cx="5" cy="5" r="5"/>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Main</div>
+
+        <a href="search.html" class="nav-item" data-page="search.html">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
           </svg>
-          Coming soon
-        </span>
-        <span class="coming-soon-icon">🚀</span>
-        <h2>Listing Management</h2>
-        <p>This feature is under development. Here's what you'll be able to do once it launches:</p>
- 
-        <div class="feature-list">
-          <div class="feature-item"><div class="feature-dot"></div>Create and publish new listings with photos</div>
-          <div class="feature-item"><div class="feature-dot"></div>Set prices, categories, and availability</div>
-          <div class="feature-item"><div class="feature-dot"></div>Edit or remove your active listings</div>
-          <div class="feature-item"><div class="feature-dot"></div>Track views and interested buyers</div>
-          <div class="feature-item"><div class="feature-dot"></div>Mark items as sold</div>
+          Search Listings
+        </a>
+
+        <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
+            <rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/>
+            <rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/>
+            <rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/>
+          </svg>
+          Dashboard
+        </a>
+
+        <div class="sidebar-section-label">Manage</div>
+
+        <a href="listings.html" class="nav-item" data-page="listings.html">
+          <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
+          </svg>
+          Listing Management
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user dropdown">
+          <div class="user-avatar" data-user-initials>?</div>
+          <div class="user-info">
+            <div class="user-name" data-user-name>Loading…</div>
+            <div class="user-role" data-user-role></div>
+          </div>
+          <span class="user-chevron" data-dropdown-trigger="user-menu">▾</span>
         </div>
- 
-        <a href="search.html" class="btn btn-outline">← Browse Marketplace</a>
+
+        <div class="dropdown-menu" id="user-menu">
+          <div class="dropdown-item"><span>👤</span> My Profile</div>
+          <div class="dropdown-item"><span>⚙️</span> Settings</div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
+        </div>
       </div>
- 
-    </main>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <span class="topbar-title">Listing Management</span>
+
+        <div class="topbar-actions" style="margin-left:auto">
+          <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
+        </div>
+
+        <div class="dropdown-menu" id="topbar-user-menu">
+          <div class="dropdown-item"><span>👤</span> <span data-user-name>My Account</span></div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div class="page-header">
+          <h1>Listing Management</h1>
+          <p>Create, edit, and manage your marketplace listings</p>
+        </div>
+
+        <div class="listing-layout">
+          <!-- Create / Edit panel -->
+          <section class="panel">
+            <div class="panel-header">
+              <h2 id="form-title">Create Listing</h2>
+              <p>Add an item you want to sell on UniMart.</p>
+            </div>
+
+            <div class="panel-body">
+              <form id="listing-form" class="listing-form">
+                <input type="hidden" id="listing-id" />
+
+                <div class="form-group">
+                  <label class="form-label" for="listing-title">Title</label>
+                  <input class="form-input" id="listing-title" type="text" placeholder="e.g. Calculus textbook" required />
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" for="listing-price">Price (R)</label>
+                    <input class="form-input" id="listing-price" type="number" min="0" step="0.01" placeholder="250" required />
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="listing-category">Category</label>
+                    <select class="form-select" id="listing-category" required>
+                      <option value="">Select category</option>
+                      <option>Textbooks</option>
+                      <option>Electronics</option>
+                      <option>Furniture</option>
+                      <option>Clothing</option>
+                      <option>Notes & Study</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" for="listing-condition">Condition</label>
+                    <select class="form-select" id="listing-condition" required>
+                      <option value="">Select condition</option>
+                      <option>New</option>
+                      <option>Like New</option>
+                      <option>Good</option>
+                      <option>Fair</option>
+                      <option>Used</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="listing-status">Status</label>
+                    <select class="form-select" id="listing-status" required>
+                      <option value="active">Active</option>
+                      <option value="sold">Sold</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="listing-image">Image URL</label>
+                  <input class="form-input" id="listing-image" type="url" placeholder="https://example.com/item.jpg" />
+                  <div class="helper-text">Optional for now. Add a direct image link if you have one.</div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="listing-description">Description</label>
+                  <textarea class="form-textarea" id="listing-description" placeholder="Describe the item, condition, edition, brand, etc." required></textarea>
+                </div>
+
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary" id="save-listing-btn">Save Listing</button>
+                  <button type="button" class="btn btn-ghost" id="reset-form-btn">Clear</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <!-- Listings table -->
+          <section class="panel">
+            <div class="panel-header">
+              <h2>My Listings</h2>
+              <p>Only your own listings appear here.</p>
+            </div>
+
+            <div class="panel-body">
+              <div class="toolbar">
+                <input class="form-input toolbar-search" id="listing-search" type="search" placeholder="Search your listings..." />
+                <div class="listing-count" id="listing-count">0 listings</div>
+              </div>
+
+              <div class="listing-table-wrap" id="listing-table-wrap">
+                <table class="listing-table" id="listing-table" style="display:none">
+                  <thead>
+                    <tr>
+                      <th>Listing</th>
+                      <th>Category</th>
+                      <th>Price</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="listing-table-body"></tbody>
+                </table>
+
+                <div class="inline-empty" id="listing-empty">
+                  <h3>No listings yet</h3>
+                  <p>Create your first UniMart listing using the form on the left.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
   </div>
-</div>
- 
-<div class="toast-container" id="toast-container"></div>
- 
-<script src="js/auth.js"></script>
-<script src="js/app.js"></script>
-<script>
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar-toggle').style.display = 'flex';
-  }
-  initPage();
-</script>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const LISTINGS_KEY = 'unimart_listings';
+
+    function getListings() {
+      return JSON.parse(localStorage.getItem(LISTINGS_KEY) || '[]');
+    }
+
+    function saveListings(listings) {
+      localStorage.setItem(LISTINGS_KEY, JSON.stringify(listings));
+    }
+
+    function getCurrentUser() {
+      return Auth.getUser();
+    }
+
+    function getMyListings() {
+      const user = getCurrentUser();
+      if (!user) return [];
+      return getListings().filter(listing => listing.ownerId === user.id);
+    }
+
+    function resetForm() {
+      document.getElementById('listing-form').reset();
+      document.getElementById('listing-id').value = '';
+      document.getElementById('listing-status').value = 'active';
+      document.getElementById('form-title').textContent = 'Create Listing';
+      document.getElementById('save-listing-btn').textContent = 'Save Listing';
+    }
+
+    function formatPrice(value) {
+      const amount = Number(value || 0);
+      return 'R' + amount.toFixed(2);
+    }
+
+    function formatDate(value) {
+      return new Date(value).toLocaleDateString('en-ZA', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+
+    function renderListings() {
+      const tbody = document.getElementById('listing-table-body');
+      const table = document.getElementById('listing-table');
+      const empty = document.getElementById('listing-empty');
+      const count = document.getElementById('listing-count');
+      const query = document.getElementById('listing-search').value.trim().toLowerCase();
+
+      let listings = getMyListings().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+      if (query) {
+        listings = listings.filter(item =>
+          item.title.toLowerCase().includes(query) ||
+          item.category.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query)
+        );
+      }
+
+      count.textContent = `${listings.length} listing${listings.length === 1 ? '' : 's'}`;
+
+      if (!listings.length) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        tbody.innerHTML = '';
+        return;
+      }
+
+      empty.style.display = 'none';
+      table.style.display = 'table';
+
+      tbody.innerHTML = listings.map(item => `
+        <tr>
+          <td>
+            <div class="listing-title">${item.title}</div>
+            <div class="listing-meta">${item.condition} • Updated ${formatDate(item.updatedAt)}</div>
+          </td>
+          <td>${item.category}</td>
+          <td class="price-cell">${formatPrice(item.price)}</td>
+          <td>
+            <span class="status-badge ${item.status === 'sold' ? 'status-sold' : 'status-active'}">
+              ${item.status === 'sold' ? 'Sold' : 'Active'}
+            </span>
+          </td>
+          <td>
+            <div class="row-actions">
+              <button class="action-btn" data-action="edit" data-id="${item.id}">Edit</button>
+              <button class="action-btn" data-action="toggle-status" data-id="${item.id}">
+                ${item.status === 'sold' ? 'Mark Active' : 'Mark Sold'}
+              </button>
+              <button class="action-btn action-btn-danger" data-action="delete" data-id="${item.id}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function upsertListing(formData) {
+      const user = getCurrentUser();
+      const listings = getListings();
+      const existingIndex = listings.findIndex(item => item.id === formData.id);
+
+      const listing = {
+        id: formData.id || `lst_${Date.now()}`,
+        ownerId: user.id,
+        ownerName: user.fullName,
+        title: formData.title.trim(),
+        price: Number(formData.price),
+        category: formData.category,
+        condition: formData.condition,
+        status: formData.status,
+        imageUrl: formData.imageUrl.trim(),
+        description: formData.description.trim(),
+        updatedAt: new Date().toISOString(),
+        createdAt: formData.createdAt || new Date().toISOString()
+      };
+
+      if (existingIndex >= 0) {
+        listings[existingIndex] = listing;
+      } else {
+        listings.push(listing);
+      }
+
+      saveListings(listings);
+      return existingIndex >= 0 ? 'updated' : 'created';
+    }
+
+    function fillForm(listing) {
+      document.getElementById('listing-id').value = listing.id;
+      document.getElementById('listing-title').value = listing.title;
+      document.getElementById('listing-price').value = listing.price;
+      document.getElementById('listing-category').value = listing.category;
+      document.getElementById('listing-condition').value = listing.condition;
+      document.getElementById('listing-status').value = listing.status;
+      document.getElementById('listing-image').value = listing.imageUrl || '';
+      document.getElementById('listing-description').value = listing.description;
+      document.getElementById('form-title').textContent = 'Edit Listing';
+      document.getElementById('save-listing-btn').textContent = 'Update Listing';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function handleRowActions(event) {
+      const button = event.target.closest('[data-action]');
+      if (!button) return;
+
+      const action = button.getAttribute('data-action');
+      const id = button.getAttribute('data-id');
+      const listings = getListings();
+      const listing = listings.find(item => item.id === id);
+
+      if (!listing) return;
+
+      if (action === 'edit') {
+        fillForm(listing);
+        return;
+      }
+
+      if (action === 'toggle-status') {
+        listing.status = listing.status === 'sold' ? 'active' : 'sold';
+        listing.updatedAt = new Date().toISOString();
+        saveListings(listings);
+        renderListings();
+        showToast(
+          listing.status === 'sold' ? 'Listing marked as sold.' : 'Listing marked as active.',
+          'success'
+        );
+        return;
+      }
+
+      if (action === 'delete') {
+        const nextListings = listings.filter(item => item.id !== id);
+        saveListings(nextListings);
+        renderListings();
+        resetForm();
+        showToast('Listing deleted.', 'success');
+      }
+    }
+
+    function initListingManagement() {
+      const user = initPage();
+      if (!user) return;
+
+      if (window.innerWidth <= 768) {
+        document.getElementById('sidebar-toggle').style.display = 'flex';
+      }
+
+      const form = document.getElementById('listing-form');
+      const resetBtn = document.getElementById('reset-form-btn');
+      const searchInput = document.getElementById('listing-search');
+      const tableBody = document.getElementById('listing-table-body');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const hiddenId = document.getElementById('listing-id').value.trim();
+        const existing = hiddenId ? getListings().find(item => item.id === hiddenId) : null;
+
+        const data = {
+          id: hiddenId,
+          createdAt: existing?.createdAt,
+          title: document.getElementById('listing-title').value,
+          price: document.getElementById('listing-price').value,
+          category: document.getElementById('listing-category').value,
+          condition: document.getElementById('listing-condition').value,
+          status: document.getElementById('listing-status').value,
+          imageUrl: document.getElementById('listing-image').value,
+          description: document.getElementById('listing-description').value
+        };
+
+        if (!data.title.trim() || !data.price || !data.category || !data.condition || !data.description.trim()) {
+          showToast('Please complete all required fields.', 'error');
+          return;
+        }
+
+        const result = upsertListing(data);
+        renderListings();
+        resetForm();
+        showToast(result === 'created' ? 'Listing created successfully.' : 'Listing updated successfully.', 'success');
+      });
+
+      resetBtn.addEventListener('click', resetForm);
+      searchInput.addEventListener('input', renderListings);
+      tableBody.addEventListener('click', handleRowActions);
+
+      renderListings();
+    }
+
+    initListingManagement();
+  </script>
 </body>
 </html>
