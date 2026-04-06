@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Listings — UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+ 
+<!-- Sidebar overlay (mobile) -->
+<div class="overlay" id="sidebar-overlay"></div>
+ 
+<div class="app-shell">
+ 
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">U</div>
+      <span class="sidebar-logo-text">Uni<span>Mart</span></span>
+    </div>
+ 
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">Main</div>
+ 
+      <a href="search.html" class="nav-item" data-page="search.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
+        </svg>
+        Search Listings
+      </a>
+ 
+      <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
+          <rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/>
+          <rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/>
+          <rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/>
+        </svg>
+        Dashboard
+      </a>
+ 
+      <div class="sidebar-section-label">Manage</div>
+ 
+      <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
+        </svg>
+        Listing Management
+        <span class="nav-badge">Soon</span>
+      </a>
+ 
+    </nav>
+ 
+    <div class="sidebar-footer">
+      <div class="sidebar-user dropdown">
+        <div class="user-avatar" data-user-initials>?</div>
+        <div class="user-info">
+          <div class="user-name" data-user-name>Loading…</div>
+          <div class="user-role" data-user-role></div>
+        </div>
+        <span class="user-chevron" data-dropdown-trigger="user-menu">▾</span>
+      </div>
+ 
+      <div class="dropdown-menu" id="user-menu">
+        <div class="dropdown-item">
+          <span>👤</span> My Profile
+        </div>
+        <div class="dropdown-item">
+          <span>⚙️</span> Settings
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout">
+          <span>↩</span> Sign out
+        </div>
+      </div>
+    </div>
+  </aside>
+ 
+  <!-- ===== MAIN CONTENT ===== -->
+  <div class="main-content">
+ 
+    <!-- Topbar -->
+    <header class="topbar">
+      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
+        </svg>
+      </button>
+ 
+      <span class="topbar-title">Search Listings</span>
+ 
+      <div class="topbar-search">
+        <span class="search-icon">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <input type="search" placeholder="Search for textbooks, electronics, furniture…" />
+      </div>
+ 
+      <div class="topbar-actions">
+        <button class="topbar-icon-btn" title="Notifications">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M10 2a6 6 0 0 1 6 6v3.5l1.5 2.5H2.5L4 11.5V8a6 6 0 0 1 6-6z"/>
+            <path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
+      </div>
+ 
+      <div class="dropdown-menu" id="topbar-user-menu">
+        <div class="dropdown-item">
+          <span>👤</span> <span data-user-name>My Account</span>
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout">
+          <span>↩</span> Sign out
+        </div>
+      </div>
+    </header>
+ 
+    <!-- Page body -->
+    <main class="page-content">
+ 
+      <div class="page-header">
+        <h1>Marketplace</h1>
+        <p>Browse listings from students at your campus</p>
+      </div>
+ 
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <button class="filter-chip active">All</button>
+        <button class="filter-chip">Textbooks</button>
+        <button class="filter-chip">Electronics</button>
+        <button class="filter-chip">Furniture</button>
+        <button class="filter-chip">Clothing</button>
+        <button class="filter-chip">Notes &amp; Study</button>
+        <button class="filter-chip">Other</button>
+      </div>
+ 
+      <!-- Empty state — listings will populate here -->
+      <div class="empty-state">
+        <div class="empty-state-icon">🏪</div>
+        <h3>No listings yet</h3>
+        <p>Be the first to list something, or check back soon — your fellow students will be adding items shortly.</p>
+      </div>
+ 
+      <!-- Listings grid (hidden until populated) -->
+      <div class="listings-grid" id="listings-grid" style="display:none"></div>
+ 
+    </main>
+  </div>
+ 
+</div>
+ 
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+ 
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Show mobile toggle on small screens
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar-toggle').style.display = 'flex';
+  }
+ 
+  // Filter chips
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', function () {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+ 
+  // Init authenticated page
+  const user = initPage();
+  if (user) {
+    // Placeholder: show welcome toast on first visit
+    const welcomed = sessionStorage.getItem('unimart_welcomed');
+    if (!welcomed) {
+      sessionStorage.setItem('unimart_welcomed', '1');
+      showToast(`Welcome back, ${user.fullName.split(' ')[0]}!`, 'success');
+    }
+  }
+</script>
+</body>
+</html>

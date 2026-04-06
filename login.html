@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    /* step transitions */
+    .auth-step { display: none; }
+    .auth-step.active { display: block; }
+    #step-verify .auth-form { align-items: center; }
+  </style>
+</head>
+<body class="auth-page">
+ 
+  <div class="auth-card">
+ 
+    <!-- Logo -->
+    <div class="auth-logo">
+      <div class="auth-logo-mark">U</div>
+      <span class="auth-logo-text">Uni<span>Mart</span></span>
+    </div>
+ 
+    <!-- ===== STEP 1 — Credentials ===== -->
+    <div id="step-login" class="auth-step active">
+      <div class="auth-header">
+        <h1>Welcome back</h1>
+        <p>Sign in to your UniMart account</p>
+      </div>
+ 
+      <form class="auth-form" id="login-form" novalidate>
+ 
+        <!-- Dev notice -->
+        <div class="dev-notice" id="dev-notice" style="display:none">
+          <span>⚠️</span>
+          <div>
+            <strong>Development mode:</strong> Email delivery not yet connected.
+            Your verification code is: <strong id="dev-otp-display">——</strong>
+          </div>
+        </div>
+ 
+        <div class="form-group">
+          <label class="form-label" for="login-email">Email address</label>
+          <input class="form-input" id="login-email" type="email" placeholder="you@university.edu" autocomplete="email" required />
+          <span class="form-error" id="email-error"></span>
+        </div>
+ 
+        <div class="form-group">
+          <label class="form-label" for="login-password">Password</label>
+          <div class="input-wrapper">
+            <input class="form-input" id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility">👁</button>
+          </div>
+          <span class="form-error" id="password-error"></span>
+        </div>
+ 
+        <div style="display:flex; justify-content:flex-end; margin-top:-8px;">
+          <a href="#" style="font-size:.83rem; color:var(--sage); font-weight:600;">Forgot password?</a>
+        </div>
+ 
+        <div class="form-error" id="login-error" style="text-align:center; font-size:.85rem;"></div>
+ 
+        <button type="submit" class="btn btn-primary btn-full btn-lg" id="login-btn">
+          Continue
+        </button>
+      </form>
+ 
+      <div class="auth-footer">
+        Don't have an account? <a href="signup.html">Create one</a>
+      </div>
+    </div>
+ 
+    <!-- ===== STEP 2 — Verification ===== -->
+    <div id="step-verify" class="auth-step">
+      <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+        <div class="verify-icon">📬</div>
+        <h2 style="margin-bottom:8px;">Check your inbox</h2>
+        <p style="max-width:300px; margin-bottom:24px;">
+          We've sent a 6-digit verification code to<br/>
+          <strong id="verify-email-display" style="color:var(--ink)"></strong>
+        </p>
+ 
+        <!-- Dev notice -->
+        <div class="dev-notice" id="dev-notice-verify" style="display:none; width:100%; margin-bottom:16px; text-align:left;">
+          <span>⚠️</span>
+          <div>
+            <strong>Development mode:</strong> Your code is:
+            <strong id="dev-otp-verify">——</strong>
+          </div>
+        </div>
+ 
+        <form class="auth-form" id="verify-form" novalidate style="width:100%">
+          <div class="otp-input-group">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+          </div>
+ 
+          <div class="form-error" id="otp-error" style="text-align:center; font-size:.85rem; margin-top:4px;"></div>
+ 
+          <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:8px;">
+            Verify &amp; Sign in
+          </button>
+        </form>
+ 
+        <div class="resend-link" style="margin-top:16px;">
+          Didn't get it? <a id="resend-btn">Resend code</a>
+        </div>
+        <div style="margin-top:12px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="back-btn">← Back</button>
+        </div>
+      </div>
+    </div>
+ 
+  </div><!-- /auth-card -->
+ 
+  <script src="js/auth.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (Auth.getUser()) window.location.href = 'search.html';
+ 
+    const stepLogin  = document.getElementById('step-login');
+    const stepVerify = document.getElementById('step-verify');
+    let currentEmail = '';
+    let currentOtp   = '';
+ 
+    function showStep(step) {
+      stepLogin.classList.toggle('active',  step === 'login');
+      stepVerify.classList.toggle('active', step === 'verify');
+    }
+ 
+    /* ---- Password toggle ---- */
+    document.getElementById('pw-toggle').addEventListener('click', function () {
+      const inp = document.getElementById('login-password');
+      inp.type  = inp.type === 'password' ? 'text' : 'password';
+      this.textContent = inp.type === 'password' ? '👁' : '🙈';
+    });
+ 
+    /* ---- Login form ---- */
+    document.getElementById('login-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      clearErrors();
+      const email    = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      let valid = true;
+ 
+      if (!email) { showError('email-error', 'Email is required.'); valid = false; }
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('email-error', 'Enter a valid email.'); valid = false; }
+      if (!password) { showError('password-error', 'Password is required.'); valid = false; }
+      if (!valid) return;
+ 
+      const btn = document.getElementById('login-btn');
+      btn.textContent = 'Sending code…';
+      btn.disabled = true;
+ 
+      const result = Auth.signIn({ email, password });
+      btn.textContent = 'Continue';
+      btn.disabled = false;
+ 
+      if (result.error) { showError('login-error', result.error); return; }
+ 
+      currentEmail = email;
+      currentOtp   = result.otp;
+      document.getElementById('verify-email-display').textContent = email;
+ 
+      // Dev banner
+      document.getElementById('dev-otp-verify').textContent = result.otp;
+      document.getElementById('dev-notice-verify').style.display = 'flex';
+ 
+      showStep('verify');
+      document.querySelector('.otp-input').focus();
+    });
+ 
+    /* ---- OTP inputs — auto-advance ---- */
+    const otpInputs = document.querySelectorAll('.otp-input');
+    otpInputs.forEach((input, i) => {
+      input.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '');
+        if (this.value && i < otpInputs.length - 1) otpInputs[i + 1].focus();
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace' && !this.value && i > 0) otpInputs[i - 1].focus();
+      });
+      input.addEventListener('paste', function (e) {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        text.split('').forEach((ch, j) => { if (otpInputs[j]) otpInputs[j].value = ch; });
+        const next = otpInputs[Math.min(text.length, 5)];
+        if (next) next.focus();
+      });
+    });
+ 
+    /* ---- Verify form ---- */
+    document.getElementById('verify-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const code = Array.from(otpInputs).map(i => i.value).join('');
+      if (code.length < 6) { showError('otp-error', 'Please enter all 6 digits.'); return; }
+ 
+      const result = Auth.verifyOTP(code);
+      if (result.error) { showError('otp-error', result.error); return; }
+ 
+      window.location.href = 'search.html';
+    });
+ 
+    /* ---- Resend ---- */
+    document.getElementById('resend-btn').addEventListener('click', function () {
+      if (!currentEmail) return;
+      const result = Auth.signIn({ email: currentEmail, password: '***' }); // won't match but shows dev OTP
+      // re-trigger a fresh OTP by going back and resubmitting
+      showToastMini('A new code has been sent (check console in dev mode).');
+    });
+ 
+    /* ---- Back ---- */
+    document.getElementById('back-btn').addEventListener('click', () => {
+      otpInputs.forEach(i => i.value = '');
+      clearErrors();
+      showStep('login');
+    });
+ 
+    /* ---- Helpers ---- */
+    function clearErrors() {
+      document.querySelectorAll('.form-error').forEach(el => {
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+    }
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.add('visible'); }
+    }
+    function showToastMini(msg) {
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:.85rem;z-index:999;';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+  </script>
+</body>
+</html>

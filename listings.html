@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Listing Management — UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .coming-soon-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 56px 40px;
+      text-align: center;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .coming-soon-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--sand);
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 5px 12px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+    }
+    .coming-soon-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .coming-soon-card h2 { margin-bottom: 10px; }
+    .coming-soon-card p { margin-bottom: 24px; max-width: 320px; margin-left: auto; margin-right: auto; }
+    .feature-list {
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    .feature-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+ 
+<div class="overlay" id="sidebar-overlay"></div>
+ 
+<div class="app-shell">
+ 
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">U</div>
+      <span class="sidebar-logo-text">Uni<span>Mart</span></span>
+    </div>
+ 
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">Main</div>
+ 
+      <a href="search.html" class="nav-item" data-page="search.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
+        </svg>
+        Search Listings
+      </a>
+ 
+      <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
+          <rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/>
+          <rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/>
+          <rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/>
+        </svg>
+        Dashboard
+      </a>
+ 
+      <div class="sidebar-section-label">Manage</div>
+ 
+      <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
+        </svg>
+        Listing Management
+        <span class="nav-badge">Soon</span>
+      </a>
+    </nav>
+ 
+    <div class="sidebar-footer">
+      <div class="sidebar-user dropdown">
+        <div class="user-avatar" data-user-initials>?</div>
+        <div class="user-info">
+          <div class="user-name" data-user-name>Loading…</div>
+          <div class="user-role" data-user-role></div>
+        </div>
+        <span class="user-chevron" data-dropdown-trigger="user-menu">▾</span>
+      </div>
+ 
+      <div class="dropdown-menu" id="user-menu">
+        <div class="dropdown-item"><span>👤</span> My Profile</div>
+        <div class="dropdown-item"><span>⚙️</span> Settings</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
+      </div>
+    </div>
+  </aside>
+ 
+  <!-- ===== MAIN ===== -->
+  <div class="main-content">
+ 
+    <header class="topbar">
+      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span class="topbar-title">Listing Management</span>
+      <div class="topbar-actions" style="margin-left:auto">
+        <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
+      </div>
+      <div class="dropdown-menu" id="topbar-user-menu">
+        <div class="dropdown-item"><span>👤</span> <span data-user-name>My Account</span></div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
+      </div>
+    </header>
+ 
+    <main class="page-content">
+ 
+      <div class="page-header">
+        <h1>Listing Management</h1>
+        <p>Create, edit, and manage your marketplace listings</p>
+      </div>
+ 
+      <!-- Coming soon card -->
+      <div class="coming-soon-card">
+        <span class="coming-soon-badge">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <circle cx="5" cy="5" r="5"/>
+          </svg>
+          Coming soon
+        </span>
+        <span class="coming-soon-icon">🚀</span>
+        <h2>Listing Management</h2>
+        <p>This feature is under development. Here's what you'll be able to do once it launches:</p>
+ 
+        <div class="feature-list">
+          <div class="feature-item"><div class="feature-dot"></div>Create and publish new listings with photos</div>
+          <div class="feature-item"><div class="feature-dot"></div>Set prices, categories, and availability</div>
+          <div class="feature-item"><div class="feature-dot"></div>Edit or remove your active listings</div>
+          <div class="feature-item"><div class="feature-dot"></div>Track views and interested buyers</div>
+          <div class="feature-item"><div class="feature-dot"></div>Mark items as sold</div>
+        </div>
+ 
+        <a href="search.html" class="btn btn-outline">← Browse Marketplace</a>
+      </div>
+ 
+    </main>
+  </div>
+</div>
+ 
+<div class="toast-container" id="toast-container"></div>
+ 
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar-toggle').style.display = 'flex';
+  }
+  initPage();
+</script>
+</body>
+</html>
