@@ -318,8 +318,9 @@ p {
   overflow-y: auto;
 }
 
+/* Full logo in sidebar */
 .logo-full {
-  width: 140px;   /* main control */
+  width: 140px;
   max-width: 100%;
   height: auto;
   display: block;
@@ -330,8 +331,10 @@ p {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 18px 10px 14px;
-  border-bottom: 1px solid var(--bord
+  padding: 20px 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
 .sidebar-nav {
   flex: 1;
   padding: 16px 12px;
