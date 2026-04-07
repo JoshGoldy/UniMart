@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile — UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .profile-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+ 
+    /* ---- Profile card (left column) ---- */
+    .profile-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+      position: sticky;
+      top: calc(var(--header-height) + 20px);
+    }
+    .profile-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--sage);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .profile-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .profile-email-display {
+      font-size: 0.82rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .profile-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--mint);
+      color: var(--sage);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+    .profile-nav {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .profile-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: 0.2s ease;
+      text-align: left;
+    }
+    .profile-nav-item:hover {
+      background: var(--sand);
+      color: var(--ink);
+    }
+    .profile-nav-item.active {
+      background: var(--mint);
+      color: var(--sage);
+      font-weight: 600;
+    }
+    .profile-nav-item .soon-dot {
+      margin-left: auto;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: var(--sand);
+      color: var(--muted);
+      padding: 2px 7px;
+      border-radius: 999px;
+    }
+ 
+    /* ---- Sections (right column) ---- */
+    .profile-sections {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .section-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .section-subtitle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .section-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+ 
+    /* ---- Soon overlay on locked sections ---- */
+    .section-soon {
+      position: relative;
+    }
+    .section-soon .section-body {
+      opacity: 0.45;
+      pointer-events: none;
+      user-select: none;
+    }
+    .soon-banner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 2;
+    }
+    .soon-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--sand);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 6px 16px;
+      border-radius: 999px;
+    }
+    .soon-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+ 
+    /* ---- Danger zone ---- */
+    .danger-card {
+      background: #fff;
+      border: 1px solid #f5c6cb;
+      border-radius: var(--radius-lg);
+    }
+    .danger-card .section-header {
+      border-bottom-color: #f5c6cb;
+    }
+    .danger-card .section-title { color: #c0392b; }
+    .danger-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .danger-action-info strong {
+      font-size: 0.875rem;
+      color: var(--ink);
+      display: block;
+      margin-bottom: 2px;
+    }
+    .danger-action-info span {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .btn-danger {
+      background: #fff;
+      color: #c0392b;
+      border: 1.5px solid #c0392b;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: 0.2s ease;
+      flex-shrink: 0;
+    }
+    .btn-danger:hover {
+      background: #c0392b;
+      color: #fff;
+    }
+ 
+    /* ---- Responsive ---- */
+    @media (max-width: 900px) {
+      .profile-layout {
+        grid-template-columns: 1fr;
+      }
+      .profile-card {
+        position: static;
+      }
+      .profile-nav { display: none; }
+    }
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+ 
+<div class="overlay" id="sidebar-overlay"></div>
+ 
+<div class="app-shell">
+ 
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
+    </div>
+ 
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-label">Main</div>
+ 
+      <a href="search.html" class="nav-item" data-page="search.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
+        </svg>
+        Search Listings
+      </a>
+ 
+      <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
+          <rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/>
+          <rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/>
+          <rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/>
+        </svg>
+        Dashboard
+      </a>
+ 
+      <div class="sidebar-section-label">Manage</div>
+ 
+      <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
+        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
+        </svg>
+        Listing Management
+        <span class="nav-badge">Soon</span>
+      </a>
+    </nav>
+ 
+    <div class="sidebar-footer">
+      <div class="sidebar-user dropdown">
+        <div class="user-avatar" data-user-initials>?</div>
+        <div class="user-info">
+          <div class="user-name" data-user-name>Loading…</div>
+          <div class="user-role" data-user-role></div>
+        </div>
+        <span class="user-chevron" data-dropdown-trigger="user-menu">▾</span>
+      </div>
+ 
+      <div class="dropdown-menu" id="user-menu">
+        <a class="dropdown-item" href="profile.html"><span>👤</span> My Profile</a>
+        <div class="dropdown-item"><span>⚙️</span> Settings</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
+      </div>
+    </div>
+  </aside>
+ 
+  <!-- ===== MAIN ===== -->
+  <div class="main-content">
+ 
+    <header class="topbar">
+      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span class="topbar-title">My Profile</span>
+      <div class="topbar-actions" style="margin-left:auto">
+        <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
+      </div>
+      <div class="dropdown-menu" id="topbar-user-menu">
+        <div class="dropdown-item"><span>👤</span> <span data-user-name>My Account</span></div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
+      </div>
+    </header>
+ 
+    <main class="page-content">
+ 
+      <div class="page-header">
+        <h1>My Profile</h1>
+        <p>Manage your account details and preferences</p>
+      </div>
+ 
+      <div class="profile-layout">
+ 
+        <!-- ===== LEFT: Profile card ===== -->
+        <div class="profile-card">
+          <div class="profile-avatar" id="profile-avatar-large">?</div>
+          <div class="profile-name" id="profile-name-display">—</div>
+          <div class="profile-email-display" id="profile-email-display">—</div>
+          <div class="profile-badge" id="profile-role-badge">Buyer</div>
+ 
+          <nav class="profile-nav">
+            <div class="profile-nav-item active">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="7" r="4"/><path d="M3 18c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke-linecap="round"/></svg>
+              Personal Details
+            </div>
+            <div class="profile-nav-item">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="9" width="14" height="9" rx="2"/><path d="M7 9V6a3 3 0 0 1 6 0v3" stroke-linecap="round"/></svg>
+              Password &amp; Security
+            </div>
+            <div class="profile-nav-item">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2l1.5 4.5H16l-3.6 2.6 1.4 4.4L10 11l-3.8 2.5 1.4-4.4L4 6.5h4.5z"/></svg>
+              Campus Info
+              <span class="soon-dot">Soon</span>
+            </div>
+            <div class="profile-nav-item">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2a5 5 0 0 1 5 5v1.5l1.5 2.5h-13L5 8.5V7a5 5 0 0 1 5-5z"/><path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"/></svg>
+              Notifications
+              <span class="soon-dot">Soon</span>
+            </div>
+            <div class="profile-nav-item">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7"/><path d="M10 7v3l2 2" stroke-linecap="round"/></svg>
+              Privacy
+              <span class="soon-dot">Soon</span>
+            </div>
+          </nav>
+        </div>
+ 
+        <!-- ===== RIGHT: Sections ===== -->
+        <div class="profile-sections">
+ 
+          <!-- Personal Details -->
+          <div class="section-card">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Personal Details</div>
+                <div class="section-subtitle">Update your name and email address</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="edit-fullname">Full name</label>
+                  <input class="form-input" id="edit-fullname" type="text" placeholder="Jane Smith" autocomplete="name" />
+                  <span class="form-error" id="name-error"></span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="edit-email">Email address</label>
+                  <input class="form-input" id="edit-email" type="email" placeholder="you@university.edu" autocomplete="email" />
+                  <span class="form-error" id="email-error"></span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Account type</label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                  <label class="account-type-option" id="opt-buyer" style="flex:1; min-width:180px;">
+                    <input type="radio" name="edit-account-type" value="buyer" />
+                    <div class="account-type-radio"></div>
+                    <div class="account-type-info">
+                      <strong>Buyer Only</strong>
+                      <span>Browse and purchase items</span>
+                    </div>
+                  </label>
+                  <label class="account-type-option" id="opt-seller-buyer" style="flex:1; min-width:180px;">
+                    <input type="radio" name="edit-account-type" value="seller_buyer" />
+                    <div class="account-type-radio"></div>
+                    <div class="account-type-info">
+                      <strong>Seller / Buyer</strong>
+                      <span>List items and buy from others</span>
+                    </div>
+                  </label>
+                </div>
+                <span class="form-error" id="type-error"></span>
+              </div>
+              <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-primary" id="save-details-btn">Save changes</button>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- Password & Security -->
+          <div class="section-card">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Password &amp; Security</div>
+                <div class="section-subtitle">Change your password</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="form-group">
+                <label class="form-label" for="current-password">Current password</label>
+                <div class="input-wrapper">
+                  <input class="form-input" id="current-password" type="password" placeholder="Enter current password" autocomplete="current-password" />
+                  <button type="button" class="input-toggle" data-toggle="current-password">👁</button>
+                </div>
+                <span class="form-error" id="current-pw-error"></span>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="new-password">New password</label>
+                  <div class="input-wrapper">
+                    <input class="form-input" id="new-password" type="password" placeholder="At least 8 characters" autocomplete="new-password" />
+                    <button type="button" class="input-toggle" data-toggle="new-password">👁</button>
+                  </div>
+                  <span class="form-error" id="new-pw-error"></span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="confirm-new-password">Confirm new password</label>
+                  <div class="input-wrapper">
+                    <input class="form-input" id="confirm-new-password" type="password" placeholder="Re-enter new password" autocomplete="new-password" />
+                    <button type="button" class="input-toggle" data-toggle="confirm-new-password">👁</button>
+                  </div>
+                  <span class="form-error" id="confirm-pw-error"></span>
+                </div>
+              </div>
+              <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-primary" id="save-password-btn">Update password</button>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- Campus Info (coming soon) -->
+          <div class="section-card section-soon">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Campus Info</div>
+                <div class="section-subtitle">Your university and campus details</div>
+              </div>
+              <span class="soon-pill">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="section-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">University</label>
+                  <input class="form-input" type="text" placeholder="e.g. University of Cape Town" disabled />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Campus</label>
+                  <input class="form-input" type="text" placeholder="e.g. Upper Campus" disabled />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Student number</label>
+                <input class="form-input" type="text" placeholder="e.g. SMTJSH001" disabled />
+              </div>
+              <div style="display:flex; justify-content:flex-end;">
+                <button class="btn btn-primary" disabled>Save changes</button>
+              </div>
+            </div>
+            <div class="soon-banner">
+              <span class="soon-pill">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                Coming soon
+              </span>
+              <span class="soon-note">Available when Supabase is connected</span>
+            </div>
+          </div>
+ 
+          <!-- Notifications (coming soon) -->
+          <div class="section-card section-soon">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Notifications</div>
+                <div class="section-subtitle">Choose what updates you receive</div>
+              </div>
+              <span class="soon-pill">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="section-body">
+              <div style="display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="font-size:.875rem; font-weight:600; color:var(--ink);">New messages</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Get notified when someone messages you</div>
+                  </div>
+                  <div style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="font-size:.875rem; font-weight:600; color:var(--ink);">Price drops</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Saved items drop in price</div>
+                  </div>
+                  <div style="width:42px; height:24px; background:var(--border); border-radius:999px;"></div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="font-size:.875rem; font-weight:600; color:var(--ink);">Listing views</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Someone views your listing</div>
+                  </div>
+                  <div style="width:42px; height:24px; background:var(--border); border-radius:999px;"></div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="font-size:.875rem; font-weight:600; color:var(--ink);">UniMart updates</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Platform news and feature releases</div>
+                  </div>
+                  <div style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="soon-banner">
+              <span class="soon-pill">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                Coming soon
+              </span>
+              <span class="soon-note">Available when Supabase is connected</span>
+            </div>
+          </div>
+ 
+          <!-- Privacy (coming soon) -->
+          <div class="section-card section-soon">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Privacy &amp; Safety</div>
+                <div class="section-subtitle">Control who can see your information</div>
+              </div>
+              <span class="soon-pill">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                Coming soon
+              </span>
+            </div>
+            <div class="section-body">
+              <div style="display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="font-size:.875rem; font-weight:600; color:var(--ink);">Show profile to all students</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Anyone on your campus can view your profile</div>
+                  </div>
+                  <div style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="font-size:.875rem; font-weight:600; color:var(--ink);">Show email to buyers</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Buyers can see your email on listings</div>
+                  </div>
+                  <div style="width:42px; height:24px; background:var(--border); border-radius:999px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="soon-banner">
+              <span class="soon-pill">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                Coming soon
+              </span>
+              <span class="soon-note">Available when Supabase is connected</span>
+            </div>
+          </div>
+ 
+          <!-- Danger Zone -->
+          <div class="section-card danger-card">
+            <div class="section-header">
+              <div>
+                <div class="section-title">Danger Zone</div>
+                <div class="section-subtitle">Irreversible actions — proceed with caution</div>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="danger-action">
+                <div class="danger-action-info">
+                  <strong>Sign out of all devices</strong>
+                  <span>Ends all active sessions for your account</span>
+                </div>
+                <button class="btn-danger" data-action="signout">Sign out everywhere</button>
+              </div>
+              <div style="height:1px; background:var(--border);"></div>
+              <div class="danger-action">
+                <div class="danger-action-info">
+                  <strong>Delete account</strong>
+                  <span>Permanently remove your account and all data — coming soon</span>
+                </div>
+                <button class="btn-danger" disabled style="opacity:.4; cursor:not-allowed;">Delete account</button>
+              </div>
+            </div>
+          </div>
+ 
+        </div><!-- /profile-sections -->
+      </div><!-- /profile-layout -->
+ 
+    </main>
+  </div>
+</div>
+ 
+<div class="toast-container" id="toast-container"></div>
+ 
+<script src="auth.js"></script>
+<script src="app.js"></script>
+<script>
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar-toggle').style.display = 'flex';
+  }
+ 
+  const user = initPage();
+  if (!user) throw new Error('Not authenticated');
+ 
+  /* ---- Populate profile card ---- */
+  document.getElementById('profile-avatar-large').textContent = Auth.getUserInitials(user.fullName);
+  document.getElementById('profile-name-display').textContent = user.fullName;
+  document.getElementById('profile-email-display').textContent = user.email;
+  document.getElementById('profile-role-badge').textContent =
+    user.accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+ 
+  /* ---- Pre-fill personal details form ---- */
+  document.getElementById('edit-fullname').value = user.fullName;
+  document.getElementById('edit-email').value = user.email;
+ 
+  const typeRadios = document.querySelectorAll('input[name="edit-account-type"]');
+  typeRadios.forEach(r => {
+    r.checked = r.value === user.accountType;
+    r.closest('.account-type-option').classList.toggle('selected', r.checked);
+  });
+ 
+  /* ---- Account type selection ---- */
+  document.querySelectorAll('.account-type-option').forEach(opt => {
+    opt.addEventListener('click', function () {
+      document.querySelectorAll('.account-type-option').forEach(o => o.classList.remove('selected'));
+      this.classList.add('selected');
+      this.querySelector('input[type="radio"]').checked = true;
+    });
+  });
+ 
+  /* ---- Password toggles ---- */
+  document.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const inp = document.getElementById(this.dataset.toggle);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      this.textContent = inp.type === 'password' ? '👁' : '🙈';
+    });
+  });
+ 
+  /* ---- Save personal details ---- */
+  document.getElementById('save-details-btn').addEventListener('click', function () {
+    clearErrors();
+    const fullName    = document.getElementById('edit-fullname').value.trim();
+    const email       = document.getElementById('edit-email').value.trim();
+    const accountType = document.querySelector('input[name="edit-account-type"]:checked')?.value;
+    let valid = true;
+ 
+    if (!fullName) { showError('name-error', 'Name is required.'); valid = false; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('email-error', 'Enter a valid email.'); valid = false; }
+    if (!accountType) { showError('type-error', 'Select an account type.'); valid = false; }
+    if (!valid) return;
+ 
+    // Update localStorage (placeholder until Supabase)
+    const users = JSON.parse(localStorage.getItem('unimart_users') || '[]');
+    const idx   = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      users[idx].fullName    = fullName;
+      users[idx].email       = email.toLowerCase();
+      users[idx].accountType = accountType;
+      localStorage.setItem('unimart_users', JSON.stringify(users));
+      // Refresh session
+      localStorage.setItem('unimart_session', JSON.stringify(users[idx]));
+    }
+ 
+    document.getElementById('profile-name-display').textContent = fullName;
+    document.getElementById('profile-email-display').textContent = email;
+    document.getElementById('profile-role-badge').textContent =
+      accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+    document.getElementById('profile-avatar-large').textContent = Auth.getUserInitials(fullName);
+ 
+    showToast('Profile updated successfully', 'success');
+  });
+ 
+  /* ---- Save password ---- */
+  document.getElementById('save-password-btn').addEventListener('click', function () {
+    clearErrors();
+    const current  = document.getElementById('current-password').value;
+    const newPw    = document.getElementById('new-password').value;
+    const confirm  = document.getElementById('confirm-new-password').value;
+    let valid = true;
+ 
+    if (!current) { showError('current-pw-error', 'Enter your current password.'); valid = false; }
+    if (!newPw || newPw.length < 8) { showError('new-pw-error', 'New password must be at least 8 characters.'); valid = false; }
+    if (newPw !== confirm) { showError('confirm-pw-error', 'Passwords do not match.'); valid = false; }
+    if (!valid) return;
+ 
+    // Verify current password (placeholder until Supabase)
+    const hash = pw => { let h = 0; for (let i = 0; i < pw.length; i++) { h = ((h << 5) - h) + pw.charCodeAt(i); h |= 0; } return 'h_' + Math.abs(h).toString(36); };
+    const users = JSON.parse(localStorage.getItem('unimart_users') || '[]');
+    const idx   = users.findIndex(u => u.id === user.id);
+ 
+    if (idx === -1 || users[idx].passwordHash !== hash(current)) {
+      showError('current-pw-error', 'Incorrect current password.');
+      return;
+    }
+ 
+    users[idx].passwordHash = hash(newPw);
+    localStorage.setItem('unimart_users', JSON.stringify(users));
+ 
+    document.getElementById('current-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-new-password').value = '';
+ 
+    showToast('Password updated successfully', 'success');
+  });
+ 
+  /* ---- Helpers ---- */
+  function clearErrors() {
+    document.querySelectorAll('.form-error').forEach(el => {
+      el.textContent = '';
+      el.classList.remove('visible');
+    });
+  }
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.classList.add('visible'); }
+  }
+</script>
+</body>
+</html>
