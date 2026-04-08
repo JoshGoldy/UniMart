@@ -156,6 +156,7 @@
 <!-- Toast container -->
 <div class="toast-container" id="toast-container"></div>
  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
 <script src="app.js"></script>
 <script>
@@ -173,15 +174,14 @@
   });
  
   // Init authenticated page
-  const user = initPage();
-  if (user) {
-    // Placeholder: show welcome toast on first visit
+  initPage().then(user => {
+    if (!user) return;
     const welcomed = sessionStorage.getItem('unimart_welcomed');
     if (!welcomed) {
       sessionStorage.setItem('unimart_welcomed', '1');
       showToast(`Welcome back, ${user.fullName.split(' ')[0]}!`, 'success');
     }
-  }
+  })
 </script>
 </body>
 </html>
