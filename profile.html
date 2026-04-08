@@ -628,33 +628,38 @@
  
 <div class="toast-container" id="toast-container"></div>
  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
 <script src="app.js"></script>
 <script>
   if (window.innerWidth <= 768) {
     document.getElementById('sidebar-toggle').style.display = 'flex';
   }
- 
-  const user = initPage();
-  if (!user) throw new Error('Not authenticated');
- 
-  /* ---- Populate profile card ---- */
-  document.getElementById('profile-avatar-large').textContent = Auth.getUserInitials(user.fullName);
-  document.getElementById('profile-name-display').textContent = user.fullName;
-  document.getElementById('profile-email-display').textContent = user.email;
-  document.getElementById('profile-role-badge').textContent =
-    user.accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
- 
-  /* ---- Pre-fill personal details form ---- */
-  document.getElementById('edit-fullname').value = user.fullName;
-  document.getElementById('edit-email').value = user.email;
- 
-  const typeRadios = document.querySelectorAll('input[name="edit-account-type"]');
-  typeRadios.forEach(r => {
-    r.checked = r.value === user.accountType;
-    r.closest('.account-type-option').classList.toggle('selected', r.checked);
+
+  let currentUser = null;
+
+  initPage().then(user => {
+    if (!user) return;
+    currentUser = user;
+
+    /* ---- Populate profile card ---- */
+    document.getElementById('profile-avatar-large').textContent = Auth.getUserInitials(user.fullName);
+    document.getElementById('profile-name-display').textContent = user.fullName;
+    document.getElementById('profile-email-display').textContent = user.email;
+    document.getElementById('profile-role-badge').textContent =
+      user.accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+
+    /* ---- Pre-fill personal details form ---- */
+    document.getElementById('edit-fullname').value = user.fullName;
+    document.getElementById('edit-email').value = user.email;
+
+    const typeRadios = document.querySelectorAll('input[name="edit-account-type"]');
+    typeRadios.forEach(r => {
+      r.checked = r.value === user.accountType;
+      r.closest('.account-type-option').classList.toggle('selected', r.checked);
+    });
   });
- 
+
   /* ---- Account type selection ---- */
   document.querySelectorAll('.account-type-option').forEach(opt => {
     opt.addEventListener('click', function () {
@@ -663,7 +668,7 @@
       this.querySelector('input[type="radio"]').checked = true;
     });
   });
- 
+
   /* ---- Password toggles ---- */
   document.querySelectorAll('[data-toggle]').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -672,74 +677,73 @@
       this.textContent = inp.type === 'password' ? '👁' : '🙈';
     });
   });
- 
+
   /* ---- Save personal details ---- */
-  document.getElementById('save-details-btn').addEventListener('click', function () {
+  document.getElementById('save-details-btn').addEventListener('click', async function () {
+    if (!currentUser) return;
     clearErrors();
     const fullName    = document.getElementById('edit-fullname').value.trim();
     const email       = document.getElementById('edit-email').value.trim();
     const accountType = document.querySelector('input[name="edit-account-type"]:checked')?.value;
     let valid = true;
- 
+
     if (!fullName) { showError('name-error', 'Name is required.'); valid = false; }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('email-error', 'Enter a valid email.'); valid = false; }
     if (!accountType) { showError('type-error', 'Select an account type.'); valid = false; }
     if (!valid) return;
- 
-    // Update localStorage (placeholder until Supabase)
-    const users = JSON.parse(localStorage.getItem('unimart_users') || '[]');
-    const idx   = users.findIndex(u => u.id === user.id);
-    if (idx !== -1) {
-      users[idx].fullName    = fullName;
-      users[idx].email       = email.toLowerCase();
-      users[idx].accountType = accountType;
-      localStorage.setItem('unimart_users', JSON.stringify(users));
-      // Refresh session
-      localStorage.setItem('unimart_session', JSON.stringify(users[idx]));
-    }
- 
+
+    this.textContent = 'Saving…';
+    this.disabled = true;
+
+    const result = await Auth.updateProfile({ id: currentUser.id, fullName, email, accountType });
+
+    this.textContent = 'Save changes';
+    this.disabled = false;
+
+    if (result.error) { showToast(result.error, 'error'); return; }
+
+    currentUser = { ...currentUser, fullName, email, accountType };
+
     document.getElementById('profile-name-display').textContent = fullName;
     document.getElementById('profile-email-display').textContent = email;
     document.getElementById('profile-role-badge').textContent =
       accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
     document.getElementById('profile-avatar-large').textContent = Auth.getUserInitials(fullName);
- 
+
     showToast('Profile updated successfully', 'success');
   });
- 
+
   /* ---- Save password ---- */
-  document.getElementById('save-password-btn').addEventListener('click', function () {
+  document.getElementById('save-password-btn').addEventListener('click', async function () {
+    if (!currentUser) return;
     clearErrors();
-    const current  = document.getElementById('current-password').value;
-    const newPw    = document.getElementById('new-password').value;
-    const confirm  = document.getElementById('confirm-new-password').value;
+    const current = document.getElementById('current-password').value;
+    const newPw   = document.getElementById('new-password').value;
+    const confirm = document.getElementById('confirm-new-password').value;
     let valid = true;
- 
+
     if (!current) { showError('current-pw-error', 'Enter your current password.'); valid = false; }
     if (!newPw || newPw.length < 8) { showError('new-pw-error', 'New password must be at least 8 characters.'); valid = false; }
     if (newPw !== confirm) { showError('confirm-pw-error', 'Passwords do not match.'); valid = false; }
     if (!valid) return;
- 
-    // Verify current password (placeholder until Supabase)
-    const hash = pw => { let h = 0; for (let i = 0; i < pw.length; i++) { h = ((h << 5) - h) + pw.charCodeAt(i); h |= 0; } return 'h_' + Math.abs(h).toString(36); };
-    const users = JSON.parse(localStorage.getItem('unimart_users') || '[]');
-    const idx   = users.findIndex(u => u.id === user.id);
- 
-    if (idx === -1 || users[idx].passwordHash !== hash(current)) {
-      showError('current-pw-error', 'Incorrect current password.');
-      return;
-    }
- 
-    users[idx].passwordHash = hash(newPw);
-    localStorage.setItem('unimart_users', JSON.stringify(users));
- 
+
+    this.textContent = 'Updating…';
+    this.disabled = true;
+
+    const result = await Auth.updatePassword({ currentPassword: current, newPassword: newPw, email: currentUser.email });
+
+    this.textContent = 'Update password';
+    this.disabled = false;
+
+    if (result.error) { showError('current-pw-error', result.error); return; }
+
     document.getElementById('current-password').value = '';
     document.getElementById('new-password').value = '';
     document.getElementById('confirm-new-password').value = '';
- 
+
     showToast('Password updated successfully', 'success');
   });
- 
+
   /* ---- Helpers ---- */
   function clearErrors() {
     document.querySelectorAll('.form-error').forEach(el => {
