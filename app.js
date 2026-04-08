@@ -74,8 +74,8 @@ function initMobileSidebar() {
 }
  
 /* ---- Initialise authenticated page ---- */
-function initPage() {
-  const user = Auth.requireAuth();
+async function initPage() {
+  const user = await Auth.requireAuth();
   if (!user) return;
  
   populateUserShell(user);
