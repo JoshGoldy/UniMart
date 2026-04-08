@@ -109,12 +109,14 @@
         <div class="verify-icon">✉️</div>
         <h2 style="margin-bottom:8px;">Verify your email</h2>
         <p style="max-width:300px; margin-bottom:24px;">
-          We've sent a 6-digit code to<br/>
+          We've sent an 8-digit code to<br/>
           <strong id="verify-email-display" style="color:var(--ink)"></strong>
         </p>
 
         <form class="auth-form" id="verify-form" novalidate style="width:100%">
           <div class="otp-input-group">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
@@ -245,9 +247,9 @@
       });
       input.addEventListener('paste', function (e) {
         e.preventDefault();
-        const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+        const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8);
         text.split('').forEach((ch, j) => { if (otpInputs[j]) otpInputs[j].value = ch; });
-        const next = otpInputs[Math.min(text.length, 5)];
+        const next = otpInputs[Math.min(text.length, 7)];
         if (next) next.focus();
       });
     });
@@ -256,7 +258,7 @@
     document.getElementById('verify-form').addEventListener('submit', async function (e) {
       e.preventDefault();
       const code = Array.from(otpInputs).map(i => i.value).join('');
-      if (code.length < 6) { showError('otp-error', 'Please enter all 6 digits.'); return; }
+      if (code.length < 8) { showError('otp-error', 'Please enter all 8 digits.'); return; }
 
       const btn = document.getElementById('verify-btn');
       btn.textContent = 'Verifying…';
