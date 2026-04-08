@@ -315,6 +315,10 @@ p {
   left: 0;
   height: 100vh;
   z-index: 100;
+  overflow: visible;
+}
+
+.sidebar-nav {
   overflow-y: auto;
 }
 
@@ -394,6 +398,7 @@ p {
 .sidebar-footer {
   padding: 12px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .sidebar-user {
@@ -404,10 +409,19 @@ p {
   border-radius: var(--radius);
   cursor: pointer;
   transition: 0.2s ease;
+  position: relative;
 }
 
 .sidebar-user:hover {
   background: var(--sand);
+}
+
+.sidebar-user .dropdown-menu {
+  bottom: calc(100% + 6px);
+  top: auto;
+  left: 0;
+  right: auto;
+  min-width: 200px;
 }
 
 .user-avatar,
