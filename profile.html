@@ -286,19 +286,20 @@
     </nav>
  
     <div class="sidebar-footer">
-      <div class="sidebar-user dropdown" data-dropdown-trigger="user-menu">
+      <div class="sidebar-user dropdown">
         <div class="user-avatar" data-user-initials>?</div>
         <div class="user-info">
           <div class="user-name" data-user-name>Loading…</div>
           <div class="user-role" data-user-role></div>
         </div>
-        <span class="user-chevron">▾</span>
-        <div class="dropdown-menu" id="user-menu">
-          <a class="dropdown-item" href="profile.html"><span>👤</span> My Profile</a>
-          <div class="dropdown-item"><span>⚙️</span> Settings</div>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
-        </div>
+        <span class="user-chevron" data-dropdown-trigger="user-menu">▾</span>
+      </div>
+ 
+      <div class="dropdown-menu" id="user-menu">
+        <a class="dropdown-item" href="profile.html"><span>👤</span> My Profile</a>
+        <div class="dropdown-item"><span>⚙️</span> Settings</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout"><span>↩</span> Sign out</div>
       </div>
     </div>
   </aside>
@@ -470,7 +471,8 @@
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label" for="edit-university">University</label>
-                  <input class="form-input" id="edit-university" type="text" placeholder="e.g. University of Cape Town" autocomplete="organization" />
+                  <input class="form-input" id="edit-university" type="text" placeholder="e.g. University of Cape Town" />
+                  <span class="form-error" id="university-error"></span>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="edit-campus">Campus</label>
@@ -480,7 +482,6 @@
               <div class="form-group">
                 <label class="form-label" for="edit-student-number">Student number</label>
                 <input class="form-input" id="edit-student-number" type="text" placeholder="e.g. SMTJSH001" />
-                <span class="form-error" id="campus-error"></span>
               </div>
               <div style="display:flex; justify-content:flex-end;">
                 <button class="btn btn-primary" id="save-campus-btn">Save changes</button>
@@ -641,40 +642,15 @@
     document.getElementById('edit-fullname').value = user.fullName;
     document.getElementById('edit-email').value = user.email;
  
+    /* ---- Pre-fill campus fields ---- */
+    document.getElementById('edit-university').value = user.university || '';
+    document.getElementById('edit-campus').value = user.campus || '';
+    document.getElementById('edit-student-number').value = user.studentNumber || '';
+ 
     const typeRadios = document.querySelectorAll('input[name="edit-account-type"]');
     typeRadios.forEach(r => {
       r.checked = r.value === user.accountType;
       r.closest('.account-type-option').classList.toggle('selected', r.checked);
-    });
- 
-    /* ---- Pre-fill campus form ---- */
-    document.getElementById('edit-university').value = user.university || '';
-    document.getElementById('edit-campus').value = user.uniCampus || '';
-    document.getElementById('edit-student-number').value = user.studentNumber || '';
-  });
- 
-  /* ---- Scroll-spy: update profile nav based on visible section ---- */
-  const profileNavItems = document.querySelectorAll('.profile-nav-item[data-section]');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        profileNavItems.forEach(item => {
-          item.classList.toggle('active', item.dataset.section === entry.target.id);
-        });
-      }
-    });
-  }, { threshold: 0.25, rootMargin: '-10% 0px -65% 0px' });
- 
-  ['section-personal', 'section-password', 'section-campus', 'section-notifications', 'section-privacy'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) observer.observe(el);
-  });
- 
-  /* ---- Click nav to scroll to section ---- */
-  profileNavItems.forEach(item => {
-    item.addEventListener('click', () => {
-      const target = document.getElementById(item.dataset.section);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
  
@@ -765,23 +741,22 @@
   /* ---- Save campus info ---- */
   document.getElementById('save-campus-btn').addEventListener('click', async function () {
     if (!currentUser) return;
-    clearErrors();
     const university    = document.getElementById('edit-university').value.trim();
-    const uniCampus     = document.getElementById('edit-campus').value.trim();
+    const campus        = document.getElementById('edit-campus').value.trim();
     const studentNumber = document.getElementById('edit-student-number').value.trim();
  
     this.textContent = 'Saving…';
     this.disabled = true;
  
-    const result = await Auth.updateCampusInfo({ id: currentUser.id, university, uniCampus, studentNumber });
+    const result = await Auth.updateCampusInfo({ id: currentUser.id, university, campus, studentNumber });
  
     this.textContent = 'Save changes';
     this.disabled = false;
  
     if (result.error) { showToast(result.error, 'error'); return; }
  
-    currentUser = { ...currentUser, university, uniCampus, studentNumber };
-    showToast('Campus info updated', 'success');
+    currentUser = { ...currentUser, university, campus, studentNumber };
+    showToast('Campus info updated successfully', 'success');
   });
  
   /* ---- Helpers ---- */
@@ -795,6 +770,31 @@
     const el = document.getElementById(id);
     if (el) { el.textContent = msg; el.classList.add('visible'); }
   }
+ 
+  /* ---- Profile nav: click to scroll + scroll-spy ---- */
+  const profileNavItems = document.querySelectorAll('.profile-nav-item[data-section]');
+  const profileSections = Array.from(profileNavItems)
+    .map(item => document.getElementById(item.dataset.section))
+    .filter(Boolean);
+ 
+  profileNavItems.forEach(item => {
+    item.addEventListener('click', function () {
+      const target = document.getElementById(this.dataset.section);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+ 
+  const sectionObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        profileNavItems.forEach(item => {
+          item.classList.toggle('active', item.dataset.section === entry.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-10% 0px -75% 0px' });
+ 
+  profileSections.forEach(s => sectionObserver.observe(s));
 </script>
 </body>
 </html>
