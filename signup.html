@@ -91,20 +91,18 @@
           <span class="form-error" id="type-error"></span>
         </div>
  
-        <div style="height:1px; background:var(--border); margin:4px 0;"></div>
- 
         <div class="form-group">
-          <label class="form-label" for="signup-university">University <span style="font-weight:400; color:var(--muted);">(optional)</span></label>
-          <input class="form-input" id="signup-university" type="text" placeholder="e.g. University of Cape Town" autocomplete="organization" />
+          <label class="form-label">University <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
+          <input class="form-input" id="signup-university" type="text" placeholder="e.g. University of Cape Town" />
         </div>
  
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div class="form-group">
-            <label class="form-label" for="signup-campus">Campus <span style="font-weight:400; color:var(--muted);">(optional)</span></label>
+            <label class="form-label">Campus <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
             <input class="form-input" id="signup-campus" type="text" placeholder="e.g. Upper Campus" />
           </div>
           <div class="form-group">
-            <label class="form-label" for="signup-student-number">Student number <span style="font-weight:400; color:var(--muted);">(optional)</span></label>
+            <label class="form-label">Student number <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
             <input class="form-input" id="signup-student-number" type="text" placeholder="e.g. SMTJSH001" />
           </div>
         </div>
@@ -220,13 +218,13 @@
       e.preventDefault();
       clearErrors();
  
-      const fullName      = document.getElementById('full-name').value.trim();
-      const email         = document.getElementById('signup-email').value.trim();
-      const password      = document.getElementById('signup-password').value;
-      const confirm       = document.getElementById('confirm-password').value;
+      const fullName    = document.getElementById('full-name').value.trim();
+      const email       = document.getElementById('signup-email').value.trim();
+      const password    = document.getElementById('signup-password').value;
+      const confirm     = document.getElementById('confirm-password').value;
       const accountType   = document.querySelector('input[name="account-type"]:checked')?.value;
       const university    = document.getElementById('signup-university').value.trim();
-      const uniCampus     = document.getElementById('signup-campus').value.trim();
+      const campus        = document.getElementById('signup-campus').value.trim();
       const studentNumber = document.getElementById('signup-student-number').value.trim();
       let valid = true;
  
@@ -243,7 +241,7 @@
       btn.textContent = 'Creating account…';
       btn.disabled = true;
  
-      const result = await Auth.signUp({ fullName, email, password, accountType, university, uniCampus, studentNumber });
+      const result = await Auth.signUp({ fullName, email, password, accountType, university, campus, studentNumber });
  
       btn.textContent = 'Create account';
       btn.disabled = false;
