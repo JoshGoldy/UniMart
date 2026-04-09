@@ -10,18 +10,12 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const Auth = (() => {
  
   /* ---------- sign-up ---------- */
-  async function signUp({ fullName, email, password, accountType, university, uniCampus, studentNumber }) {
+  async function signUp({ fullName, email, password, accountType, university, campus, studentNumber }) {
     const { error } = await _sb.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          full_name: fullName,
-          account_type: accountType,
-          university: university || null,
-          uni_campus: uniCampus || null,
-          student_number: studentNumber || null,
-        }
+        data: { full_name: fullName, account_type: accountType, university: university || null, campus: campus || null, student_number: studentNumber || null }
       }
     });
     if (error) return { error: error.message };
@@ -47,7 +41,7 @@ const Auth = (() => {
         email: data.user.email,
         account_type: meta.account_type || 'buyer',
         university: meta.university || null,
-        uni_campus: meta.uni_campus || null,
+        uni_campus: meta.campus || null,
         student_number: meta.student_number || null,
       });
     }
@@ -76,7 +70,7 @@ const Auth = (() => {
     return _getProfile(session.user);
   }
  
-  /* ---------- profile update (personal details) ---------- */
+  /* ---------- profile update ---------- */
   async function updateProfile({ id, fullName, email, accountType }) {
     const [{ error: dbErr }, { error: authErr }] = await Promise.all([
       _sb.from('users').update({
@@ -91,10 +85,10 @@ const Auth = (() => {
   }
  
   /* ---------- campus info update ---------- */
-  async function updateCampusInfo({ id, university, uniCampus, studentNumber }) {
+  async function updateCampusInfo({ id, university, campus, studentNumber }) {
     const { error } = await _sb.from('users').update({
       university: university || null,
-      uni_campus: uniCampus || null,
+      uni_campus: campus || null,
       student_number: studentNumber || null,
     }).eq('id', id);
     if (error) return { error: error.message };
@@ -120,7 +114,7 @@ const Auth = (() => {
         email: data.email || authUser.email,
         accountType: data.account_type || 'buyer',
         university: data.university || '',
-        uniCampus: data.uni_campus || '',
+        campus: data.uni_campus || '',
         studentNumber: data.student_number || '',
       };
     }
@@ -131,7 +125,7 @@ const Auth = (() => {
       email: authUser.email,
       accountType: meta.account_type || 'buyer',
       university: meta.university || '',
-      uniCampus: meta.uni_campus || '',
+      campus: meta.campus || '',
       studentNumber: meta.student_number || '',
     };
   }
@@ -145,7 +139,7 @@ const Auth = (() => {
       email: authUser.email,
       accountType: meta.account_type || 'buyer',
       university: meta.university || '',
-      uniCampus: meta.uni_campus || '',
+      campus: meta.campus || '',
       studentNumber: meta.student_number || '',
     };
   }
