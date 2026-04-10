@@ -239,6 +239,34 @@ p {
   margin-bottom: 4px;
 }
 
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.auth-form-link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
+.auth-form-link-row a {
+  font-size: 0.83rem;
+  color: var(--sage);
+  font-weight: 600;
+}
+
+.auth-form-submit {
+  margin-top: 4px;
+}
+
 .auth-footer {
   text-align: center;
   margin-top: 20px;
@@ -754,6 +782,11 @@ p {
 @media (max-width: 600px) {
   .auth-card {
     padding: 24px 18px;
+  }
+
+  .auth-form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .otp-input {
