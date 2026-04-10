@@ -40,7 +40,7 @@
           <label class="form-label" for="login-password">Password</label>
           <div class="input-wrapper">
             <input class="form-input" id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
-            <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility">👁</button>
+            <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility"></button>
           </div>
           <span class="form-error" id="password-error"></span>
         </div>
@@ -70,10 +70,18 @@
     Auth.getUser().then(user => { if (user) window.location.href = 'search.html'; });
 
     /* ---- Password toggle ---- */
-    document.getElementById('pw-toggle').addEventListener('click', function () {
+    const passwordToggleIcons = {
+      hidden: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 10s2.75-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.75 4.5-7.5 4.5S2.5 10 2.5 10Z"/><circle cx="10" cy="10" r="2.25"/></svg></span>',
+      visible: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l14 14" stroke-linecap="round"/><path d="M8.7 5.8A8.5 8.5 0 0 1 10 5.5c4.75 0 7.5 4.5 7.5 4.5a14.4 14.4 0 0 1-2.55 2.9"/><path d="M11.8 11.9A2.25 2.25 0 0 1 8.1 8.2"/><path d="M6.1 6.2C4 7.4 2.5 10 2.5 10s2.75 4.5 7.5 4.5c1.1 0 2.08-.24 2.95-.62" stroke-linecap="round"/></svg></span>'
+    };
+
+    const pwToggle = document.getElementById('pw-toggle');
+    pwToggle.innerHTML = passwordToggleIcons.hidden;
+
+    pwToggle.addEventListener('click', function () {
       const inp = document.getElementById('login-password');
       inp.type  = inp.type === 'password' ? 'text' : 'password';
-      this.textContent = inp.type === 'password' ? '👁' : '🙈';
+      this.innerHTML = inp.type === 'password' ? passwordToggleIcons.hidden : passwordToggleIcons.visible;
     });
 
     /* ---- Login form ---- */
