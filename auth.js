@@ -181,6 +181,32 @@ const Auth = (() => {
       })),
     };
   }
+
+  async function getMarketplaceListings() {
+    const { data, error } = await _sb
+      .from('listings')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (error) return { error: error.message };
+
+    return {
+      success: true,
+      listings: (data || []).map(listing => ({
+        id: listing.listing_id,
+        sellerId: listing.seller_id,
+        title: listing.title || 'Untitled listing',
+        description: listing.description || '',
+        price: Number(listing.price) || 0,
+        category: listing.category || 'Other',
+        condition: listing.condition || 'Not specified',
+        isTradeable: Boolean(listing.is_tradeable),
+        status: listing.status || 'active',
+        createdAt: listing.created_at,
+      })),
+    };
+  }
  
   /* ---------- helpers ---------- */
   async function _getProfile(authUser) {
@@ -227,5 +253,5 @@ const Auth = (() => {
     return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings };
 })();
