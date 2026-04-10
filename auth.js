@@ -103,6 +103,84 @@ const Auth = (() => {
     if (updateErr) return { error: updateErr.message };
     return { success: true };
   }
+
+  /* ---------- dashboard analytics ---------- */
+  async function getListingDashboard(userId) {
+    const { data, error } = await _sb
+      .from('listings')
+      .select('listing_id, title, price, category, status, created_at')
+      .eq('seller_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) return { error: error.message };
+
+    const listings = data || [];
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const totals = listings.reduce((acc, listing) => {
+      const price = Number(listing.price) || 0;
+      const status = (listing.status || '').toLowerCase();
+      const createdAt = listing.created_at ? new Date(listing.created_at) : null;
+
+      if (status === 'active') {
+        acc.activeListings += 1;
+        acc.activeValue += price;
+      }
+      if (status === 'sold') acc.soldListings += 1;
+      if (createdAt && createdAt >= monthStart) acc.thisMonth += 1;
+
+      return acc;
+    }, {
+      activeListings: 0,
+      soldListings: 0,
+      activeValue: 0,
+      thisMonth: 0,
+    });
+
+    const categoryMap = listings.reduce((acc, listing) => {
+      const key = listing.category || 'Uncategorized';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const categories = Object.entries(categoryMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, value]) => ({ label, value }));
+
+    const monthlyMap = {};
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      monthlyMap[key] = {
+        label: date.toLocaleString('en-US', { month: 'short' }),
+        value: 0,
+      };
+    }
+
+    listings.forEach(listing => {
+      if (!listing.created_at) return;
+      const date = new Date(listing.created_at);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (monthlyMap[key]) monthlyMap[key].value += 1;
+    });
+
+    return {
+      success: true,
+      metrics: totals,
+      categories,
+      monthly: Object.values(monthlyMap),
+      recent: listings.slice(0, 5).map(listing => ({
+        id: listing.listing_id,
+        title: listing.title || 'Untitled listing',
+        category: listing.category || 'Uncategorized',
+        status: listing.status || 'active',
+        price: Number(listing.price) || 0,
+        createdAt: listing.created_at,
+      })),
+    };
+  }
  
   /* ---------- helpers ---------- */
   async function _getProfile(authUser) {
@@ -149,5 +227,5 @@ const Auth = (() => {
     return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard };
 })();
