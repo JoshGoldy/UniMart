@@ -48,7 +48,7 @@
           <label class="form-label" for="signup-password">Password</label>
           <div class="input-wrapper">
             <input class="form-input" id="signup-password" type="password" placeholder="At least 8 characters" autocomplete="new-password" required />
-            <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility">👁</button>
+            <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility"></button>
           </div>
           <div class="password-strength">
             <div class="password-strength-bar" id="pw-strength-bar"></div>
@@ -60,7 +60,7 @@
           <label class="form-label" for="confirm-password">Confirm password</label>
           <div class="input-wrapper">
             <input class="form-input" id="confirm-password" type="password" placeholder="Re-enter your password" autocomplete="new-password" required />
-            <button type="button" class="input-toggle" id="confirm-pw-toggle" aria-label="Toggle password visibility">👁</button>
+            <button type="button" class="input-toggle" id="confirm-pw-toggle" aria-label="Toggle password visibility"></button>
           </div>
           <span class="form-error" id="confirm-error"></span>
         </div>
@@ -121,8 +121,8 @@
  
     <!-- ===== STEP 2 — Email Verification ===== -->
     <div id="step-verify" class="auth-step">
-      <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
-        <div class="verify-icon">✉️</div>
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+        <div class="verify-icon"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="14" height="10" rx="2"/><path d="m4.5 6.5 5.5 4 5.5-4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
         <h2 style="margin-bottom:8px;">Verify your email</h2>
         <p style="max-width:300px; margin-bottom:24px;">
           We've sent an 8-digit code to<br/>
@@ -152,20 +152,20 @@
           Didn't get it? <a id="resend-btn" style="cursor:pointer;">Resend code</a>
         </div>
         <div style="margin-top:12px;">
-          <button type="button" class="btn btn-ghost btn-sm" id="back-btn">← Edit details</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="back-btn"><span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11.5 5 6.5 10l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Edit details</button>
         </div>
       </div>
     </div>
  
     <!-- ===== STEP 3 — Success ===== -->
     <div id="step-success" class="auth-step">
-      <div style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:20px 0;">
-        <div class="verify-icon" style="background:var(--mint); font-size:2rem;">🎉</div>
+        <div style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:20px 0;">
+        <div class="verify-icon" style="background:var(--mint);"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 14.5 8.5 8l5 5-6.5 1.5Z" stroke-linejoin="round"/><path d="m11.5 6.5 2-2M13.5 8.5h3M12.5 10.5l2 2" stroke-linecap="round"/></svg></span></div>
         <h2 style="margin-bottom:8px;">Account created!</h2>
         <p style="max-width:280px; margin-bottom:28px;">
           Welcome to UniMart. Your account has been verified and you're ready to go.
         </p>
-        <a href="search.html" class="btn btn-primary btn-lg">Go to marketplace →</a>
+        <a href="search.html" class="btn btn-primary btn-lg">Go to marketplace <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
       </div>
     </div>
  
@@ -189,11 +189,18 @@
     });
  
     /* ---- Password toggles ---- */
+    const passwordToggleIcons = {
+      hidden: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 10s2.75-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.75 4.5-7.5 4.5S2.5 10 2.5 10Z"/><circle cx="10" cy="10" r="2.25"/></svg></span>',
+      visible: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l14 14" stroke-linecap="round"/><path d="M8.7 5.8A8.5 8.5 0 0 1 10 5.5c4.75 0 7.5 4.5 7.5 4.5a14.4 14.4 0 0 1-2.55 2.9"/><path d="M11.8 11.9A2.25 2.25 0 0 1 8.1 8.2"/><path d="M6.1 6.2C4 7.4 2.5 10 2.5 10s2.75 4.5 7.5 4.5c1.1 0 2.08-.24 2.95-.62" stroke-linecap="round"/></svg></span>'
+    };
+
     function makeToggle(btnId, inputId) {
-      document.getElementById(btnId).addEventListener('click', function () {
+      const btn = document.getElementById(btnId);
+      btn.innerHTML = passwordToggleIcons.hidden;
+      btn.addEventListener('click', function () {
         const inp = document.getElementById(inputId);
         inp.type  = inp.type === 'password' ? 'text' : 'password';
-        this.textContent = inp.type === 'password' ? '👁' : '🙈';
+        this.innerHTML = inp.type === 'password' ? passwordToggleIcons.hidden : passwordToggleIcons.visible;
       });
     }
     makeToggle('pw-toggle', 'signup-password');
