@@ -3,34 +3,148 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Search Listings — UniMart</title>
+  <title>Search Listings - UniMart</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .market-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .results-meta {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .listing-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .listing-card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .listing-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .listing-card-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .listing-price {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--sage);
+      white-space: nowrap;
+    }
+
+    .listing-description {
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.55;
+      min-height: 42px;
+    }
+
+    .listing-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .listing-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--sand);
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+
+    .listing-tag.trade {
+      background: var(--mint);
+      color: var(--sage);
+    }
+
+    .listing-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 4px;
+      border-top: 1px solid var(--sand);
+    }
+
+    .listing-card-date {
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    .listing-card-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--sage);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    @media (max-width: 700px) {
+      .market-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .listing-card-header,
+      .listing-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
 </head>
 <body>
- 
-<!-- Sidebar overlay (mobile) -->
+
 <div class="overlay" id="sidebar-overlay"></div>
- 
+
 <div class="app-shell">
- 
-  <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-  <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
-</div>
- 
+      <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
+    </div>
+
     <nav class="sidebar-nav">
       <div class="sidebar-section-label">Main</div>
- 
+
       <a href="search.html" class="nav-item" data-page="search.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
         </svg>
         Search Listings
       </a>
- 
+
       <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
@@ -40,9 +154,9 @@
         </svg>
         Dashboard
       </a>
- 
+
       <div class="sidebar-section-label">Manage</div>
- 
+
       <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
@@ -50,14 +164,13 @@
         Listing Management
         <span class="nav-badge">Soon</span>
       </a>
- 
     </nav>
- 
+
     <div class="sidebar-footer">
       <div class="sidebar-user dropdown" data-dropdown-trigger="user-menu">
         <div class="user-avatar" data-user-initials>?</div>
         <div class="user-info">
-          <div class="user-name" data-user-name>Loading…</div>
+          <div class="user-name" data-user-name>Loading...</div>
           <div class="user-role" data-user-role></div>
         </div>
         <span class="user-chevron"><span class="ui-icon ui-icon-sm"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 7 5 6 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
@@ -69,29 +182,26 @@
       </div>
     </div>
   </aside>
- 
-  <!-- ===== MAIN CONTENT ===== -->
+
   <div class="main-content">
- 
-    <!-- Topbar -->
     <header class="topbar">
       <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
         </svg>
       </button>
- 
+
       <span class="topbar-title">Search Listings</span>
- 
+
       <div class="topbar-search">
         <span class="search-icon">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
           </svg>
         </span>
-        <input type="search" placeholder="Search for textbooks, electronics, furniture…" />
+        <input id="listing-search" type="search" placeholder="Search for textbooks, electronics, furniture..." />
       </div>
- 
+
       <div class="topbar-actions">
         <button class="topbar-icon-btn" title="Notifications">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -101,7 +211,7 @@
         </button>
         <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
       </div>
- 
+
       <div class="dropdown-menu" id="topbar-user-menu">
         <a class="dropdown-item" href="profile.html">
           <span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 16c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" stroke-linecap="round"/></svg></span> <span data-user-name>My Account</span>
@@ -112,70 +222,199 @@
         </div>
       </div>
     </header>
- 
-    <!-- Page body -->
+
     <main class="page-content">
- 
       <div class="page-header">
         <h1>Marketplace</h1>
         <p>Browse listings from students at your campus</p>
       </div>
- 
-      <!-- Filter bar -->
+
       <div class="filter-bar">
-        <button class="filter-chip active">All</button>
-        <button class="filter-chip">Textbooks</button>
-        <button class="filter-chip">Electronics</button>
-        <button class="filter-chip">Furniture</button>
-        <button class="filter-chip">Clothing</button>
-        <button class="filter-chip">Notes &amp; Study</button>
-        <button class="filter-chip">Other</button>
+        <button class="filter-chip active" data-category="all">All</button>
+        <button class="filter-chip" data-category="Textbooks">Textbooks</button>
+        <button class="filter-chip" data-category="Electronics">Electronics</button>
+        <button class="filter-chip" data-category="Furniture">Furniture</button>
+        <button class="filter-chip" data-category="Clothing">Clothing</button>
+        <button class="filter-chip" data-category="Notes &amp; Study">Notes &amp; Study</button>
+        <button class="filter-chip" data-category="Other">Other</button>
       </div>
- 
-      <!-- Empty state — listings will populate here -->
-      <div class="empty-state">
+
+      <div class="market-toolbar">
+        <div class="results-meta" id="results-meta">Loading listings...</div>
+      </div>
+
+      <div class="empty-state" id="listings-empty">
         <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8.5h12V16H4z"/><path d="M3 8.5 4.5 4h11L17 8.5" stroke-linejoin="round"/><path d="M8 16v-3.5h4V16" stroke-linecap="round"/></svg></span></div>
-        <h3>No listings yet</h3>
-        <p>Be the first to list something, or check back soon — your fellow students will be adding items shortly.</p>
+        <h3 id="empty-title">No listings yet</h3>
+        <p id="empty-copy">Be the first to list something, or check back soon - your fellow students will be adding items shortly.</p>
       </div>
- 
-      <!-- Listings grid (hidden until populated) -->
+
       <div class="listings-grid" id="listings-grid" style="display:none"></div>
- 
     </main>
   </div>
- 
 </div>
- 
-<!-- Toast container -->
+
 <div class="toast-container" id="toast-container"></div>
- 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
 <script src="app.js"></script>
 <script>
-  // Show mobile toggle on small screens
   if (window.innerWidth <= 768) {
     document.getElementById('sidebar-toggle').style.display = 'flex';
   }
- 
-  // Filter chips
+
+  const state = {
+    listings: [],
+    query: '',
+    category: 'all',
+  };
+
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', function () {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       this.classList.add('active');
+      state.category = this.dataset.category || 'all';
+      renderListings();
     });
   });
- 
-  // Init authenticated page
+
+  document.getElementById('listing-search').addEventListener('input', function () {
+    state.query = this.value.trim().toLowerCase();
+    renderListings();
+  });
+
   initPage().then(user => {
     if (!user) return;
+
     const welcomed = sessionStorage.getItem('unimart_welcomed');
     if (!welcomed) {
       sessionStorage.setItem('unimart_welcomed', '1');
       showToast(`Welcome back, ${user.fullName.split(' ')[0]}!`, 'success');
     }
-  })
+
+    loadListings();
+  });
+
+  async function loadListings() {
+    const result = await Auth.getMarketplaceListings();
+    if (result.error) {
+      document.getElementById('results-meta').textContent = 'Unable to load listings right now.';
+      document.getElementById('empty-title').textContent = 'Listings are unavailable';
+      document.getElementById('empty-copy').textContent = result.error;
+      document.getElementById('listings-empty').style.display = 'flex';
+      document.getElementById('listings-grid').style.display = 'none';
+      return;
+    }
+
+    state.listings = result.listings || [];
+    renderListings();
+  }
+
+  function renderListings() {
+    const filtered = state.listings.filter(listing => {
+      const matchesCategory = state.category === 'all' || listing.category === state.category;
+      const haystack = [
+        listing.title,
+        listing.description,
+        listing.category,
+        listing.condition,
+      ].join(' ').toLowerCase();
+      const matchesQuery = !state.query || haystack.includes(state.query);
+      return matchesCategory && matchesQuery;
+    });
+
+    const grid = document.getElementById('listings-grid');
+    const empty = document.getElementById('listings-empty');
+    const resultsMeta = document.getElementById('results-meta');
+
+    if (!state.listings.length) {
+      resultsMeta.textContent = '0 listings available';
+      document.getElementById('empty-title').textContent = 'No listings yet';
+      document.getElementById('empty-copy').textContent = 'Be the first to list something, or check back soon - your fellow students will be adding items shortly.';
+      empty.style.display = 'flex';
+      grid.style.display = 'none';
+      grid.innerHTML = '';
+      return;
+    }
+
+    resultsMeta.textContent = `${filtered.length} listing${filtered.length === 1 ? '' : 's'} found`;
+
+    if (!filtered.length) {
+      document.getElementById('empty-title').textContent = 'No matching listings';
+      document.getElementById('empty-copy').textContent = 'Try a different search term or switch to another category.';
+      empty.style.display = 'flex';
+      grid.style.display = 'none';
+      grid.innerHTML = '';
+      return;
+    }
+
+    empty.style.display = 'none';
+    grid.style.display = 'grid';
+    grid.innerHTML = filtered.map(renderListingCard).join('');
+  }
+
+  function renderListingCard(listing) {
+    const description = listing.description
+      ? escapeHtml(listing.description.length > 110 ? `${listing.description.slice(0, 107)}...` : listing.description)
+      : 'No description added yet.';
+
+    return `
+      <article class="listing-card">
+        <div class="listing-card-header">
+          <div>
+            <div class="listing-card-title">${escapeHtml(listing.title)}</div>
+            <div class="listing-card-meta">${escapeHtml(listing.category)} - ${formatDate(listing.createdAt)}</div>
+          </div>
+          <div class="listing-price">${formatCurrency(listing.price)}</div>
+        </div>
+        <div class="listing-description">${description}</div>
+        <div class="listing-tags">
+          <span class="listing-tag">${escapeHtml(listing.condition)}</span>
+          ${listing.isTradeable ? '<span class="listing-tag trade">Tradeable</span>' : ''}
+          <span class="listing-tag">${escapeHtml(listing.status)}</span>
+        </div>
+        <div class="listing-card-footer">
+          <div class="listing-card-date">Seller ID: ${escapeHtml(shortId(listing.sellerId))}</div>
+          <div class="listing-card-action">
+            <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            View details soon
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      maximumFractionDigits: 0,
+    }).format(value || 0);
+  }
+
+  function formatDate(value) {
+    if (!value) return 'No date';
+    return new Intl.DateTimeFormat('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(value));
+  }
+
+  function shortId(value) {
+    if (!value) return 'Unknown';
+    return `${value.slice(0, 8)}...`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 </script>
 </body>
 </html>
