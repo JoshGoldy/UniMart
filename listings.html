@@ -193,6 +193,18 @@
       display: block;
     }
 
+    .image-preview-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 16px;
+    }
+
     .image-preview img,
     .listing-thumb img {
       width: 100%;
@@ -438,12 +450,13 @@
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="listing-image-url">Image URL</label>
-              <input class="form-input" id="listing-image-url" type="url" placeholder="https://example.com/item-photo.jpg" />
+              <label class="form-label" for="listing-image-file">Image</label>
+              <input class="form-input" id="listing-image-file" type="file" accept="image/*" />
               <span class="form-error" id="image-error"></span>
             </div>
 
             <div class="image-preview" id="listing-image-preview">
+              <div class="image-preview-placeholder" id="listing-image-preview-placeholder">Choose an image to preview it here.</div>
               <img id="listing-image-preview-img" alt="Listing preview" />
             </div>
 
@@ -534,6 +547,7 @@
     user: null,
     listings: [],
     editingId: null,
+    currentImageUrl: '',
   };
 
   initPage().then(user => {
@@ -551,7 +565,6 @@
       listingId: pageState.editingId,
       title: document.getElementById('listing-title').value.trim(),
       description: document.getElementById('listing-description').value.trim(),
-      imageUrl: document.getElementById('listing-image-url').value.trim(),
       price: document.getElementById('listing-price').value,
       category: document.getElementById('listing-category').value,
       condition: document.getElementById('listing-condition').value,
@@ -568,8 +581,10 @@
       showError('price-error', 'Enter a valid price.');
       valid = false;
     }
-    if (payload.imageUrl && !isValidUrl(payload.imageUrl)) {
-      showError('image-error', 'Enter a valid image URL.');
+    const fileInput = document.getElementById('listing-image-file');
+    const selectedFile = fileInput.files[0];
+    if (selectedFile && !selectedFile.type.startsWith('image/')) {
+      showError('image-error', 'Please choose a valid image file.');
       valid = false;
     }
     if (!valid || !pageState.user) return;
@@ -578,9 +593,21 @@
     button.disabled = true;
     button.textContent = pageState.editingId ? 'Saving changes...' : 'Creating listing...';
 
+    let imageUrl = pageState.currentImageUrl || '';
+    if (selectedFile) {
+      const upload = await Auth.uploadListingImage(selectedFile, pageState.user.id);
+      if (upload.error) {
+        button.disabled = false;
+        button.textContent = pageState.editingId ? 'Save changes' : 'Create listing';
+        showError('listing-form-error', upload.error);
+        return;
+      }
+      imageUrl = upload.imageUrl;
+    }
+
     const result = pageState.editingId
-      ? await Auth.updateListing(payload)
-      : await Auth.createListing(payload);
+      ? await Auth.updateListing({ ...payload, imageUrl })
+      : await Auth.createListing({ ...payload, imageUrl });
 
     button.disabled = false;
     button.textContent = pageState.editingId ? 'Save changes' : 'Create listing';
@@ -596,7 +623,7 @@
   });
 
   document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
-  document.getElementById('listing-image-url').addEventListener('input', updateImagePreview);
+  document.getElementById('listing-image-file').addEventListener('change', updateImagePreview);
 
   async function loadMyListings() {
     if (!pageState.user) return;
@@ -708,10 +735,11 @@
 
   function startEditing(listing) {
     pageState.editingId = listing.id;
+    pageState.currentImageUrl = listing.imageUrl || '';
     document.getElementById('form-title').textContent = 'Edit listing';
     document.getElementById('listing-title').value = listing.title;
     document.getElementById('listing-description').value = listing.description || '';
-    document.getElementById('listing-image-url').value = listing.imageUrl || '';
+    document.getElementById('listing-image-file').value = '';
     document.getElementById('listing-price').value = listing.price;
     document.getElementById('listing-category').value = listing.category;
     document.getElementById('listing-condition').value = listing.condition;
@@ -727,6 +755,7 @@
     pageState.editingId = null;
     clearErrors();
     document.getElementById('listing-form').reset();
+    pageState.currentImageUrl = '';
     document.getElementById('form-title').textContent = 'Create a new listing';
     document.getElementById('listing-status').value = 'active';
     document.getElementById('listing-category').value = 'Textbooks';
@@ -778,27 +807,32 @@
   }
 
   function updateImagePreview() {
-    const value = document.getElementById('listing-image-url').value.trim();
     const preview = document.getElementById('listing-image-preview');
     const image = document.getElementById('listing-image-preview-img');
+    const placeholder = document.getElementById('listing-image-preview-placeholder');
+    const file = document.getElementById('listing-image-file').files[0];
 
-    if (!value || !isValidUrl(value)) {
-      preview.classList.remove('show');
-      image.removeAttribute('src');
+    if (file) {
+      image.src = URL.createObjectURL(file);
+      image.onload = () => URL.revokeObjectURL(image.src);
+      image.style.display = 'block';
+      placeholder.style.display = 'none';
+      preview.classList.add('show');
       return;
     }
 
-    image.src = value;
-    preview.classList.add('show');
-  }
-
-  function isValidUrl(value) {
-    try {
-      const url = new URL(value);
-      return url.protocol === 'http:' || url.protocol === 'https:';
-    } catch {
-      return false;
+    if (pageState.currentImageUrl) {
+      image.src = pageState.currentImageUrl;
+      image.style.display = 'block';
+      placeholder.style.display = 'none';
+      preview.classList.add('show');
+      return;
     }
+
+    image.removeAttribute('src');
+    image.style.display = 'none';
+    placeholder.style.display = 'flex';
+    preview.classList.add('show');
   }
 
   function escapeHtml(value) {
