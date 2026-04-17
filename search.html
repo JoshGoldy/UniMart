@@ -25,11 +25,19 @@
       background: #fff;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 18px;
+      padding: 16px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
       gap: 14px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .listing-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      border-color: rgba(58, 102, 69, 0.32);
     }
 
     .listing-card-header {
@@ -63,6 +71,23 @@
       color: var(--muted);
       line-height: 1.55;
       min-height: 42px;
+    }
+
+    .listing-image {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--linen);
+      border: 1px solid var(--border);
+    }
+
+    .listing-image img,
+    .modal-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .listing-tags {
@@ -111,6 +136,144 @@
       font-weight: 700;
     }
 
+    .listing-card-action span:last-child {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .details-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(23, 27, 23, 0.58);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 1500;
+    }
+
+    .details-modal.show {
+      display: flex;
+    }
+
+    .details-dialog {
+      width: min(920px, 100%);
+      max-height: 90vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 22px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+      padding: 24px;
+    }
+
+    .details-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .details-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .details-subtitle {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .details-close {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--linen);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .details-close:hover {
+      background: var(--sand);
+      color: var(--ink);
+    }
+
+    .details-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+      gap: 22px;
+    }
+
+    .modal-image {
+      width: 100%;
+      aspect-ratio: 16 / 11;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--linen);
+      border: 1px solid var(--border);
+    }
+
+    .modal-image.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.86rem;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .details-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .details-price {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--sage);
+    }
+
+    .details-copy {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .details-meta-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: var(--linen);
+    }
+
+    .details-meta-card strong {
+      display: block;
+      font-size: 0.76rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .details-meta-card span {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
     @media (max-width: 700px) {
       .market-toolbar {
         flex-direction: column;
@@ -121,6 +284,11 @@
       .listing-card-footer {
         flex-direction: column;
         align-items: flex-start;
+      }
+
+      .details-body,
+      .details-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -255,6 +423,51 @@
 
 <div class="toast-container" id="toast-container"></div>
 
+<div class="details-modal" id="listing-modal" aria-hidden="true">
+  <div class="details-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="details-header">
+      <div>
+        <div class="details-title" id="modal-title">Listing details</div>
+        <div class="details-subtitle" id="modal-subtitle"></div>
+      </div>
+      <button class="details-close" id="modal-close" type="button" aria-label="Close listing details">
+        <span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l8 8M14 6l-8 8" stroke-linecap="round"/></svg></span>
+      </button>
+    </div>
+
+    <div class="details-body">
+      <div class="modal-image empty" id="modal-image-wrap">
+        <span id="modal-image-empty">No image available for this listing.</span>
+        <img id="modal-image" alt="Listing image" style="display:none;" />
+      </div>
+
+      <div class="details-panel">
+        <div class="details-price" id="modal-price"></div>
+        <div class="listing-tags" id="modal-tags"></div>
+        <div class="details-copy" id="modal-description"></div>
+        <div class="details-grid">
+          <div class="details-meta-card">
+            <strong>Condition</strong>
+            <span id="modal-condition"></span>
+          </div>
+          <div class="details-meta-card">
+            <strong>Status</strong>
+            <span id="modal-status"></span>
+          </div>
+          <div class="details-meta-card">
+            <strong>Seller</strong>
+            <span id="modal-seller"></span>
+          </div>
+          <div class="details-meta-card">
+            <strong>Listed on</strong>
+            <span id="modal-date"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
 <script src="app.js"></script>
@@ -268,6 +481,7 @@
     query: '',
     category: 'all',
   };
+  const modal = document.getElementById('listing-modal');
 
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', function () {
@@ -286,6 +500,13 @@
   searchInput.addEventListener('search', function () {
     state.query = this.value.trim().toLowerCase();
     renderListings();
+  });
+  document.getElementById('modal-close').addEventListener('click', closeListingModal);
+  modal.addEventListener('click', function (event) {
+    if (event.target === modal) closeListingModal();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeListingModal();
   });
 
   initPage().then(user => {
@@ -357,6 +578,18 @@
     empty.style.display = 'none';
     grid.style.display = 'grid';
     grid.innerHTML = filtered.map(renderListingCard).join('');
+    grid.querySelectorAll('.listing-card').forEach(card => {
+      card.addEventListener('click', function () {
+        const listing = state.listings.find(item => item.id === this.dataset.id);
+        if (listing) openListingModal(listing);
+      });
+      card.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        const listing = state.listings.find(item => item.id === this.dataset.id);
+        if (listing) openListingModal(listing);
+      });
+    });
   }
 
   function renderListingCard(listing) {
@@ -365,7 +598,8 @@
       : 'No description added yet.';
 
     return `
-      <article class="listing-card">
+      <article class="listing-card" data-id="${listing.id}" tabindex="0" role="button" aria-label="Open ${escapeAttribute(listing.title)} details">
+        ${listing.imageUrl ? `<div class="listing-image"><img src="${escapeAttribute(listing.imageUrl)}" alt="${escapeAttribute(listing.title)}" /></div>` : ''}
         <div class="listing-card-header">
           <div>
             <div class="listing-card-title">${escapeHtml(listing.title)}</div>
@@ -383,11 +617,51 @@
           <div class="listing-card-date">Seller ID: ${escapeHtml(shortId(listing.sellerId))}</div>
           <div class="listing-card-action">
             <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            View details soon
+            <span>View details</span>
           </div>
         </div>
       </article>
     `;
+  }
+
+  function openListingModal(listing) {
+    document.getElementById('modal-title').textContent = listing.title;
+    document.getElementById('modal-subtitle').textContent = `${listing.category} - ${formatDate(listing.createdAt)}`;
+    document.getElementById('modal-price').textContent = formatCurrency(listing.price);
+    document.getElementById('modal-description').textContent = listing.description || 'No description added yet.';
+    document.getElementById('modal-condition').textContent = listing.condition;
+    document.getElementById('modal-status').textContent = listing.status;
+    document.getElementById('modal-seller').textContent = shortId(listing.sellerId);
+    document.getElementById('modal-date').textContent = formatDate(listing.createdAt);
+    document.getElementById('modal-tags').innerHTML = `
+      <span class="listing-tag">${escapeHtml(listing.condition)}</span>
+      ${listing.isTradeable ? '<span class="listing-tag trade">Tradeable</span>' : ''}
+      <span class="listing-tag">${escapeHtml(listing.status)}</span>
+    `;
+
+    const imageWrap = document.getElementById('modal-image-wrap');
+    const image = document.getElementById('modal-image');
+    const emptyText = document.getElementById('modal-image-empty');
+    if (listing.imageUrl) {
+      image.src = listing.imageUrl;
+      image.alt = `${listing.title} image`;
+      image.style.display = 'block';
+      emptyText.style.display = 'none';
+      imageWrap.classList.remove('empty');
+    } else {
+      image.removeAttribute('src');
+      image.style.display = 'none';
+      emptyText.style.display = 'block';
+      imageWrap.classList.add('empty');
+    }
+
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeListingModal() {
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
   }
 
   function formatCurrency(value) {
@@ -423,6 +697,10 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
   }
 </script>
 </body>

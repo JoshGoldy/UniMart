@@ -179,6 +179,45 @@
       margin-bottom: 12px;
     }
 
+    .image-preview {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--linen);
+      display: none;
+      overflow: hidden;
+    }
+
+    .image-preview.show {
+      display: block;
+    }
+
+    .image-preview img,
+    .listing-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .listing-content {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .listing-thumb {
+      width: 120px;
+      height: 90px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--linen);
+      flex-shrink: 0;
+    }
+
     .listing-item-tags {
       display: flex;
       flex-wrap: wrap;
@@ -285,6 +324,15 @@
         align-items: flex-start;
       }
 
+      .listing-content {
+        grid-template-columns: 1fr;
+      }
+
+      .listing-thumb {
+        width: 100%;
+        height: 180px;
+      }
+
       .form-actions .btn {
         width: 100%;
       }
@@ -387,6 +435,16 @@
             <div class="form-group">
               <label class="form-label" for="listing-description">Description</label>
               <textarea class="form-textarea" id="listing-description" placeholder="Add a short description of the item"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="listing-image-url">Image URL</label>
+              <input class="form-input" id="listing-image-url" type="url" placeholder="https://example.com/item-photo.jpg" />
+              <span class="form-error" id="image-error"></span>
+            </div>
+
+            <div class="image-preview" id="listing-image-preview">
+              <img id="listing-image-preview-img" alt="Listing preview" />
             </div>
 
             <div class="form-row">
@@ -493,6 +551,7 @@
       listingId: pageState.editingId,
       title: document.getElementById('listing-title').value.trim(),
       description: document.getElementById('listing-description').value.trim(),
+      imageUrl: document.getElementById('listing-image-url').value.trim(),
       price: document.getElementById('listing-price').value,
       category: document.getElementById('listing-category').value,
       condition: document.getElementById('listing-condition').value,
@@ -507,6 +566,10 @@
     }
     if (!payload.price || Number(payload.price) < 0) {
       showError('price-error', 'Enter a valid price.');
+      valid = false;
+    }
+    if (payload.imageUrl && !isValidUrl(payload.imageUrl)) {
+      showError('image-error', 'Enter a valid image URL.');
       valid = false;
     }
     if (!valid || !pageState.user) return;
@@ -533,6 +596,7 @@
   });
 
   document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+  document.getElementById('listing-image-url').addEventListener('input', updateImagePreview);
 
   async function loadMyListings() {
     if (!pageState.user) return;
@@ -567,7 +631,10 @@
           </div>
           <div class="listing-item-price">${formatCurrency(listing.price)}</div>
         </div>
-        <div class="listing-item-copy">${escapeHtml(listing.description || 'No description added yet.')}</div>
+        <div class="listing-content">
+          ${listing.imageUrl ? `<div class="listing-thumb"><img src="${escapeAttribute(listing.imageUrl)}" alt="${escapeAttribute(listing.title)}" /></div>` : ''}
+          <div class="listing-item-copy">${escapeHtml(listing.description || 'No description added yet.')}</div>
+        </div>
         <div class="listing-item-tags">
           <span class="listing-pill ${escapeHtml((listing.status || 'active').toLowerCase())}">${escapeHtml(listing.status)}</span>
           <span class="listing-pill">${escapeHtml(listing.condition)}</span>
@@ -605,6 +672,7 @@
         sellerId: pageState.user.id,
         title: listing.title,
         description: listing.description,
+        imageUrl: listing.imageUrl,
         price: listing.price,
         category: listing.category,
         condition: listing.condition,
@@ -643,6 +711,7 @@
     document.getElementById('form-title').textContent = 'Edit listing';
     document.getElementById('listing-title').value = listing.title;
     document.getElementById('listing-description').value = listing.description || '';
+    document.getElementById('listing-image-url').value = listing.imageUrl || '';
     document.getElementById('listing-price').value = listing.price;
     document.getElementById('listing-category').value = listing.category;
     document.getElementById('listing-condition').value = listing.condition;
@@ -650,6 +719,7 @@
     document.getElementById('listing-status').value = listing.status;
     document.getElementById('save-listing-btn').textContent = 'Save changes';
     document.getElementById('cancel-edit-btn').style.display = 'inline-flex';
+    updateImagePreview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -663,6 +733,7 @@
     document.getElementById('listing-condition').value = 'New';
     document.getElementById('save-listing-btn').textContent = 'Create listing';
     document.getElementById('cancel-edit-btn').style.display = 'none';
+    updateImagePreview();
   }
 
   function renderEmptyState(message) {
@@ -706,6 +777,30 @@
     }
   }
 
+  function updateImagePreview() {
+    const value = document.getElementById('listing-image-url').value.trim();
+    const preview = document.getElementById('listing-image-preview');
+    const image = document.getElementById('listing-image-preview-img');
+
+    if (!value || !isValidUrl(value)) {
+      preview.classList.remove('show');
+      image.removeAttribute('src');
+      return;
+    }
+
+    image.src = value;
+    preview.classList.add('show');
+  }
+
+  function isValidUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
   function escapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -713,6 +808,10 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
   }
 </script>
 </body>
