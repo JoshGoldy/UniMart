@@ -1,0 +1,45 @@
+@startuml
+actor User
+participant "Listings Management Page" as ListingsPage
+participant "AuthService (auth.js)" as AuthService
+participant "Supabase Auth" as SupaAuth
+participant "Supabase Storage" as Storage
+database "Supabase DB\n(listings table)" as DB
+participant "Search Page" as SearchPage
+
+== Authenticated session ==
+User -> ListingsPage : Open listings management
+ListingsPage -> AuthService : requireAuth()
+AuthService -> SupaAuth : getSession()
+SupaAuth --> AuthService : session
+AuthService -> DB : select user profile
+DB --> AuthService : user row
+AuthService --> ListingsPage : authenticated user
+
+== Create listing with image ==
+User -> ListingsPage : Submit listing form + image
+ListingsPage -> AuthService : uploadListingImage(file, userId)
+AuthService -> Storage : upload(userId/file)
+Storage --> AuthService : stored object
+AuthService -> Storage : getPublicUrl(path)
+Storage --> AuthService : public URL
+AuthService --> ListingsPage : imageUrl
+
+ListingsPage -> AuthService : createListing(listing data + imageUrl)
+AuthService -> DB : insert listing row
+DB --> AuthService : inserted listing
+AuthService --> ListingsPage : success
+ListingsPage --> User : show success toast
+
+== Browse marketplace ==
+User -> SearchPage : Open marketplace
+SearchPage -> AuthService : getMarketplaceListings()
+AuthService -> DB : select active listings
+DB --> AuthService : listing rows
+AuthService --> SearchPage : mapped listings
+SearchPage --> User : render searchable cards
+
+== View listing details ==
+User -> SearchPage : Click listing card
+SearchPage --> User : open details modal
+@enduml

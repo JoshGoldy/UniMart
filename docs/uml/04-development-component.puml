@@ -1,0 +1,54 @@
+@startuml
+skinparam componentStyle rectangle
+
+package "Frontend Pages" {
+  artifact "login.html" as Login
+  artifact "signup.html" as Signup
+  artifact "profile.html" as Profile
+  artifact "dashboard.html" as Dashboard
+  artifact "search.html" as Search
+  artifact "listings.html" as Listings
+}
+
+package "Shared Frontend Assets" {
+  artifact "styles.css" as Styles
+  component "app.js" as AppJS
+  component "auth.js" as AuthJS
+  artifact "unimart-logo.png" as Logo
+}
+
+package "External Libraries / Services" {
+  component "Supabase JS SDK" as SDK
+  component "Supabase Auth API" as SupaAuth
+  component "Supabase Database API" as SupaDB
+  component "Supabase Storage API" as SupaStorage
+}
+
+Login --> Styles : styles
+Signup --> Styles : styles
+Profile --> Styles : styles
+Dashboard --> Styles : styles
+Search --> Styles : styles
+Listings --> Styles : styles
+
+Profile --> AppJS : shared UI behavior
+Dashboard --> AppJS : shared UI behavior
+Search --> AppJS : shared UI behavior
+Listings --> AppJS : shared UI behavior
+
+Login --> AuthJS : authentication
+Signup --> AuthJS : registration
+Profile --> AuthJS : profile data
+Dashboard --> AuthJS : analytics data
+Search --> AuthJS : marketplace data
+Listings --> AuthJS : listing CRUD
+
+Login --> Logo : branding
+Signup --> Logo : branding
+
+AuthJS --> SDK : client calls
+SDK --> SupaAuth : auth requests
+SDK --> SupaDB : data queries
+SDK --> SupaStorage : image uploads
+
+@enduml
