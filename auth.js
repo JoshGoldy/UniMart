@@ -4,6 +4,7 @@
  
 const SUPABASE_URL      = 'https://xdxnzkowvmphveiwzufm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_WqqtaVhge6rIPosltnGktw_xVHBE5L_';
+const LISTING_IMAGE_BUCKET = 'listing-images';
  
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  
@@ -281,6 +282,33 @@ const Auth = (() => {
     if (error) return { error: error.message };
     return { success: true };
   }
+
+  async function uploadListingImage(file, userId) {
+    const extension = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const safeExt = extension.replace(/[^a-z0-9]/g, '') || 'jpg';
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${safeExt}`;
+    const path = `${userId}/${filename}`;
+
+    const { error: uploadError } = await _sb.storage
+      .from(LISTING_IMAGE_BUCKET)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || undefined,
+      });
+
+    if (uploadError) return { error: uploadError.message };
+
+    const { data } = _sb.storage
+      .from(LISTING_IMAGE_BUCKET)
+      .getPublicUrl(path);
+
+    return {
+      success: true,
+      path,
+      imageUrl: data.publicUrl,
+    };
+  }
  
   /* ---------- helpers ---------- */
   async function _getProfile(authUser) {
@@ -343,5 +371,5 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage };
 })();
