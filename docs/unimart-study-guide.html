@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart Study Guide</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5f6a60;
+      --sage: #3a6645;
+      --sage-soft: #e8f1ea;
+      --sand: #f5f1e8;
+      --line: #d9d2c5;
+      --paper: #fffdfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+    h1 {
+      font-size: 28px;
+      color: var(--sage);
+    }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 20px;
+    }
+    h3 {
+      font-size: 16px;
+    }
+    p, li, td, th {
+      font-size: 14px;
+    }
+    .muted {
+      color: var(--muted);
+    }
+    .intro, .summary, .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+    .intro {
+      background: var(--sand);
+      padding: 18px 20px;
+      margin: 18px 0 22px;
+    }
+    .summary {
+      padding: 16px 18px;
+      margin-bottom: 22px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .card {
+      padding: 16px;
+      break-inside: avoid;
+      margin-bottom: 16px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--sage-soft);
+      color: var(--sage);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--sand);
+    }
+    code {
+      background: #f0eee7;
+      padding: 2px 5px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 16px; }
+      .card { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart Study Guide</h1>
+    <p class="muted">High-level revision notes for the current codebase, grouped by UI, backend logic, database connection, and security.</p>
+
+    <div class="intro">
+      <p><strong>Purpose of the app:</strong> UniMart is a campus marketplace web app where students can sign up, manage a profile, view listing analytics on a dashboard, and browse marketplace listings stored in Supabase.</p>
+      <p><strong>Main architecture:</strong> the frontend is plain HTML, CSS, and JavaScript. Supabase handles authentication, database access, and row-level access control. Shared logic lives in <code>app.js</code> and <code>auth.js</code>, while each page has its own UI logic in inline script blocks.</p>
+    </div>
+
+    <div class="summary">
+      <h3>What To Remember Fast</h3>
+      <ul>
+        <li><strong>UI:</strong> built with static HTML pages, shared CSS, and shared shell helpers.</li>
+        <li><strong>Backend in this project:</strong> mostly frontend JavaScript calling Supabase directly through the client SDK.</li>
+        <li><strong>Auth:</strong> Supabase Auth is used for sign up, sign in, OTP verification, session checks, and password changes.</li>
+        <li><strong>Database:</strong> main tables used are <code>users</code> and <code>listings</code>.</li>
+        <li><strong>Security:</strong> passwords are never stored manually in our own tables; Supabase Auth stores them securely. The app only sends them to Supabase over the auth API.</li>
+        <li><strong>RLS:</strong> Row Level Security is used so database rows are only readable/writable when policies allow it.</li>
+      </ul>
+    </div>
+
+    <h2>UI Layer</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="pill">Shared UI</div>
+        <h3><code>styles.css</code></h3>
+        <ul>
+          <li>Defines the brand colors, typography, spacing, buttons, forms, dropdowns, cards, and responsive layout.</li>
+          <li>Controls the app shell: sidebar, topbar, page content spacing, filter chips, and dropdown styling.</li>
+          <li>Contains reusable classes such as <code>.btn</code>, <code>.form-input</code>, <code>.dropdown-menu</code>, <code>.listings-grid</code>, and icon helpers like <code>.ui-icon</code>.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Shared Behavior</div>
+        <h3><code>app.js</code></h3>
+        <ul>
+          <li><code>iconMarkup(name)</code>: returns the SVG markup used in toast messages.</li>
+          <li><code>showToast(...)</code>: displays floating success, error, or info notifications.</li>
+          <li><code>populateUserShell(user)</code>: fills in the logged-in user’s name, role, and initials across shared UI.</li>
+          <li><code>initDropdowns()</code>: opens and closes profile dropdown menus.</li>
+          <li><code>setActiveNav()</code>: highlights the current page in the sidebar.</li>
+          <li><code>initMobileSidebar()</code>: handles mobile sidebar open/close behavior.</li>
+          <li><code>initPage()</code>: shared page initializer that checks auth, prepares the shell, and wires sign-out buttons.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Backend / Application Logic</h2>
+    <div class="card">
+      <div class="pill">Supabase Data + Auth Layer</div>
+      <h3><code>auth.js</code></h3>
+      <p>This file acts like the app’s backend service layer inside the frontend. Instead of calling a custom Node or Express server, the app calls Supabase directly.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Function</th>
+            <th>High-level purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>signUp()</code></td>
+            <td>Creates a new Supabase Auth user and stores extra user information in metadata during sign-up.</td>
+          </tr>
+          <tr>
+            <td><code>signIn()</code></td>
+            <td>Signs a user in using email and password through Supabase Auth.</td>
+          </tr>
+          <tr>
+            <td><code>verifyOTP()</code></td>
+            <td>Verifies the email confirmation code, then upserts the user into the <code>users</code> table.</td>
+          </tr>
+          <tr>
+            <td><code>signOut()</code></td>
+            <td>Ends the Supabase session and redirects the user back to the login page.</td>
+          </tr>
+          <tr>
+            <td><code>requireAuth()</code></td>
+            <td>Checks for an active session; if none exists, the user is redirected to login.</td>
+          </tr>
+          <tr>
+            <td><code>getUser()</code></td>
+            <td>Returns the current signed-in user if a session exists.</td>
+          </tr>
+          <tr>
+            <td><code>updateProfile()</code></td>
+            <td>Updates profile info in both the <code>users</code> table and auth metadata.</td>
+          </tr>
+          <tr>
+            <td><code>updateCampusInfo()</code></td>
+            <td>Updates university, campus, and student number in the <code>users</code> table.</td>
+          </tr>
+          <tr>
+            <td><code>updatePassword()</code></td>
+            <td>Re-authenticates the user with the current password, then changes the password through Supabase Auth.</td>
+          </tr>
+          <tr>
+            <td><code>getListingDashboard()</code></td>
+            <td>Reads the signed-in seller’s listings and calculates dashboard metrics, category stats, recent items, and 6-month activity.</td>
+          </tr>
+          <tr>
+            <td><code>getMarketplaceListings()</code></td>
+            <td>Loads active marketplace listings for the browse page.</td>
+          </tr>
+          <tr>
+            <td><code>_getProfile()</code></td>
+            <td>Private helper that loads the user profile from the <code>users</code> table and falls back to auth metadata if needed.</td>
+          </tr>
+          <tr>
+            <td><code>_buildUser()</code></td>
+            <td>Builds a frontend-friendly user object from the auth user.</td>
+          </tr>
+          <tr>
+            <td><code>getUserInitials()</code></td>
+            <td>Creates avatar initials from the person’s full name.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Database Connection</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="pill">How We Connect</div>
+        <ul>
+          <li>The app uses the Supabase JavaScript SDK loaded from a CDN.</li>
+          <li><code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> are used to create a client with <code>supabase.createClient(...)</code>.</li>
+          <li>The client is stored in <code>_sb</code> and used for auth and database queries.</li>
+          <li>The anon key does <strong>not</strong> bypass security by itself; access is still controlled by Supabase Auth and RLS policies.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Main Tables</div>
+        <ul>
+          <li><strong><code>users</code> table:</strong> stores profile fields such as full name, email, account type, university, campus, and student number.</li>
+          <li><strong><code>listings</code> table:</strong> stores marketplace items including <code>listing_id</code>, <code>seller_id</code>, <code>title</code>, <code>description</code>, <code>price</code>, <code>category</code>, <code>condition</code>, <code>is_tradeable</code>, <code>status</code>, and <code>created_at</code>.</li>
+          <li><strong>Relationship:</strong> <code>seller_id</code> links a listing to the user who created it.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Authentication And Password Safety</h2>
+    <div class="card">
+      <div class="pill">Security</div>
+      <ul>
+        <li>The app uses <strong>Supabase Auth</strong> instead of storing passwords in a custom table.</li>
+        <li>During sign-up and sign-in, the password is only sent to Supabase Auth methods like <code>signUp()</code> and <code>signInWithPassword()</code>.</li>
+        <li>The app itself does <strong>not</strong> store plaintext passwords anywhere in <code>users</code> or <code>listings</code>.</li>
+        <li>Password changes go through <code>updatePassword()</code>, which first re-checks the current password, then asks Supabase to update it securely.</li>
+        <li>Because Supabase manages the auth system, password hashing and secure auth storage are handled by Supabase rather than manual code in this project.</li>
+      </ul>
+    </div>
+
+    <h2>Authorization And RLS</h2>
+    <div class="card">
+      <div class="pill">Access Control</div>
+      <ul>
+        <li><strong>Authentication</strong> answers: “Who is the user?”</li>
+        <li><strong>Authorization</strong> answers: “What is the user allowed to read or change?”</li>
+        <li>The project uses <strong>Row Level Security (RLS)</strong> in Supabase so access is controlled per row in the database.</li>
+        <li>For dashboard analytics, the app reads listings filtered by the logged-in seller’s user ID, so a user only sees their own listing analytics.</li>
+        <li>For marketplace browsing, an RLS policy can allow authenticated users to read active listings.</li>
+        <li>RLS is important because even if someone has the frontend code and anon key, they still cannot read or write rows unless the policy allows it.</li>
+      </ul>
+      <p class="small">Example ideas used in this project setup: a policy to let users read their own listings for dashboard data, and a policy to let authenticated users browse rows where <code>status = 'active'</code>.</p>
+    </div>
+
+    <h2>Page-By-Page Feature Breakdown</h2>
+    <div class="grid">
+      <div class="card">
+        <div class="pill">Login</div>
+        <h3><code>login.html</code></h3>
+        <ul>
+          <li>Redirects already logged-in users to the marketplace.</li>
+          <li>Handles password visibility toggle.</li>
+          <li>Validates email and password before sign-in.</li>
+          <li>Calls <code>Auth.signIn()</code> to create a session.</li>
+          <li>Uses <code>clearErrors()</code> and <code>showError()</code> to manage form errors.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Signup</div>
+        <h3><code>signup.html</code></h3>
+        <ul>
+          <li>Collects full name, university email, password, account type, and optional campus information.</li>
+          <li>Shows password strength feedback.</li>
+          <li>Implements an OTP verification step after sign-up.</li>
+          <li>Uses <code>Auth.signUp()</code> and <code>Auth.verifyOTP()</code>.</li>
+          <li>Contains helper functions like <code>makeToggle()</code>, <code>showStep()</code>, and OTP input handlers.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Profile</div>
+        <h3><code>profile.html</code></h3>
+        <ul>
+          <li>Loads the authenticated user and fills the profile card.</li>
+          <li>Lets the user edit profile details, campus info, and password.</li>
+          <li>Uses <code>Auth.updateProfile()</code>, <code>Auth.updateCampusInfo()</code>, and <code>Auth.updatePassword()</code>.</li>
+          <li>Includes section navigation and scroll-spy behavior for profile sections.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Dashboard</div>
+        <h3><code>dashboard.html</code></h3>
+        <ul>
+          <li>Calls <code>loadDashboard(user)</code> after shared page initialization.</li>
+          <li>Uses <code>Auth.getListingDashboard()</code> to fetch seller-specific listing analytics.</li>
+          <li>Displays active listings, sold listings, active listing value, and listings created this month.</li>
+          <li>Renders charts for monthly listing activity and top categories.</li>
+          <li>Shows recent listings and an empty-state when no listing data exists.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Marketplace Search</div>
+        <h3><code>search.html</code></h3>
+        <ul>
+          <li>Loads active listings with <code>Auth.getMarketplaceListings()</code>.</li>
+          <li>Filters the marketplace in the browser using category chips and the search box.</li>
+          <li>Uses <code>renderListings()</code> and <code>renderListingCard()</code> to display the cards.</li>
+          <li>Shows a clean no-results or no-listings empty-state when needed.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="pill">Listing Management Placeholder</div>
+        <h3><code>listings.html</code></h3>
+        <ul>
+          <li>Currently acts as a “coming soon” page for managing a seller’s own listings.</li>
+          <li>Exists in the shared shell and is ready for future CRUD functionality.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Important Function Revision List</h2>
+    <div class="card">
+      <h3>Functions your team should know at a glance</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Function</th>
+            <th>Short explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>app.js</code></td><td><code>initPage()</code></td><td>Main shared entry point for authenticated pages.</td></tr>
+          <tr><td><code>app.js</code></td><td><code>showToast()</code></td><td>Reusable success/error/info toast notifications.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>signUp()</code></td><td>Registers a new user with Supabase Auth.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>signIn()</code></td><td>Signs the user in and starts a session.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>verifyOTP()</code></td><td>Confirms email and inserts profile data into <code>users</code>.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>requireAuth()</code></td><td>Protects pages from unauthenticated access.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>updatePassword()</code></td><td>Safely updates a password through Supabase Auth.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>getListingDashboard()</code></td><td>Builds analytics data for the dashboard.</td></tr>
+          <tr><td><code>auth.js</code></td><td><code>getMarketplaceListings()</code></td><td>Fetches active listings for the marketplace browse page.</td></tr>
+          <tr><td><code>dashboard.html</code></td><td><code>loadDashboard()</code></td><td>Loads live data and fills dashboard cards and charts.</td></tr>
+          <tr><td><code>search.html</code></td><td><code>renderListings()</code></td><td>Applies filters and updates the visible listing grid.</td></tr>
+          <tr><td><code>profile.html</code></td><td><code>clearErrors()</code> / <code>showError()</code></td><td>Simple reusable form validation helpers on the page.</td></tr>
+          <tr><td><code>signup.html</code></td><td><code>showStep()</code></td><td>Moves the user through account creation, verification, and success states.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Good Talking Points For A Test</h2>
+    <div class="card">
+      <ul>
+        <li>The app uses a simple frontend architecture but still separates concerns by putting shared shell code in <code>app.js</code> and auth/data logic in <code>auth.js</code>.</li>
+        <li>Supabase replaces the need for a custom backend server for this project because it provides auth, database access, and RLS security.</li>
+        <li>Profile data is stored in the <code>users</code> table, while login credentials are handled separately by Supabase Auth.</li>
+        <li>The dashboard is not hardcoded anymore; it computes live analytics from the seller’s listings.</li>
+        <li>The marketplace page fetches active listings and then filters them client-side for a quick user experience.</li>
+        <li>RLS is critical because the frontend uses a public anon key, so policies enforce who can actually read or modify rows.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

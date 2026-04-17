@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart Clean Commit Plan</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5e695e;
+      --sage: #3a6645;
+      --sand: #f3efe6;
+      --line: #d8d3c7;
+      --paper: #fffdfa;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.5;
+      padding: 32px;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 {
+      font-size: 28px;
+      color: var(--sage);
+    }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 20px;
+    }
+    h3 {
+      font-size: 16px;
+    }
+    p, li {
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .muted {
+      color: var(--muted);
+    }
+    .intro {
+      background: var(--sand);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin: 18px 0 24px;
+    }
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: #fff;
+      break-inside: avoid;
+      margin-bottom: 18px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--sand);
+      border: 1px solid var(--line);
+    }
+    ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+    pre {
+      background: #182118;
+      color: #eef6ef;
+      padding: 14px;
+      border-radius: 12px;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 12px 0 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--sand);
+    }
+    .note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 16px; }
+      .card { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart Clean Commit Plan</h1>
+    <p class="muted">Prepared for rebuilding a clean repository history in a truthful, team-aligned way.</p>
+
+    <div class="intro">
+      <p><strong>How to use this document:</strong> each commit below is a clean milestone for the new repo. The person listed under <strong>Primary owner</strong> should only make that commit if they actually handled or are reviewing that portion of the work in the new repo. The commands below are normal commit commands only; they do not change author identity.</p>
+      <p>This plan is based on the current UniMart app structure: authentication, profile management, shared shell UI, dashboard analytics, marketplace search, and UI polish.</p>
+    </div>
+
+    <h2>Team Roles</h2>
+    <div class="role-grid">
+      <div class="card">
+        <h3>Frontend</h3>
+        <p>Ethan and Ndumiso</p>
+        <p class="muted">HTML, CSS, layout, visual polish, icons, form spacing, cards, charts presentation, responsive behavior.</p>
+      </div>
+      <div class="card">
+        <h3>Backend</h3>
+        <p>Hlaku and Elijah</p>
+        <p class="muted">Supabase schema work, data access logic, query helpers, auth integration, policies, analytics aggregation.</p>
+      </div>
+      <div class="card">
+        <h3>Product / Documentation</h3>
+        <p>Nkosi</p>
+        <p class="muted">Requirements clarification, milestone notes, README updates, setup guide, client-facing summaries, roadmap.</p>
+      </div>
+      <div class="card">
+        <h3>Cross-Cutting</h3>
+        <p>Josh</p>
+        <p class="muted">Frontend, backend, testing, integration work, cleanup, tying screens to live Supabase data.</p>
+      </div>
+    </div>
+
+    <h2>Recommended Commit Order</h2>
+
+    <div class="card">
+      <h3>1. Initial project shell and branding</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Ethan</span>
+        <span class="pill">Support: Ndumiso</span>
+        <span class="pill">Focus: Frontend scaffold</span>
+      </div>
+      <ul>
+        <li>Add base HTML pages and shared branding assets.</li>
+        <li>Introduce the overall shell layout, topbar, sidebar, and brand tokens.</li>
+        <li>Keep this commit focused on structure and visual foundation.</li>
+      </ul>
+      <pre>git add index.html styles.css unimart-icon.png unimart-logo.png dashboard.html search.html listings.html profile.html login.html signup.html
+git commit -m "feat(ui): scaffold UniMart pages and shared branding shell"</pre>
+    </div>
+
+    <div class="card">
+      <h3>2. Supabase auth foundation and user profile sync</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Hlaku</span>
+        <span class="pill">Support: Elijah</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Backend integration</span>
+      </div>
+      <ul>
+        <li>Add Supabase client setup and auth helper module.</li>
+        <li>Implement sign up, sign in, OTP verification, session guard, and user profile loading.</li>
+        <li>Connect auth users to the <code>users</code> table.</li>
+      </ul>
+      <pre>git add auth.js login.html signup.html profile.html
+git commit -m "feat(auth): integrate Supabase authentication and user profile syncing"</pre>
+    </div>
+
+    <div class="card">
+      <h3>3. Login and signup flow UX polish</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Ndumiso</span>
+        <span class="pill">Support: Ethan</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Frontend forms</span>
+      </div>
+      <ul>
+        <li>Improve spacing, password visibility toggles, button rhythm, and onboarding form layout.</li>
+        <li>Keep auth screens feeling production-ready.</li>
+      </ul>
+      <pre>git add login.html signup.html styles.css
+git commit -m "feat(auth-ui): polish login and signup form interactions and spacing"</pre>
+    </div>
+
+    <div class="card">
+      <h3>4. Profile page management and account editing</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Josh</span>
+        <span class="pill">Support: Elijah</span>
+        <span class="pill">Focus: Full-stack account management</span>
+      </div>
+      <ul>
+        <li>Add profile editing, password change, and campus info updates.</li>
+        <li>Wire the page to the shared auth helpers and users table.</li>
+      </ul>
+      <pre>git add profile.html auth.js styles.css
+git commit -m "feat(profile): add editable account, security, and campus management views"</pre>
+    </div>
+
+    <div class="card">
+      <h3>5. Shared app shell behavior and dropdown fixes</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Josh</span>
+        <span class="pill">Support: Ethan</span>
+        <span class="pill">Focus: Shared shell logic</span>
+      </div>
+      <ul>
+        <li>Add reusable dropdown handling, active nav state, shell population, and sign-out hooks.</li>
+        <li>Fix profile navigation from the top-right menu across pages.</li>
+      </ul>
+      <pre>git add app.js dashboard.html listings.html search.html profile.html
+git commit -m "feat(shell): add shared navigation utilities and fix profile dropdown routing"</pre>
+    </div>
+
+    <div class="card">
+      <h3>6. Visual cleanup and icon standardization</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Ethan</span>
+        <span class="pill">Support: Ndumiso</span>
+        <span class="pill">Focus: Design polish</span>
+      </div>
+      <ul>
+        <li>Replace emoji-based icons with clean SVG icons.</li>
+        <li>Refine shared icon utilities and consistent UI presentation.</li>
+      </ul>
+      <pre>git add styles.css app.js dashboard.html listings.html search.html profile.html login.html signup.html
+git commit -m "refactor(ui): replace emoji icons with a consistent SVG icon system"</pre>
+    </div>
+
+    <div class="card">
+      <h3>7. Listings data layer and Supabase analytics helpers</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Elijah</span>
+        <span class="pill">Support: Hlaku</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Backend data access</span>
+      </div>
+      <ul>
+        <li>Add reusable Supabase query helpers for listings and dashboard analytics.</li>
+        <li>Support seller-based listing analytics and marketplace browsing queries.</li>
+      </ul>
+      <pre>git add auth.js
+git commit -m "feat(data): add listings queries and dashboard analytics helpers for Supabase"</pre>
+    </div>
+
+    <div class="card">
+      <h3>8. Live dashboard metrics and charts</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Josh</span>
+        <span class="pill">Support: Elijah</span>
+        <span class="pill">Focus: Analytics integration</span>
+      </div>
+      <ul>
+        <li>Replace placeholder dashboard content with live seller-specific metrics.</li>
+        <li>Add listing trend chart, category chart, and recent listings panel.</li>
+      </ul>
+      <pre>git add dashboard.html auth.js
+git commit -m "feat(dashboard): surface live listing metrics, charts, and recent activity"</pre>
+    </div>
+
+    <div class="card">
+      <h3>9. Marketplace search with live listings and category filters</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Josh</span>
+        <span class="pill">Support: Ethan</span>
+        <span class="pill">Focus: Search page integration</span>
+      </div>
+      <ul>
+        <li>Load active listings from Supabase into the marketplace page.</li>
+        <li>Make search input and category chips filter the rendered cards.</li>
+        <li>Handle no-results and no-data states cleanly.</li>
+      </ul>
+      <pre>git add search.html auth.js
+git commit -m "feat(marketplace): load live listings and enable text and category filtering"</pre>
+    </div>
+
+    <div class="card">
+      <h3>10. Documentation, setup, and delivery notes</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Nkosi</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Documentation and product handoff</span>
+      </div>
+      <ul>
+        <li>Document project overview, setup steps, Supabase table requirements, and current feature set.</li>
+        <li>Add roadmap notes and any client-facing explanation of what is live versus coming soon.</li>
+      </ul>
+      <pre>git add README.md docs/
+git commit -m "docs(project): add setup guide, feature overview, and delivery notes"</pre>
+    </div>
+
+    <h2>Quick Ownership Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Person</th>
+          <th>Recommended commit ownership</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Josh</td>
+          <td>4, 5, 8, 9 and testing support across 2, 3, 7, 10</td>
+        </tr>
+        <tr>
+          <td>Hlaku</td>
+          <td>2 and support on 7</td>
+        </tr>
+        <tr>
+          <td>Ethan</td>
+          <td>1, 6 and support on 3, 5, 9</td>
+        </tr>
+        <tr>
+          <td>Nkosi</td>
+          <td>10 and product notes for milestone summaries</td>
+        </tr>
+        <tr>
+          <td>Ndumiso</td>
+          <td>3 and support on 1, 6</td>
+        </tr>
+        <tr>
+          <td>Elijah</td>
+          <td>7 and support on 2, 4, 8</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Practical Notes For The New Repo</h2>
+    <ul>
+      <li>Create the new repository first, then rebuild the project in the milestone order above.</li>
+      <li>Only commit files that genuinely belong to that milestone to keep history clean.</li>
+      <li>If two people really worked together on a milestone, add a real <code>Co-authored-by:</code> trailer in the commit body.</li>
+      <li>Keep database SQL and RLS policy files under <code>docs/</code> or a <code>supabase/</code> folder so backend work is visible in the repo.</li>
+      <li>Have Nkosi maintain a short changelog or sprint notes file after each milestone to strengthen the project narrative.</li>
+    </ul>
+
+    <p class="note">This document is designed to be exported directly to PDF and used as a planning reference for a clean, team-aligned repository rebuild.</p>
+  </div>
+</body>
+</html>
