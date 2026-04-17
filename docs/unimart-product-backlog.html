@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart Product Backlog</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5f6a60;
+      --sage: #3a6645;
+      --sage-deep: #24452d;
+      --sage-soft: #e8f1ea;
+      --sand: #f5f1e8;
+      --paper: #fffdfa;
+      --line: #d9d2c5;
+      --done-bg: #e8f4ec;
+      --done-ink: #25623a;
+      --partial-bg: #fff3d9;
+      --partial-ink: #946200;
+      --todo-bg: #fde7e7;
+      --todo-ink: #a53a3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+    h1 {
+      color: var(--sage);
+      font-size: 30px;
+    }
+    h2 {
+      margin-top: 30px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 21px;
+    }
+    h3 {
+      font-size: 17px;
+      color: var(--sage-deep);
+    }
+    p, li, td, th {
+      font-size: 14px;
+    }
+    .muted {
+      color: var(--muted);
+    }
+    .hero, .summary, .card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+    .hero {
+      background: var(--sand);
+      padding: 18px 20px;
+      margin: 18px 0 22px;
+    }
+    .summary {
+      padding: 18px 20px;
+      margin-bottom: 22px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .card {
+      padding: 16px;
+      break-inside: avoid;
+    }
+    .badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .done {
+      background: var(--done-bg);
+      color: var(--done-ink);
+    }
+    .partial {
+      background: var(--partial-bg);
+      color: var(--partial-ink);
+    }
+    .todo {
+      background: var(--todo-bg);
+      color: var(--todo-ink);
+    }
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--sand);
+    }
+    .status-cell {
+      white-space: nowrap;
+    }
+    .epic-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    code {
+      background: #f0eee7;
+      padding: 2px 5px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    @media print {
+      body { padding: 14px; }
+      .card, table, tr, td, th { break-inside: avoid-page; }
+      .grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart Product Backlog</h1>
+    <p class="muted">Backlog aligned to the provided campus marketplace brief, with the current implementation status of the UniMart app as of 17 April 2026.</p>
+
+    <div class="hero">
+      <p><strong>Purpose:</strong> This backlog turns the brief into a full product view of the app, grouped by requirement area. Each backlog item shows whether it is already in the app, partially implemented, or still to be completed.</p>
+      <p><strong>Current build scope:</strong> UniMart currently includes student sign-up/login with OTP verification, profile editing, live listing management with image upload, marketplace browsing with search and category filtering, and a seller-facing dashboard with listing analytics. Major platform areas such as staff workflows, payments, messaging, ratings, and advanced analytics are still outstanding.</p>
+    </div>
+
+    <div class="summary">
+      <h3>Backlog Status Summary</h3>
+      <div class="legend">
+        <span class="badge done">Completed</span>
+        <span class="badge partial">Partially Completed</span>
+        <span class="badge todo">Still To Be Completed</span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h3>Completed Areas</h3>
+          <ul>
+            <li>Student registration, login, OTP verification, and session-based access control.</li>
+            <li>Student profile viewing and profile editing.</li>
+            <li>Listing CRUD with image upload, status, category, condition, and trade flag.</li>
+            <li>Marketplace browsing, keyword search, category filter, and listing detail modal.</li>
+            <li>Seller dashboard with live listing counts and charts.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Partial Areas</h3>
+          <ul>
+            <li>User verification uses Supabase Auth, but the required 3-role model is not complete.</li>
+            <li>Buyer experience exists for browsing, but condition and price-range filters are not complete.</li>
+            <li>Analytics exist for seller listings, but the brief requires broader reporting for moderation and trade facilities.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Still Outstanding</h3>
+          <ul>
+            <li>Trade Facility Staff and Admin workflows.</li>
+            <li>In-app messaging and negotiation chat.</li>
+            <li>Payments and partial-payment handling.</li>
+            <li>Ratings, reviews, trust, moderation, and seller reputation.</li>
+            <li>South African data integration and AI-assisted price suggestions.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <h2>Epic 1: User Verification And Account Access</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge partial">Partially Completed</span>
+    </div>
+    <p>A 3rd party identity provider should be used. The system must support 3 roles: Student, Trade Facility Staff, and Admin.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UV-1</td>
+          <td>Integrate with a 3rd-party identity provider for registration and sign-in.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Supabase Auth is being used as the external identity provider.</td>
+        </tr>
+        <tr>
+          <td>UV-2</td>
+          <td>Allow new users to register with email and password.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Implemented with sign-up flow and OTP verification.</td>
+        </tr>
+        <tr>
+          <td>UV-3</td>
+          <td>Verify email ownership before allowing full account access.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Email OTP verification is implemented.</td>
+        </tr>
+        <tr>
+          <td>UV-4</td>
+          <td>Support Student, Trade Facility Staff, and Admin roles.</td>
+          <td class="status-cell"><span class="badge partial">Partially Completed</span></td>
+          <td>The current app captures student-oriented account types only. Staff and Admin role workflows are not implemented.</td>
+        </tr>
+        <tr>
+          <td>UV-5</td>
+          <td>Restrict features and data by role.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Row security exists for listings and profiles, but role-based feature gating for Staff/Admin is not yet in place.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 2: Listing Management</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge done">Completed</span>
+    </div>
+    <p>Students should be able to create, edit, and remove item listings with photos, descriptions, categories, condition ratings, and asking prices. Listings should indicate whether the item is for sale, trade, or either.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>LM-1</td>
+          <td>Create a listing with title, description, category, condition, and price.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Implemented in <code>listings.html</code> and persisted to Supabase.</td>
+        </tr>
+        <tr>
+          <td>LM-2</td>
+          <td>Upload and display listing photos.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Implemented with Supabase Storage bucket <code>listing-images</code>.</td>
+        </tr>
+        <tr>
+          <td>LM-3</td>
+          <td>Edit an existing listing.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Users can load a listing into the management form and update it.</td>
+        </tr>
+        <tr>
+          <td>LM-4</td>
+          <td>Delete a listing.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Implemented with RLS-backed delete permissions on the user’s own listings.</td>
+        </tr>
+        <tr>
+          <td>LM-5</td>
+          <td>Mark a listing as sale, trade, or both.</td>
+          <td class="status-cell"><span class="badge partial">Partially Completed</span></td>
+          <td>The app supports an <code>is_tradeable</code> flag plus sale-oriented pricing. A clearer dedicated mode for sale vs trade vs both would improve alignment to the brief.</td>
+        </tr>
+        <tr>
+          <td>LM-6</td>
+          <td>Show seller-owned listings in a management view.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>The management page lists the current seller’s listings and supports status updates.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 3: Buyer Experience</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge partial">Partially Completed</span>
+    </div>
+    <p>Buyers should be able to search, filter by category, condition, and price range, and initiate a purchase or trade offer. Buyers should be able to view a seller’s rating and transaction history before committing.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>BE-1</td>
+          <td>Browse active marketplace listings.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Implemented with live Supabase data on <code>search.html</code>.</td>
+        </tr>
+        <tr>
+          <td>BE-2</td>
+          <td>Search listings by keyword.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Search currently matches title, description, category, condition, and price text.</td>
+        </tr>
+        <tr>
+          <td>BE-3</td>
+          <td>Filter listings by category.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Category chips are implemented.</td>
+        </tr>
+        <tr>
+          <td>BE-4</td>
+          <td>Filter listings by condition.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>The listing data stores condition, but there is no condition filter control yet.</td>
+        </tr>
+        <tr>
+          <td>BE-5</td>
+          <td>Filter listings by price range.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Price exists in data, but there is no min/max filter UI or logic yet.</td>
+        </tr>
+        <tr>
+          <td>BE-6</td>
+          <td>Open a listing to view full details.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Clicking a card opens a listing details modal.</td>
+        </tr>
+        <tr>
+          <td>BE-7</td>
+          <td>Initiate a purchase offer.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No purchase flow exists yet.</td>
+        </tr>
+        <tr>
+          <td>BE-8</td>
+          <td>Initiate a trade offer.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No trade negotiation or offer workflow exists yet.</td>
+        </tr>
+        <tr>
+          <td>BE-9</td>
+          <td>Show seller rating and transaction history on listing details.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Requires ratings and transaction tables plus a transaction lifecycle.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 4: Trade Facility Management</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge todo">Still To Be Completed</span>
+    </div>
+    <p>Trade Facility Staff should manage drop-off and collection bookings. Students should book slots online. Staff should confirm item receipt and release, and Admins should configure operating hours and slot capacity.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>TF-1</td>
+          <td>Create Trade Facility Staff role and secured staff views.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>TF-2</td>
+          <td>Allow students to book a drop-off or collection slot online.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>TF-3</td>
+          <td>Allow staff to confirm item receipt and collection release.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>TF-4</td>
+          <td>Track transaction status around the trade facility workflow.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Requires transaction domain, booking domain, and staff operations.</td>
+        </tr>
+        <tr>
+          <td>TF-5</td>
+          <td>Allow Admin to configure operating hours and slot capacity.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 5: In-App Messaging</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge todo">Still To Be Completed</span>
+    </div>
+    <p>Buyers and sellers should be able to communicate through a built-in chat to negotiate and arrange transaction details before committing to a trade facility booking.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MSG-1</td>
+          <td>Create conversations between buyers and sellers.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No messaging schema or UI exists yet.</td>
+        </tr>
+        <tr>
+          <td>MSG-2</td>
+          <td>Send and receive messages in a conversation thread.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>MSG-3</td>
+          <td>Link a conversation to a listing or offer.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Would support negotiation before payment or facility booking.</td>
+        </tr>
+        <tr>
+          <td>MSG-4</td>
+          <td>Show unread message counts or conversation updates.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 6: Payments</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge todo">Still To Be Completed</span>
+    </div>
+    <p>Integrate with a 3rd-party payment gateway. Students should be able to pay full or partial amounts online, with any cash shortfall tracked and confirmed before release.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>PAY-1</td>
+          <td>Integrate a payment gateway.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No payment provider is integrated.</td>
+        </tr>
+        <tr>
+          <td>PAY-2</td>
+          <td>Allow full payment for a listing or order.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No checkout flow exists yet.</td>
+        </tr>
+        <tr>
+          <td>PAY-3</td>
+          <td>Allow partial payment and track outstanding cash amount.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Needs transaction and payment ledger data models.</td>
+        </tr>
+        <tr>
+          <td>PAY-4</td>
+          <td>Allow staff to confirm outstanding cash settlement before item release.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Depends on trade facility workflow and staff role.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 7: Rating And Trust System</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge todo">Still To Be Completed</span>
+    </div>
+    <p>After a completed transaction, both parties should be able to leave ratings and reviews. Admins should be able to flag or remove abusive content.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RT-1</td>
+          <td>Allow buyer and seller to rate each other after a completed transaction.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>RT-2</td>
+          <td>Allow written reviews after completed transactions.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>RT-3</td>
+          <td>Show seller trust signals such as rating average and review count.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Needed for buyer confidence before commitment.</td>
+        </tr>
+        <tr>
+          <td>RT-4</td>
+          <td>Provide admin moderation tools to flag or remove abusive reviews.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Depends on Admin role and moderation workflows.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 8: South African Data Integration</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge todo">Still To Be Completed</span>
+    </div>
+    <p>Item price suggestions should be informed by publicly available South African consumer price data relevant to the category. The chosen source must be justified in the backlog.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SA-1</td>
+          <td>Research a suitable public South African data source for item price guidance.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No source has been documented yet in the current app docs.</td>
+        </tr>
+        <tr>
+          <td>SA-2</td>
+          <td>Document why the chosen source is suitable for the project backlog.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Still needed for backlog completeness.</td>
+        </tr>
+        <tr>
+          <td>SA-3</td>
+          <td>Use SA data to inform listing price suggestions by category.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No price suggestion logic exists yet.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 9: Analytics And Reporting</h2>
+    <div class="epic-title">
+      <h3>Brief requirement</h3>
+      <span class="badge partial">Partially Completed</span>
+    </div>
+    <p>The app should support at least 3 dashboard reports: popular item categories and completed transactions over time, trade facility utilisation versus capacity, and flagged or moderated content summary. Reports should be exportable as CSV or PDF.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AN-1</td>
+          <td>Show listing counts and listing value summary for the current seller.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Current dashboard supports active count, sold count, active value, and listed this month.</td>
+        </tr>
+        <tr>
+          <td>AN-2</td>
+          <td>Show category summary and listing trend charts.</td>
+          <td class="status-cell"><span class="badge done">Completed</span></td>
+          <td>Current dashboard includes top categories and monthly listing activity.</td>
+        </tr>
+        <tr>
+          <td>AN-3</td>
+          <td>Report on completed transactions over time.</td>
+          <td class="status-cell"><span class="badge partial">Partially Completed</span></td>
+          <td>Sold listings are counted, but there is no real transaction history model yet.</td>
+        </tr>
+        <tr>
+          <td>AN-4</td>
+          <td>Report on trade facility utilisation versus slot capacity.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Blocked until trade facility booking features exist.</td>
+        </tr>
+        <tr>
+          <td>AN-5</td>
+          <td>Report on flagged or moderated content.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Blocked until moderation and reviews exist.</td>
+        </tr>
+        <tr>
+          <td>AN-6</td>
+          <td>Export reports as CSV.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No export functionality exists yet.</td>
+        </tr>
+        <tr>
+          <td>AN-7</td>
+          <td>Export reports as PDF.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>No report export functionality exists yet.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Epic 10: Bonus AI Price Suggestions</h2>
+    <div class="epic-title">
+      <h3>Bonus requirement</h3>
+      <span class="badge todo">Still To Be Completed</span>
+    </div>
+    <p>Use an ML model to recommend listing prices based on category, condition, and recent comparable sales on the platform.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Backlog Item</th>
+          <th>Current Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>AI-1</td>
+          <td>Collect comparable listing and sale data for training or heuristic recommendations.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Requires richer transaction history and listing dataset.</td>
+        </tr>
+        <tr>
+          <td>AI-2</td>
+          <td>Build a pricing suggestion engine using category, condition, and comparable sales.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Not yet started.</td>
+        </tr>
+        <tr>
+          <td>AI-3</td>
+          <td>Surface suggested price guidance in the listing creation flow.</td>
+          <td class="status-cell"><span class="badge todo">Still To Be Completed</span></td>
+          <td>Would fit naturally into <code>listings.html</code> later.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Current Sprint Position</h2>
+    <div class="card">
+      <h3>What the app can already demonstrate well</h3>
+      <ul>
+        <li>Secure account creation and sign-in through a 3rd-party auth provider.</li>
+        <li>Protected authenticated pages using session checks.</li>
+        <li>Profile maintenance for student users.</li>
+        <li>Live listing CRUD backed by Supabase database and storage.</li>
+        <li>Live marketplace browsing with real listing cards and listing details.</li>
+        <li>Basic seller dashboard analytics with charts.</li>
+        <li>Database protection through Row Level Security policies.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h3>Recommended next backlog priorities</h3>
+      <ol>
+        <li>Finish the buyer browsing experience by adding condition and price-range filters.</li>
+        <li>Create the transaction domain so purchases, trade offers, and history become possible.</li>
+        <li>Add messaging because it unlocks negotiation and supports later trade facility workflows.</li>
+        <li>Implement the Trade Facility Staff and Admin role model with booking flows.</li>
+        <li>Add ratings, moderation, and extended analytics once transactions exist.</li>
+      </ol>
+      <p class="small">This order keeps the current student marketplace flow moving forward while building the missing foundations needed for the more advanced brief requirements.</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Guest User" as Guest
+actor "Registered User" as User
+
+rectangle "UniMart System" {
+  usecase "Register Account" as UC_Register
+  usecase "Verify OTP" as UC_Verify
+  usecase "Log In" as UC_Login
+  usecase "Manage Profile" as UC_Profile
+  usecase "Change Password" as UC_Password
+  usecase "Browse Marketplace Listings" as UC_Browse
+  usecase "Search Listings" as UC_Search
+  usecase "Filter Listings by Category" as UC_Filter
+  usecase "View Listing Details" as UC_Details
+  usecase "View Seller Dashboard" as UC_Dashboard
+  usecase "Create Listing" as UC_Create
+  usecase "Edit Listing" as UC_Edit
+  usecase "Delete Listing" as UC_Delete
+  usecase "Upload Listing Image" as UC_Image
+}
+
+Guest --> UC_Register
+Guest --> UC_Verify
+Guest --> UC_Login
+
+User --> UC_Profile
+User --> UC_Password
+User --> UC_Browse
+User --> UC_Search
+User --> UC_Filter
+User --> UC_Details
+User --> UC_Dashboard
+User --> UC_Create
+User --> UC_Edit
+User --> UC_Delete
+User --> UC_Image
+
+UC_Search .> UC_Browse : <<extend>>
+UC_Filter .> UC_Browse : <<extend>>
+UC_Details .> UC_Browse : <<extend>>
+UC_Image .> UC_Create : <<include>>
+UC_Image .> UC_Edit : <<include>>
+
+@enduml

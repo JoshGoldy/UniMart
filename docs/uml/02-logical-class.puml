@@ -1,0 +1,92 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class AppUtilities <<boundary>> {
+  +showToast(message, type, duration)
+  +populateUserShell(user)
+  +initDropdowns()
+  +setActiveNav()
+  +initMobileSidebar()
+  +initPage()
+}
+
+class AuthService <<control>> {
+  +signUp(fullName, email, password, accountType, university, campus, studentNumber)
+  +signIn(email, password)
+  +verifyOTP(email, token)
+  +signOut()
+  +requireAuth()
+  +getUser()
+  +updateProfile(id, fullName, email, accountType)
+  +updateCampusInfo(id, university, campus, studentNumber)
+  +updatePassword(currentPassword, newPassword, email)
+  +getListingDashboard(userId)
+  +getMarketplaceListings()
+  +getMyListings(userId)
+  +createListing(...)
+  +updateListing(...)
+  +deleteListing(listingId, sellerId)
+  +uploadListingImage(file, userId)
+  +getUserInitials(name)
+}
+
+class User <<entity>> {
+  +id: UUID
+  +fullName: String
+  +email: String
+  +accountType: String
+  +university: String
+  +campus: String
+  +studentNumber: String
+}
+
+class Listing <<entity>> {
+  +id: UUID
+  +sellerId: UUID
+  +title: String
+  +description: String
+  +price: Decimal
+  +category: String
+  +condition: String
+  +isTradeable: Boolean
+  +status: String
+  +imageUrl: String
+  +createdAt: DateTime
+}
+
+class DashboardAnalytics <<entity>> {
+  +activeListings: Integer
+  +soldListings: Integer
+  +activeValue: Decimal
+  +thisMonth: Integer
+  +categories: List
+  +monthly: List
+  +recent: List
+}
+
+class LoginPage <<boundary>>
+class SignupPage <<boundary>>
+class ProfilePage <<boundary>>
+class DashboardPage <<boundary>>
+class SearchPage <<boundary>>
+class ListingsManagementPage <<boundary>>
+
+AppUtilities ..> AuthService : uses
+LoginPage ..> AuthService : authenticate
+SignupPage ..> AuthService : register / verify
+ProfilePage ..> AuthService : profile updates
+DashboardPage ..> AuthService : analytics queries
+SearchPage ..> AuthService : marketplace queries
+ListingsManagementPage ..> AuthService : listing CRUD
+
+AuthService ..> User : builds / updates
+AuthService ..> Listing : reads / writes
+AuthService ..> DashboardAnalytics : aggregates
+ProfilePage ..> User : displays / edits
+SearchPage ..> Listing : renders
+ListingsManagementPage ..> Listing : manages
+DashboardPage ..> DashboardAnalytics : visualizes
+
+User "1" --> "0..*" Listing : owns >
+
+@enduml

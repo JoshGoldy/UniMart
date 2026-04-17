@@ -105,6 +105,18 @@ const Auth = (() => {
     return { success: true };
   }
 
+  async function requestPasswordReset({ email, redirectTo }) {
+    const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function completePasswordRecovery({ newPassword }) {
+    const { error } = await _sb.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
   /* ---------- dashboard analytics ---------- */
   async function getListingDashboard(userId) {
     const { data, error } = await _sb
@@ -371,5 +383,5 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage };
 })();

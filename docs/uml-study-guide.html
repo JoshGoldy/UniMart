@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart UML Study Guide</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5f6a60;
+      --sage: #3a6645;
+      --sage-soft: #e8f1ea;
+      --sand: #f5f1e8;
+      --line: #d9d2c5;
+      --paper: #fffdfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 30px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+    h1 {
+      font-size: 30px;
+      color: var(--sage);
+    }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 21px;
+    }
+    h3 {
+      font-size: 17px;
+      color: var(--sage);
+    }
+    p, li, td, th {
+      font-size: 14px;
+    }
+    .muted {
+      color: var(--muted);
+    }
+    .intro, .card, .summary {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+    .intro {
+      background: var(--sand);
+      padding: 18px 20px;
+      margin: 18px 0 22px;
+    }
+    .summary {
+      padding: 16px 18px;
+      margin-bottom: 20px;
+    }
+    .card {
+      padding: 18px;
+      margin-top: 16px;
+      break-inside: avoid;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: var(--sage-soft);
+      color: var(--sage);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--sand);
+    }
+    code {
+      background: #f0eee7;
+      padding: 2px 5px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 14px; }
+      .card { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart UML Study Guide</h1>
+    <p class="muted">High-level revision notes for the 4+1 architecture diagrams used to document the UniMart app.</p>
+
+    <div class="intro">
+      <p><strong>What these diagrams are for:</strong> the UML set explains the UniMart system from different viewpoints, rather than trying to show everything in a single diagram. This follows the 4+1 model, where each view answers a different design question.</p>
+      <p><strong>Simple way to remember it:</strong> the diagrams show who uses the system, what the main parts of the system are, how those parts interact, how the code is organized, and where the system is deployed.</p>
+    </div>
+
+    <div class="summary">
+      <h3>The 4+1 Model In One Sentence Each</h3>
+      <ul>
+        <li><strong>Scenarios view:</strong> shows what users want to do with the system.</li>
+        <li><strong>Logical view:</strong> shows the main objects, services, and responsibilities in the design.</li>
+        <li><strong>Process view:</strong> shows how actions happen step by step over time.</li>
+        <li><strong>Development view:</strong> shows how the software is split into files, components, and dependencies.</li>
+        <li><strong>Physical view:</strong> shows where the system runs and how the deployed parts communicate.</li>
+      </ul>
+    </div>
+
+    <h2>1. Scenarios Use Case Diagram</h2>
+    <div class="card">
+      <div class="pill">Scenarios View</div>
+      <p>This diagram shows the main goals of the system from the user’s point of view. It focuses on what a <strong>Guest User</strong> and a <strong>Registered User</strong> can do in UniMart.</p>
+      <ul>
+        <li>Guest users can register, verify OTP, and log in.</li>
+        <li>Registered users can manage profiles, browse listings, create listings, edit listings, and view the dashboard.</li>
+        <li>The relationships such as <code>&lt;&lt;include&gt;&gt;</code> and <code>&lt;&lt;extend&gt;&gt;</code> show where one use case depends on or extends another one.</li>
+      </ul>
+      <p><strong>High-level meaning:</strong> this diagram explains the system in business terms. It is useful for showing which features matter to users before going into technical detail.</p>
+      <p><strong>What to say in a test:</strong> “The use case diagram captures the main user goals of UniMart and shows how marketplace, account, and listing features are grouped around guest and registered users.”</p>
+    </div>
+
+    <h2>2. Logical Class Diagram</h2>
+    <div class="card">
+      <div class="pill">Logical View</div>
+      <p>This diagram explains the internal structure of the app at a design level. It shows the major classes and their responsibilities.</p>
+      <ul>
+        <li><strong>Boundary classes</strong> represent the UI pages such as <code>LoginPage</code>, <code>ProfilePage</code>, and <code>SearchPage</code>.</li>
+        <li><strong>Control class</strong> <code>AuthService</code> handles application logic such as authentication, profile updates, listing queries, and uploads.</li>
+        <li><strong>Entity classes</strong> such as <code>User</code>, <code>Listing</code>, and <code>DashboardAnalytics</code> represent the core business data.</li>
+      </ul>
+      <p><strong>High-level meaning:</strong> this is the best diagram for showing how the app is logically designed. It separates user interface concerns, logic, and stored data.</p>
+      <p><strong>What to say in a test:</strong> “The class diagram shows that UniMart follows separation of concerns, where pages handle interaction, the service layer handles logic, and entity classes represent the marketplace data.”</p>
+    </div>
+
+    <h2>3. Process Sequence Diagram</h2>
+    <div class="card">
+      <div class="pill">Process View</div>
+      <p>This diagram shows how the system behaves over time for a few key workflows. In UniMart, it focuses on authenticating the user, creating a listing with an image, browsing the marketplace, and opening listing details.</p>
+      <ul>
+        <li>The user interacts with the page.</li>
+        <li>The page calls <code>AuthService</code>.</li>
+        <li><code>AuthService</code> communicates with Supabase Auth, Storage, and the database.</li>
+        <li>The final result is returned to the page and shown to the user.</li>
+      </ul>
+      <p><strong>High-level meaning:</strong> this diagram explains the runtime flow of the system. It is especially useful for describing how multiple services work together in one feature.</p>
+      <p><strong>What to say in a test:</strong> “The sequence diagram shows the order of calls between the user interface, the app service layer, and Supabase services during important UniMart workflows.”</p>
+    </div>
+
+    <h2>4. Development Component Diagram</h2>
+    <div class="card">
+      <div class="pill">Development View</div>
+      <p>This diagram shows how the software is organized into implementation pieces. It maps the frontend pages, shared assets, and external service dependencies.</p>
+      <ul>
+        <li>The HTML pages represent the user-facing screens.</li>
+        <li><code>styles.css</code> provides shared styling.</li>
+        <li><code>app.js</code> provides shared UI behavior.</li>
+        <li><code>auth.js</code> connects the frontend to Supabase for authentication, database queries, and storage.</li>
+        <li>The Supabase JavaScript SDK acts as the bridge to external backend services.</li>
+      </ul>
+      <p><strong>High-level meaning:</strong> this is the best diagram for explaining code organization. It shows how the project is modularized and which files depend on which services.</p>
+      <p><strong>What to say in a test:</strong> “The component diagram shows the implementation structure of UniMart, especially how multiple pages reuse shared frontend assets and a common Supabase integration layer.”</p>
+    </div>
+
+    <h2>5. Physical Deployment Diagram</h2>
+    <div class="card">
+      <div class="pill">Physical View</div>
+      <p>This diagram shows where UniMart runs after deployment and how the deployed parts communicate.</p>
+      <ul>
+        <li>The user interacts with the app through a web browser on their device.</li>
+        <li>The static frontend is served from a hosting platform such as Azure or GitHub-based hosting.</li>
+        <li>The frontend communicates with Supabase Cloud for authentication, database access, and image storage.</li>
+        <li>The database side is protected by Row Level Security, which controls which rows a signed-in user may access.</li>
+      </ul>
+      <p><strong>High-level meaning:</strong> this diagram explains the runtime infrastructure of the app. It is useful for showing that UniMart is a static frontend backed by managed cloud services.</p>
+      <p><strong>What to say in a test:</strong> “The deployment diagram shows that UniMart is hosted as a static web app while Supabase provides the cloud services for auth, database, and file storage.”</p>
+    </div>
+
+    <h2>How The Diagrams Work Together</h2>
+    <div class="card">
+      <div class="pill">Big Picture</div>
+      <ul>
+        <li>The <strong>use case diagram</strong> explains user goals.</li>
+        <li>The <strong>class diagram</strong> explains system structure.</li>
+        <li>The <strong>sequence diagram</strong> explains behavior over time.</li>
+        <li>The <strong>component diagram</strong> explains code organization.</li>
+        <li>The <strong>deployment diagram</strong> explains runtime infrastructure.</li>
+      </ul>
+      <p>Together, they give a full architectural picture of the app. This is exactly why the 4+1 model is useful: each diagram answers a different question about the same system.</p>
+    </div>
+
+    <h2>Quick Revision Points</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Diagram</th>
+            <th>Main question it answers</th>
+            <th>Short answer for UniMart</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Use Case</td>
+            <td>What do users want to do?</td>
+            <td>Register, log in, manage profiles, manage listings, browse listings, and view analytics.</td>
+          </tr>
+          <tr>
+            <td>Class</td>
+            <td>What are the main logical parts?</td>
+            <td>Pages, service layer, and core entities like users, listings, and analytics.</td>
+          </tr>
+          <tr>
+            <td>Sequence</td>
+            <td>How do features execute over time?</td>
+            <td>The UI calls the service layer, which then communicates with Supabase services and returns results.</td>
+          </tr>
+          <tr>
+            <td>Component</td>
+            <td>How is the codebase structured?</td>
+            <td>Separate HTML pages reuse shared CSS, shared UI utilities, and a common auth/data module.</td>
+          </tr>
+          <tr>
+            <td>Deployment</td>
+            <td>Where does the system run?</td>
+            <td>A browser loads a static frontend and connects to Supabase cloud services for backend capabilities.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Simple Closing Line For A Presentation</h3>
+      <p>“Our UML set documents UniMart from the perspective of user goals, system structure, runtime behavior, implementation structure, and deployment environment, which together give a full architectural view of the app.”</p>
+      <p class="small">This guide is intentionally high level, so it is good for revision, presentation prep, and viva-style questions.</p>
+    </div>
+  </div>
+</body>
+</html>

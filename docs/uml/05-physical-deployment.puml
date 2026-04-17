@@ -1,0 +1,31 @@
+@startuml
+node "User Device" {
+  node "Web Browser" {
+    artifact "Static UniMart Frontend\nHTML/CSS/JS" as Frontend
+  }
+}
+
+cloud "Internet" as Internet
+
+node "Hosting Platform" {
+  artifact "Static Site Hosting\n(GitHub / Azure / similar)" as Hosting
+}
+
+node "Supabase Cloud" {
+  node "Supabase Auth Service" as Auth
+  node "Supabase API Gateway" as API
+  database "PostgreSQL Database\nusers, listings" as DB
+  folder "Storage Bucket\nlisting-images" as Storage
+}
+
+Frontend --> Internet
+Internet --> Hosting : load static assets
+Frontend --> Auth : authentication requests
+Frontend --> API : data requests via Supabase JS client
+Frontend --> Storage : image upload / retrieval
+
+Auth --> DB : user identity + session metadata
+API --> DB : SQL / row access via RLS
+DB --> Storage : image URL references
+
+@enduml
