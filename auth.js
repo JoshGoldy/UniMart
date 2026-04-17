@@ -185,7 +185,7 @@ const Auth = (() => {
   async function getMarketplaceListings() {
     const { data, error } = await _sb
       .from('listings')
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
@@ -203,6 +203,7 @@ const Auth = (() => {
         condition: listing.condition || 'Not specified',
         isTradeable: Boolean(listing.is_tradeable),
         status: listing.status || 'active',
+        imageUrl: listing.image_url || '',
         createdAt: listing.created_at,
       })),
     };
@@ -211,7 +212,7 @@ const Auth = (() => {
   async function getMyListings(userId) {
     const { data, error } = await _sb
       .from('listings')
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
       .eq('seller_id', userId)
       .order('created_at', { ascending: false });
 
@@ -223,7 +224,7 @@ const Auth = (() => {
     };
   }
 
-  async function createListing({ sellerId, title, description, price, category, condition, isTradeable, status }) {
+  async function createListing({ sellerId, title, description, price, category, condition, isTradeable, status, imageUrl }) {
     const payload = {
       seller_id: sellerId,
       title: title.trim(),
@@ -233,19 +234,20 @@ const Auth = (() => {
       condition: condition,
       is_tradeable: Boolean(isTradeable),
       status: status || 'active',
+      image_url: imageUrl.trim() || null,
     };
 
     const { data, error } = await _sb
       .from('listings')
       .insert(payload)
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
       .single();
 
     if (error) return { error: error.message };
     return { success: true, listing: _mapListingRecord(data) };
   }
 
-  async function updateListing({ listingId, sellerId, title, description, price, category, condition, isTradeable, status }) {
+  async function updateListing({ listingId, sellerId, title, description, price, category, condition, isTradeable, status, imageUrl }) {
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
@@ -254,6 +256,7 @@ const Auth = (() => {
       condition: condition,
       is_tradeable: Boolean(isTradeable),
       status: status || 'active',
+      image_url: imageUrl.trim() || null,
     };
 
     const { data, error } = await _sb
@@ -261,7 +264,7 @@ const Auth = (() => {
       .update(payload)
       .eq('listing_id', listingId)
       .eq('seller_id', sellerId)
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
       .single();
 
     if (error) return { error: error.message };
@@ -335,6 +338,7 @@ const Auth = (() => {
       condition: listing.condition || 'Not specified',
       isTradeable: Boolean(listing.is_tradeable),
       status: listing.status || 'active',
+      imageUrl: listing.image_url || '',
       createdAt: listing.created_at,
     };
   }
