@@ -172,6 +172,10 @@
       }
     }
 
+    function getRecoveryRedirectUrl() {
+      return new URL('login.html', window.location.href).href;
+    }
+
     const passwordToggleIcons = {
       hidden: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 10s2.75-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.75 4.5-7.5 4.5S2.5 10 2.5 10Z"/><circle cx="10" cy="10" r="2.25"/></svg></span>',
       visible: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l14 14" stroke-linecap="round"/><path d="M8.7 5.8A8.5 8.5 0 0 1 10 5.5c4.75 0 7.5 4.5 7.5 4.5a14.4 14.4 0 0 1-2.55 2.9"/><path d="M11.8 11.9A2.25 2.25 0 0 1 8.1 8.2"/><path d="M6.1 6.2C4 7.4 2.5 10 2.5 10s2.75 4.5 7.5 4.5c1.1 0 2.08-.24 2.95-.62" stroke-linecap="round"/></svg></span>'
@@ -275,7 +279,7 @@
       btn.textContent = 'Sending link...';
       btn.disabled = true;
 
-      const redirectTo = `${window.location.origin}${window.location.pathname}`;
+      const redirectTo = getRecoveryRedirectUrl();
       const result = await Auth.requestPasswordReset({ email, redirectTo });
 
       btn.textContent = 'Send reset link';
