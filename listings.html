@@ -3,90 +3,314 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Listing Management — UniMart</title>
+  <title>Listing Management - UniMart</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <style>
-    .coming-soon-card {
+    .listing-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .management-card,
+    .listing-board {
       background: #fff;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 56px 40px;
-      text-align: center;
-      max-width: 480px;
-      margin: 0 auto;
+      box-shadow: var(--shadow-sm);
     }
-    .coming-soon-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--sand);
-      color: var(--muted);
-      font-size: 0.75rem;
+
+    .management-card {
+      padding: 22px;
+      position: sticky;
+      top: calc(var(--header-height) + 18px);
+    }
+
+    .card-title {
+      font-size: 1rem;
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      padding: 5px 12px;
-      border-radius: 99px;
-      margin-bottom: 20px;
+      color: var(--ink);
+      margin-bottom: 4px;
     }
-    .coming-soon-icon {
-      width: 56px;
-      height: 56px;
-      margin-bottom: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--sage);
+
+    .card-copy {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 18px;
     }
-    .coming-soon-card h2 { margin-bottom: 10px; }
-    .coming-soon-card p { margin-bottom: 24px; max-width: 320px; margin-left: auto; margin-right: auto; }
-    .feature-list {
-      text-align: left;
+
+    .listing-form {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: 28px;
+      gap: 14px;
     }
-    .feature-item {
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      font-size: 0.9rem;
+      outline: none;
+      transition: 0.2s ease;
+      font-family: var(--font);
+    }
+
+    .form-textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .form-select:focus,
+    .form-textarea:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 3px rgba(58, 102, 69, 0.12);
+    }
+
+    .switch-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 0.875rem;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--linen);
+    }
+
+    .switch-copy strong {
+      display: block;
+      font-size: 0.86rem;
+      color: var(--ink);
+      margin-bottom: 2px;
+    }
+
+    .switch-copy span {
+      font-size: 0.78rem;
       color: var(--muted);
     }
-    .feature-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--border);
-      flex-shrink: 0;
+
+    .switch-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--sage);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .form-actions .btn {
+      flex: 1;
+    }
+
+    .listing-board {
+      padding: 22px;
+    }
+
+    .board-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .board-meta {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .listing-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .listing-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      background: #fff;
+    }
+
+    .listing-item-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .listing-item-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .listing-item-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .listing-item-price {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--sage);
+      white-space: nowrap;
+    }
+
+    .listing-item-copy {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .listing-item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .listing-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--sand);
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+
+    .listing-pill.active {
+      background: var(--mint);
+      color: var(--sage);
+    }
+
+    .listing-pill.sold {
+      background: #eef6f0;
+      color: #2f7a45;
+    }
+
+    .listing-pill.archived {
+      background: #f3f1f1;
+      color: #7a6f6f;
+    }
+
+    .listing-pill.trade {
+      background: #ecf3ee;
+      color: var(--sage);
+    }
+
+    .listing-item-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--sand);
+    }
+
+    .btn-outline-danger {
+      background: #fff;
+      color: #c0392b;
+      border: 1px solid #c0392b;
+    }
+
+    .btn-outline-danger:hover {
+      background: #c0392b;
+      color: #fff;
+    }
+
+    .empty-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 52px 18px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--linen);
+      color: var(--muted);
+    }
+
+    .empty-panel h3 {
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+
+    @media (max-width: 980px) {
+      .listing-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .management-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .listing-item-header,
+      .board-header,
+      .switch-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .form-actions .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
- 
+
 <div class="overlay" id="sidebar-overlay"></div>
- 
+
 <div class="app-shell">
- 
-  <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-  <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
-</div>
- 
+      <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
+    </div>
+
     <nav class="sidebar-nav">
       <div class="sidebar-section-label">Main</div>
- 
+
       <a href="search.html" class="nav-item" data-page="search.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/>
         </svg>
         Search Listings
       </a>
- 
+
       <a href="dashboard.html" class="nav-item" data-page="dashboard.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/>
@@ -96,23 +320,22 @@
         </svg>
         Dashboard
       </a>
- 
+
       <div class="sidebar-section-label">Manage</div>
- 
-      <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
+
+      <a href="listings.html" class="nav-item" data-page="listings.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
         </svg>
         Listing Management
-        <span class="nav-badge">Soon</span>
       </a>
     </nav>
- 
+
     <div class="sidebar-footer">
       <div class="sidebar-user dropdown" data-dropdown-trigger="user-menu">
         <div class="user-avatar" data-user-initials>?</div>
         <div class="user-info">
-          <div class="user-name" data-user-name>Loading…</div>
+          <div class="user-name" data-user-name>Loading...</div>
           <div class="user-role" data-user-role></div>
         </div>
         <span class="user-chevron"><span class="ui-icon ui-icon-sm"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 7 5 6 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
@@ -124,10 +347,8 @@
       </div>
     </div>
   </aside>
- 
-  <!-- ===== MAIN ===== -->
+
   <div class="main-content">
- 
     <header class="topbar">
       <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none">
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
@@ -144,43 +365,105 @@
         <div class="dropdown-item danger" data-action="signout"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 5H5.5A1.5 1.5 0 0 0 4 6.5v7A1.5 1.5 0 0 0 5.5 15H8" stroke-linecap="round"/><path d="M11 6l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 10H8" stroke-linecap="round"/></svg></span> Sign out</div>
       </div>
     </header>
- 
+
     <main class="page-content">
- 
       <div class="page-header">
         <h1>Listing Management</h1>
         <p>Create, edit, and manage your marketplace listings</p>
       </div>
- 
-      <!-- Coming soon card -->
-      <div class="coming-soon-card">
-        <span class="coming-soon-badge">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-            <circle cx="5" cy="5" r="5"/>
-          </svg>
-          Coming soon
-        </span>
-        <span class="coming-soon-icon"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12.5 4.5c1.6 1.6 2 4 .9 6.1l-3.1 3.1c-2.1 1.1-4.5.7-6.1-.9 1.6-1.6 4-2 6.1-.9l3.1-3.1c2.1-1.1 2.5-3.5.9-5.1Z" stroke-linejoin="round"/><path d="m7 13-2.5 2.5M6 9.5 4.5 8M11 15.5l1.5 1.5" stroke-linecap="round"/></svg></span></span>
-        <h2>Listing Management</h2>
-        <p>This feature is under development. Here's what you'll be able to do once it launches:</p>
- 
-        <div class="feature-list">
-          <div class="feature-item"><div class="feature-dot"></div>Create and publish new listings with photos</div>
-          <div class="feature-item"><div class="feature-dot"></div>Set prices, categories, and availability</div>
-          <div class="feature-item"><div class="feature-dot"></div>Edit or remove your active listings</div>
-          <div class="feature-item"><div class="feature-dot"></div>Track views and interested buyers</div>
-          <div class="feature-item"><div class="feature-dot"></div>Mark items as sold</div>
-        </div>
- 
-        <a href="search.html" class="btn btn-outline"><span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11.5 5 6.5 10l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Browse Marketplace</a>
+
+      <div class="listing-layout">
+        <section class="management-card">
+          <div class="card-title" id="form-title">Create a new listing</div>
+          <div class="card-copy">Add an item to the marketplace or update one of your existing listings.</div>
+
+          <form class="listing-form" id="listing-form" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="listing-title">Title</label>
+              <input class="form-input" id="listing-title" type="text" placeholder="e.g. Calculus textbook" />
+              <span class="form-error" id="title-error"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="listing-description">Description</label>
+              <textarea class="form-textarea" id="listing-description" placeholder="Add a short description of the item"></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="listing-price">Price (ZAR)</label>
+                <input class="form-input" id="listing-price" type="number" min="0" step="1" placeholder="e.g. 450" />
+                <span class="form-error" id="price-error"></span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="listing-status">Status</label>
+                <select class="form-select" id="listing-status">
+                  <option value="active">Active</option>
+                  <option value="sold">Sold</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="listing-category">Category</label>
+                <select class="form-select" id="listing-category">
+                  <option value="Textbooks">Textbooks</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Furniture">Furniture</option>
+                  <option value="Clothing">Clothing</option>
+                  <option value="Notes &amp; Study">Notes &amp; Study</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="listing-condition">Condition</label>
+                <select class="form-select" id="listing-condition">
+                  <option value="New">New</option>
+                  <option value="Like New">Like New</option>
+                  <option value="Good">Good</option>
+                  <option value="Fair">Fair</option>
+                  <option value="Used">Used</option>
+                </select>
+              </div>
+            </div>
+
+            <label class="switch-row">
+              <div class="switch-copy">
+                <strong>Open to trades</strong>
+                <span>Turn this on if you are willing to swap instead of only selling.</span>
+              </div>
+              <input id="listing-tradeable" type="checkbox" />
+            </label>
+
+            <div class="form-error" id="listing-form-error" style="text-align:center;"></div>
+
+            <div class="form-actions">
+              <button class="btn btn-primary" id="save-listing-btn" type="submit">Create listing</button>
+              <button class="btn btn-secondary" id="cancel-edit-btn" type="button" style="display:none;">Cancel edit</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="listing-board">
+          <div class="board-header">
+            <div>
+              <div class="card-title">Your listings</div>
+              <div class="card-copy">Manage availability, update details, or remove old listings.</div>
+            </div>
+            <div class="board-meta" id="listing-count">Loading your listings...</div>
+          </div>
+
+          <div class="listing-stack" id="listing-stack"></div>
+        </section>
       </div>
- 
     </main>
   </div>
 </div>
- 
+
 <div class="toast-container" id="toast-container"></div>
- 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="auth.js"></script>
 <script src="app.js"></script>
@@ -188,7 +471,249 @@
   if (window.innerWidth <= 768) {
     document.getElementById('sidebar-toggle').style.display = 'flex';
   }
-  initPage();
+
+  const pageState = {
+    user: null,
+    listings: [],
+    editingId: null,
+  };
+
+  initPage().then(user => {
+    if (!user) return;
+    pageState.user = user;
+    loadMyListings();
+  });
+
+  document.getElementById('listing-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    clearErrors();
+
+    const payload = {
+      sellerId: pageState.user?.id,
+      listingId: pageState.editingId,
+      title: document.getElementById('listing-title').value.trim(),
+      description: document.getElementById('listing-description').value.trim(),
+      price: document.getElementById('listing-price').value,
+      category: document.getElementById('listing-category').value,
+      condition: document.getElementById('listing-condition').value,
+      isTradeable: document.getElementById('listing-tradeable').checked,
+      status: document.getElementById('listing-status').value,
+    };
+
+    let valid = true;
+    if (!payload.title) {
+      showError('title-error', 'Title is required.');
+      valid = false;
+    }
+    if (!payload.price || Number(payload.price) < 0) {
+      showError('price-error', 'Enter a valid price.');
+      valid = false;
+    }
+    if (!valid || !pageState.user) return;
+
+    const button = document.getElementById('save-listing-btn');
+    button.disabled = true;
+    button.textContent = pageState.editingId ? 'Saving changes...' : 'Creating listing...';
+
+    const result = pageState.editingId
+      ? await Auth.updateListing(payload)
+      : await Auth.createListing(payload);
+
+    button.disabled = false;
+    button.textContent = pageState.editingId ? 'Save changes' : 'Create listing';
+
+    if (result.error) {
+      showError('listing-form-error', result.error);
+      return;
+    }
+
+    showToast(pageState.editingId ? 'Listing updated successfully' : 'Listing created successfully', 'success');
+    resetForm();
+    loadMyListings();
+  });
+
+  document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+
+  async function loadMyListings() {
+    if (!pageState.user) return;
+    const result = await Auth.getMyListings(pageState.user.id);
+    if (result.error) {
+      document.getElementById('listing-count').textContent = 'Unable to load listings.';
+      document.getElementById('listing-stack').innerHTML = renderEmptyState('We could not load your listings right now.');
+      return;
+    }
+
+    pageState.listings = result.listings || [];
+    renderListings();
+  }
+
+  function renderListings() {
+    const countEl = document.getElementById('listing-count');
+    const stack = document.getElementById('listing-stack');
+
+    countEl.textContent = `${pageState.listings.length} listing${pageState.listings.length === 1 ? '' : 's'} in your account`;
+
+    if (!pageState.listings.length) {
+      stack.innerHTML = renderEmptyState('You have not created any listings yet. Fill in the form to add your first one.');
+      return;
+    }
+
+    stack.innerHTML = pageState.listings.map(listing => `
+      <article class="listing-item">
+        <div class="listing-item-header">
+          <div>
+            <div class="listing-item-title">${escapeHtml(listing.title)}</div>
+            <div class="listing-item-meta">${escapeHtml(listing.category)} • ${formatDate(listing.createdAt)}</div>
+          </div>
+          <div class="listing-item-price">${formatCurrency(listing.price)}</div>
+        </div>
+        <div class="listing-item-copy">${escapeHtml(listing.description || 'No description added yet.')}</div>
+        <div class="listing-item-tags">
+          <span class="listing-pill ${escapeHtml((listing.status || 'active').toLowerCase())}">${escapeHtml(listing.status)}</span>
+          <span class="listing-pill">${escapeHtml(listing.condition)}</span>
+          ${listing.isTradeable ? '<span class="listing-pill trade">Tradeable</span>' : ''}
+        </div>
+        <div class="listing-item-actions">
+          <button class="btn btn-secondary" type="button" data-action="edit" data-id="${listing.id}">Edit</button>
+          <button class="btn btn-secondary" type="button" data-action="toggle-status" data-id="${listing.id}">
+            ${listing.status === 'active' ? 'Mark sold' : 'Mark active'}
+          </button>
+          <button class="btn btn-outline-danger" type="button" data-action="delete" data-id="${listing.id}">Delete</button>
+        </div>
+      </article>
+    `).join('');
+
+    stack.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', handleListingAction);
+    });
+  }
+
+  async function handleListingAction(event) {
+    const action = event.currentTarget.dataset.action;
+    const listing = pageState.listings.find(item => item.id === event.currentTarget.dataset.id);
+    if (!listing || !pageState.user) return;
+
+    if (action === 'edit') {
+      startEditing(listing);
+      return;
+    }
+
+    if (action === 'toggle-status') {
+      const nextStatus = listing.status === 'active' ? 'sold' : 'active';
+      const result = await Auth.updateListing({
+        listingId: listing.id,
+        sellerId: pageState.user.id,
+        title: listing.title,
+        description: listing.description,
+        price: listing.price,
+        category: listing.category,
+        condition: listing.condition,
+        isTradeable: listing.isTradeable,
+        status: nextStatus,
+      });
+
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+
+      showToast(`Listing marked as ${nextStatus}`, 'success');
+      loadMyListings();
+      return;
+    }
+
+    if (action === 'delete') {
+      const confirmed = window.confirm(`Delete "${listing.title}" permanently?`);
+      if (!confirmed) return;
+
+      const result = await Auth.deleteListing({ listingId: listing.id, sellerId: pageState.user.id });
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+
+      if (pageState.editingId === listing.id) resetForm();
+      showToast('Listing deleted successfully', 'success');
+      loadMyListings();
+    }
+  }
+
+  function startEditing(listing) {
+    pageState.editingId = listing.id;
+    document.getElementById('form-title').textContent = 'Edit listing';
+    document.getElementById('listing-title').value = listing.title;
+    document.getElementById('listing-description').value = listing.description || '';
+    document.getElementById('listing-price').value = listing.price;
+    document.getElementById('listing-category').value = listing.category;
+    document.getElementById('listing-condition').value = listing.condition;
+    document.getElementById('listing-tradeable').checked = listing.isTradeable;
+    document.getElementById('listing-status').value = listing.status;
+    document.getElementById('save-listing-btn').textContent = 'Save changes';
+    document.getElementById('cancel-edit-btn').style.display = 'inline-flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    pageState.editingId = null;
+    clearErrors();
+    document.getElementById('listing-form').reset();
+    document.getElementById('form-title').textContent = 'Create a new listing';
+    document.getElementById('listing-status').value = 'active';
+    document.getElementById('listing-category').value = 'Textbooks';
+    document.getElementById('listing-condition').value = 'New';
+    document.getElementById('save-listing-btn').textContent = 'Create listing';
+    document.getElementById('cancel-edit-btn').style.display = 'none';
+  }
+
+  function renderEmptyState(message) {
+    return `
+      <div class="empty-panel">
+        <h3>No listings to manage yet</h3>
+        <p>${escapeHtml(message)}</p>
+      </div>
+    `;
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      maximumFractionDigits: 0,
+    }).format(value || 0);
+  }
+
+  function formatDate(value) {
+    if (!value) return 'No date';
+    return new Intl.DateTimeFormat('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(value));
+  }
+
+  function clearErrors() {
+    document.querySelectorAll('.form-error').forEach(el => {
+      el.textContent = '';
+      el.classList.remove('visible');
+    });
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 </script>
 </body>
 </html>

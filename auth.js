@@ -207,6 +207,77 @@ const Auth = (() => {
       })),
     };
   }
+
+  async function getMyListings(userId) {
+    const { data, error } = await _sb
+      .from('listings')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .eq('seller_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) return { error: error.message };
+
+    return {
+      success: true,
+      listings: (data || []).map(_mapListingRecord),
+    };
+  }
+
+  async function createListing({ sellerId, title, description, price, category, condition, isTradeable, status }) {
+    const payload = {
+      seller_id: sellerId,
+      title: title.trim(),
+      description: description.trim() || null,
+      price: Number(price),
+      category: category,
+      condition: condition,
+      is_tradeable: Boolean(isTradeable),
+      status: status || 'active',
+    };
+
+    const { data, error } = await _sb
+      .from('listings')
+      .insert(payload)
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .single();
+
+    if (error) return { error: error.message };
+    return { success: true, listing: _mapListingRecord(data) };
+  }
+
+  async function updateListing({ listingId, sellerId, title, description, price, category, condition, isTradeable, status }) {
+    const payload = {
+      title: title.trim(),
+      description: description.trim() || null,
+      price: Number(price),
+      category: category,
+      condition: condition,
+      is_tradeable: Boolean(isTradeable),
+      status: status || 'active',
+    };
+
+    const { data, error } = await _sb
+      .from('listings')
+      .update(payload)
+      .eq('listing_id', listingId)
+      .eq('seller_id', sellerId)
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
+      .single();
+
+    if (error) return { error: error.message };
+    return { success: true, listing: _mapListingRecord(data) };
+  }
+
+  async function deleteListing({ listingId, sellerId }) {
+    const { error } = await _sb
+      .from('listings')
+      .delete()
+      .eq('listing_id', listingId)
+      .eq('seller_id', sellerId);
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
  
   /* ---------- helpers ---------- */
   async function _getProfile(authUser) {
@@ -252,6 +323,21 @@ const Auth = (() => {
     if (!name) return '?';
     return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   }
+
+  function _mapListingRecord(listing) {
+    return {
+      id: listing.listing_id,
+      sellerId: listing.seller_id,
+      title: listing.title || 'Untitled listing',
+      description: listing.description || '',
+      price: Number(listing.price) || 0,
+      category: listing.category || 'Other',
+      condition: listing.condition || 'Not specified',
+      isTradeable: Boolean(listing.is_tradeable),
+      status: listing.status || 'active',
+      createdAt: listing.created_at,
+    };
+  }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing };
 })();

@@ -157,12 +157,11 @@
 
       <div class="sidebar-section-label">Manage</div>
 
-      <a href="listings.html" class="nav-item nav-item-soon" data-page="listings.html">
+      <a href="listings.html" class="nav-item" data-page="listings.html">
         <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/>
         </svg>
         Listing Management
-        <span class="nav-badge">Soon</span>
       </a>
     </nav>
 
@@ -279,7 +278,12 @@
     });
   });
 
-  document.getElementById('listing-search').addEventListener('input', function () {
+  const searchInput = document.getElementById('listing-search');
+  searchInput.addEventListener('input', function () {
+    state.query = this.value.trim().toLowerCase();
+    renderListings();
+  });
+  searchInput.addEventListener('search', function () {
     state.query = this.value.trim().toLowerCase();
     renderListings();
   });
@@ -313,12 +317,13 @@
 
   function renderListings() {
     const filtered = state.listings.filter(listing => {
-      const matchesCategory = state.category === 'all' || listing.category === state.category;
+      const matchesCategory = state.category === 'all' || normalizeCategory(listing.category) === normalizeCategory(state.category);
       const haystack = [
         listing.title,
         listing.description,
         listing.category,
         listing.condition,
+        String(listing.price),
       ].join(' ').toLowerCase();
       const matchesQuery = !state.query || haystack.includes(state.query);
       return matchesCategory && matchesQuery;
@@ -405,6 +410,10 @@
   function shortId(value) {
     if (!value) return 'Unknown';
     return `${value.slice(0, 8)}...`;
+  }
+
+  function normalizeCategory(value) {
+    return String(value || '').trim().toLowerCase();
   }
 
   function escapeHtml(value) {

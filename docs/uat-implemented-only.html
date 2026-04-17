@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart UAT - Implemented User Stories</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5f6a60;
+      --sage: #3a6645;
+      --sage-soft: #e7f0e9;
+      --sand: #f4efe5;
+      --line: #d8d1c4;
+      --paper: #fffdfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 32px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      margin: 0 0 10px;
+    }
+    h1 {
+      font-size: 28px;
+      color: var(--sage);
+    }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 20px;
+    }
+    p, li, td, th {
+      font-size: 14px;
+    }
+    .muted {
+      color: var(--muted);
+    }
+    .intro, .note {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      background: #fff;
+      margin: 16px 0 20px;
+    }
+    .intro {
+      background: var(--sand);
+    }
+    .pill {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--sage-soft);
+      color: var(--sage);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--sand);
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 14px; }
+      table { break-inside: auto; }
+      tr { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart User Acceptance Tests</h1>
+    <p class="muted">Implemented acceptance tests only, written in who-what-why format.</p>
+
+    <div class="intro">
+      <p><strong>Document scope:</strong> this UAT document includes only the implemented acceptance tests for the current UniMart application. Any planned but incomplete requirements such as permanent account deletion, condition filtering, price range filtering, and purchase history are intentionally excluded.</p>
+    </div>
+
+    <h2>User Story 1</h2>
+    <p><strong>As a new user, I want to create an account and log in using a username and password, so that I can securely access and manage my personal listings and activity.</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>UAT ID</th>
+          <th>Who</th>
+          <th>What</th>
+          <th>Why</th>
+          <th>Test Scenario</th>
+          <th>Expected Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UAT-1.1</td>
+          <td>As a new user</td>
+          <td>I want to create an account with my details</td>
+          <td>So that I can register for UniMart</td>
+          <td>Enter valid sign-up details and submit the registration form</td>
+          <td>User moves to OTP/email verification step</td>
+        </tr>
+        <tr>
+          <td>UAT-1.2</td>
+          <td>As a new user</td>
+          <td>I want to verify my account with the OTP code</td>
+          <td>So that my account becomes active and secure</td>
+          <td>Enter the correct 8-digit OTP code</td>
+          <td>Account is verified and user can continue</td>
+        </tr>
+        <tr>
+          <td>UAT-1.3</td>
+          <td>As a registered user</td>
+          <td>I want to log in with my email and password</td>
+          <td>So that I can access my account</td>
+          <td>Enter valid credentials on the login page</td>
+          <td>User is authenticated and redirected to marketplace</td>
+        </tr>
+        <tr>
+          <td>UAT-1.4</td>
+          <td>As a registered user</td>
+          <td>I want the system to reject incorrect credentials</td>
+          <td>So that my account remains secure</td>
+          <td>Enter invalid login details</td>
+          <td>Error message is shown and access is denied</td>
+        </tr>
+        <tr>
+          <td>UAT-1.5</td>
+          <td>As a new or registered user</td>
+          <td>I want required fields to be validated</td>
+          <td>So that I know what information is missing or incorrect</td>
+          <td>Submit login or signup form with empty required fields</td>
+          <td>Validation messages are displayed</td>
+        </tr>
+        <tr>
+          <td>UAT-1.6</td>
+          <td>As an unauthenticated user</td>
+          <td>I want protected pages to block access until I log in</td>
+          <td>So that private account pages remain secure</td>
+          <td>Try opening dashboard, profile, or search pages without a session</td>
+          <td>User is redirected to login page</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>User Story 2</h2>
+    <p><strong>As a registered user, I need to be able to view and change my username, email and password in a “My Profile” page.</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>UAT ID</th>
+          <th>Who</th>
+          <th>What</th>
+          <th>Why</th>
+          <th>Test Scenario</th>
+          <th>Expected Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UAT-2.1</td>
+          <td>As a registered user</td>
+          <td>I want to open the My Profile page from the user menu</td>
+          <td>So that I can manage my account details</td>
+          <td>Click the top-right dropdown and select My Profile</td>
+          <td>Profile page opens successfully</td>
+        </tr>
+        <tr>
+          <td>UAT-2.2</td>
+          <td>As a registered user</td>
+          <td>I want to view my stored profile details</td>
+          <td>So that I can confirm my account information</td>
+          <td>Open My Profile page</td>
+          <td>Current name, email, account type, and campus info are displayed</td>
+        </tr>
+        <tr>
+          <td>UAT-2.3</td>
+          <td>As a registered user</td>
+          <td>I want to update my username and email</td>
+          <td>So that my account information stays correct</td>
+          <td>Edit full name and email, then save</td>
+          <td>Changes are stored and reflected on the page</td>
+        </tr>
+        <tr>
+          <td>UAT-2.4</td>
+          <td>As a registered user</td>
+          <td>I want to change my password</td>
+          <td>So that I can keep my account secure</td>
+          <td>Enter current password, new password, and confirmation, then save</td>
+          <td>Password is updated successfully</td>
+        </tr>
+        <tr>
+          <td>UAT-2.5</td>
+          <td>As a registered user</td>
+          <td>I want incorrect current passwords to be rejected</td>
+          <td>So that nobody can change my password without proper verification</td>
+          <td>Enter wrong current password and attempt update</td>
+          <td>Error is shown and password remains unchanged</td>
+        </tr>
+        <tr>
+          <td>UAT-2.6</td>
+          <td>As a registered user</td>
+          <td>I want to update my university, campus, and student number</td>
+          <td>So that my profile stays relevant to my campus identity</td>
+          <td>Edit campus info and save</td>
+          <td>Campus details update successfully</td>
+        </tr>
+        <tr>
+          <td>UAT-2.7</td>
+          <td>As a registered user</td>
+          <td>I want to sign out from my account</td>
+          <td>So that I can securely end my session</td>
+          <td>Click sign out from dropdown or profile page</td>
+          <td>Session ends and user is redirected to login</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>User Story 3</h2>
+    <p><strong>As a user, I want to search and filter listings by category, so that I can quickly find items that match my preferences.</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>UAT ID</th>
+          <th>Who</th>
+          <th>What</th>
+          <th>Why</th>
+          <th>Test Scenario</th>
+          <th>Expected Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UAT-3.1</td>
+          <td>As a user</td>
+          <td>I want to view available marketplace listings</td>
+          <td>So that I can browse items offered on the platform</td>
+          <td>Open the search page with listings in the database</td>
+          <td>Active listings are displayed as cards</td>
+        </tr>
+        <tr>
+          <td>UAT-3.2</td>
+          <td>As a user</td>
+          <td>I want to search listings by keyword</td>
+          <td>So that I can quickly find relevant items</td>
+          <td>Type a keyword into the search bar</td>
+          <td>Matching listings are displayed</td>
+        </tr>
+        <tr>
+          <td>UAT-3.3</td>
+          <td>As a user</td>
+          <td>I want to filter listings by category</td>
+          <td>So that I can narrow results to the type of item I want</td>
+          <td>Click a category chip such as Electronics or Furniture</td>
+          <td>Only listings in the selected category are shown</td>
+        </tr>
+        <tr>
+          <td>UAT-3.4</td>
+          <td>As a user</td>
+          <td>I want search and category filters to work together</td>
+          <td>So that I can narrow listings more precisely</td>
+          <td>Enter a keyword and select a category</td>
+          <td>Only listings matching both filters are shown</td>
+        </tr>
+        <tr>
+          <td>UAT-3.5</td>
+          <td>As a user</td>
+          <td>I want to be informed when no results match my search</td>
+          <td>So that I understand there are no matching listings</td>
+          <td>Use a search/filter combination with no results</td>
+          <td>A no-results empty state is shown</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>User Story 4</h2>
+    <p><strong>As a user, I want to view a dashboard with analytics such as listing counts and summary charts, so that I can track my activity and performance on the platform.</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>UAT ID</th>
+          <th>Who</th>
+          <th>What</th>
+          <th>Why</th>
+          <th>Test Scenario</th>
+          <th>Expected Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UAT-4.1</td>
+          <td>As a user</td>
+          <td>I want to open my dashboard</td>
+          <td>So that I can see a summary of my activity</td>
+          <td>Open the dashboard page</td>
+          <td>Dashboard loads successfully</td>
+        </tr>
+        <tr>
+          <td>UAT-4.2</td>
+          <td>As a user</td>
+          <td>I want to view my listing counts and totals</td>
+          <td>So that I can track how many items I have active or sold</td>
+          <td>Open dashboard with listings linked to my account</td>
+          <td>Active Listings, Sold Listings, Active Listing Value, and Listed This Month are displayed</td>
+        </tr>
+        <tr>
+          <td>UAT-4.3</td>
+          <td>As a user</td>
+          <td>I want to view summary charts</td>
+          <td>So that I can understand my listing trends and category activity</td>
+          <td>Open dashboard with listing data available</td>
+          <td>Trend and category charts are displayed</td>
+        </tr>
+        <tr>
+          <td>UAT-4.4</td>
+          <td>As a user</td>
+          <td>I want to view my recent listing activity</td>
+          <td>So that I can quickly monitor my latest items</td>
+          <td>Open dashboard with recent listings available</td>
+          <td>Recent Listings panel is shown</td>
+        </tr>
+        <tr>
+          <td>UAT-4.5</td>
+          <td>As a user</td>
+          <td>I want a meaningful empty state when I have no data</td>
+          <td>So that I still understand the dashboard even without listings</td>
+          <td>Open dashboard with no listings linked to my account</td>
+          <td>Empty analytics state is displayed</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <div class="pill">Note</div>
+      <p>This document includes only implemented acceptance tests. Features that are not yet complete were removed to keep the UAT scope accurate and defensible.</p>
+      <p class="small">Examples excluded from this version: permanent account deletion, condition filtering, price range filtering, and purchase history.</p>
+    </div>
+  </div>
+</body>
+</html>
