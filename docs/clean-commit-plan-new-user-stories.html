@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart Commit Plan - New User Stories</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5e695e;
+      --sage: #3a6645;
+      --sand: #f3efe6;
+      --line: #d8d3c7;
+      --paper: #fffdfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.5;
+      padding: 32px;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 {
+      font-size: 28px;
+      color: var(--sage);
+    }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 20px;
+    }
+    h3 { font-size: 16px; }
+    p, li {
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .muted { color: var(--muted); }
+    .intro {
+      background: var(--sand);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin: 18px 0 24px;
+    }
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      background: #fff;
+      break-inside: avoid;
+      margin-bottom: 18px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--sand);
+      border: 1px solid var(--line);
+    }
+    ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+    pre {
+      background: #182118;
+      color: #eef6ef;
+      padding: 14px;
+      border-radius: 12px;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 12px 0 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--sand); }
+    .note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 16px; }
+      .card { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart Clean Commit Plan - New User Stories</h1>
+    <p class="muted">Prepared for adding the second set of implemented user stories to a clean repository history in a truthful, team-aligned way.</p>
+
+    <div class="intro">
+      <p><strong>How to use this document:</strong> each commit below is a clean milestone tied to the six newer UniMart user stories. The <strong>Primary owner</strong> should only make that commit if they actually implement or meaningfully review that portion in the new repo. These commands do not fake authorship; they simply keep the history neat and realistic.</p>
+      <p><strong>Important update for this round:</strong> Nkosi is included on two genuine coding milestones, not only documentation, so his involvement can reflect real implementation work if he handles those tasks in the rebuilt repo.</p>
+    </div>
+
+    <h2>New User Stories Covered</h2>
+    <div class="card">
+      <ul>
+        <li>Add a new listing with item details and an image.</li>
+        <li>Edit an existing listing.</li>
+        <li>Delete an existing listing.</li>
+        <li>Mark a listing as sold or active.</li>
+        <li>Forgot password functionality.</li>
+        <li>View full listing details from the marketplace card.</li>
+      </ul>
+    </div>
+
+    <h2>Team Alignment For This Round</h2>
+    <div class="role-grid">
+      <div class="card">
+        <h3>Frontend</h3>
+        <p>Ethan and Ndumiso</p>
+        <p class="muted">UI layouts, forms, listing cards, modals, toggles, detail views, spacing, and page interaction polish.</p>
+      </div>
+      <div class="card">
+        <h3>Backend</h3>
+        <p>Hlaku and Elijah</p>
+        <p class="muted">Supabase helpers, listing CRUD logic, storage integration, auth recovery helpers, and policy-related support.</p>
+      </div>
+      <div class="card">
+        <h3>Product / Coordination</h3>
+        <p>Nkosi</p>
+        <p class="muted">Still supports documentation and client-facing clarity, but in this round can genuinely own smaller implementation slices too.</p>
+      </div>
+      <div class="card">
+        <h3>Cross-Cutting</h3>
+        <p>Josh</p>
+        <p class="muted">Integration, testing, frontend/backend wiring, and final polish where multiple features come together.</p>
+      </div>
+    </div>
+
+    <h2>Recommended Commit Order</h2>
+
+    <div class="card">
+      <h3>1. Add seller listing query helpers and CRUD foundation</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Hlaku</span>
+        <span class="pill">Support: Elijah</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Backend integration</span>
+      </div>
+      <ul>
+        <li>Add reusable Supabase helpers for fetching a seller's listings.</li>
+        <li>Implement create, update, and delete listing methods in the shared auth/data layer.</li>
+      </ul>
+      <pre>git add auth.js
+git commit -m "feat(listings): add seller listing CRUD helpers in the Supabase service layer"</pre>
+    </div>
+
+    <div class="card">
+      <h3>2. Build live listing management page for create and edit flows</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Ethan</span>
+        <span class="pill">Support: Ndumiso</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Frontend form and management UI</span>
+      </div>
+      <ul>
+        <li>Replace the placeholder listings page with a real management screen.</li>
+        <li>Add the create-listing form, edit mode, and seller listing cards.</li>
+        <li>Keep this milestone focused on the add and edit stories only.</li>
+      </ul>
+      <pre>git add listings.html
+git commit -m "feat(listings-ui): build live listing management with create and edit support"</pre>
+    </div>
+
+    <div class="card">
+      <h3>3. Add listing delete and sold or active status controls</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Josh</span>
+        <span class="pill">Support: Hlaku</span>
+        <span class="pill">Focus: Management interactions</span>
+      </div>
+      <ul>
+        <li>Add delete controls for seller-owned listings.</li>
+        <li>Add mark-as-sold and mark-as-active actions to keep listing availability accurate.</li>
+      </ul>
+      <pre>git add listings.html
+git commit -m "feat(listings): add delete actions and sold or active status management"</pre>
+    </div>
+
+    <div class="card">
+      <h3>4. Add image upload support for listings</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Elijah</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Storage integration</span>
+      </div>
+      <ul>
+        <li>Integrate Supabase Storage for listing image uploads.</li>
+        <li>Store image URLs in listing records and surface previews in the listing management page.</li>
+      </ul>
+      <pre>git add auth.js listings.html
+git commit -m "feat(storage): add Supabase image upload support for marketplace listings"</pre>
+    </div>
+
+    <div class="card">
+      <h3>5. Add clickable marketplace cards and listing details view</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Nkosi</span>
+        <span class="pill">Support: Ethan</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Real coding milestone for Nkosi</span>
+      </div>
+      <ul>
+        <li>Make each marketplace listing card clickable.</li>
+        <li>Add the full listing detail modal with image, price, condition, description, and seller info.</li>
+      </ul>
+      <pre>git add search.html
+git commit -m "feat(marketplace): make listing cards clickable and add full item detail views"</pre>
+    </div>
+
+    <div class="card">
+      <h3>6. Add forgot password request and recovery flow</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Nkosi</span>
+        <span class="pill">Support: Elijah</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Real coding milestone for Nkosi</span>
+      </div>
+      <ul>
+        <li>Implement the forgot-password request form from the login page.</li>
+        <li>Add the password recovery step for reset links coming back from Supabase.</li>
+      </ul>
+      <pre>git add login.html auth.js
+git commit -m "feat(auth): add forgot password request flow and Supabase password recovery handling"</pre>
+    </div>
+
+    <div class="card">
+      <h3>7. Document new stories, setup notes, and reset-link requirements</h3>
+      <div class="meta">
+        <span class="pill">Primary owner: Nkosi</span>
+        <span class="pill">Support: Josh</span>
+        <span class="pill">Focus: Documentation handoff</span>
+      </div>
+      <ul>
+        <li>Document the new user stories and what changed in the app.</li>
+        <li>Add notes about the Supabase storage bucket, listing image column, and password reset redirect URLs.</li>
+      </ul>
+      <pre>git add README.md docs/
+git commit -m "docs(project): document new listing workflows, detail views, and password recovery setup"</pre>
+    </div>
+
+    <h2>Quick Ownership Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Person</th>
+          <th>Recommended commit ownership in this round</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Josh</td>
+          <td>3 and support across 1, 2, 4, 5, 6, 7</td>
+        </tr>
+        <tr>
+          <td>Hlaku</td>
+          <td>1 and support on 3</td>
+        </tr>
+        <tr>
+          <td>Ethan</td>
+          <td>2 and support on 5</td>
+        </tr>
+        <tr>
+          <td>Nkosi</td>
+          <td>5, 6, and 7</td>
+        </tr>
+        <tr>
+          <td>Ndumiso</td>
+          <td>Support on 2</td>
+        </tr>
+        <tr>
+          <td>Elijah</td>
+          <td>4 and support on 1, 6</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Practical Notes For The New Repo</h2>
+    <ul>
+      <li>Keep these commits separate from the earlier base-repo milestones so the history reads like a natural second wave of feature delivery.</li>
+      <li>If two people truly worked together on one milestone, add a real <code>Co-authored-by:</code> trailer instead of forcing a single-owner narrative.</li>
+      <li>For the forgot password flow, make sure Supabase redirect URLs are documented and set correctly in the environment where the team demos the app.</li>
+      <li>For image uploads, make sure the storage bucket setup and RLS/storage policies are included somewhere visible in docs or setup notes.</li>
+      <li>Nkosi's two coding commits should only be used if he genuinely applies those changes in the clean repo rebuild.</li>
+    </ul>
+
+    <p class="note">This document is designed to be exported directly to PDF and used alongside the original clean commit plan as a second-phase feature plan.</p>
+  </div>
+</body>
+</html>

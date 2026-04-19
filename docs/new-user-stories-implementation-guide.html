@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart New User Stories Implementation Guide</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5e695e;
+      --sage: #3a6645;
+      --sand: #f3efe6;
+      --line: #d8d3c7;
+      --paper: #fffdfa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.5;
+      padding: 32px;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 { font-size: 28px; color: var(--sage); }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 20px;
+    }
+    h3 { font-size: 16px; }
+    p, li, td, th { font-size: 14px; }
+    .muted { color: var(--muted); }
+    .intro, .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin: 18px 0;
+    }
+    .intro { background: var(--sand); }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--sand);
+      border: 1px solid var(--line);
+    }
+    ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+    pre {
+      background: #182118;
+      color: #eef6ef;
+      padding: 14px;
+      border-radius: 12px;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 12px 0 0;
+    }
+    code {
+      background: #f0eee7;
+      padding: 2px 5px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--sand); }
+    .note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 16px; }
+      .card { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart New User Stories Implementation Guide</h1>
+    <p class="muted">Step-by-step rebuild guide for bringing the clean repo up to the current app state for the six newer user stories, now split into 7 commits.</p>
+
+    <div class="intro">
+      <p><strong>How to use this document:</strong> this guide is written for your clean repo that stopped before the newer listing and password-recovery features. Each milestone points to an exact snapshot file stored in <code>docs/commit-snapshots/new-user-stories/</code>. Copy the snapshot into your clean repo, stage it, and commit it.</p>
+      <p><strong>Important:</strong> these steps assume you are working inside the clean repo folder, not the current working UniMart app folder.</p>
+    </div>
+
+    <h2>Snapshot Files</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Snapshot</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>01-auth.js</code></td>
+          <td>Auth/data layer with seller listing CRUD, but without image upload and without forgot password yet.</td>
+        </tr>
+        <tr>
+          <td><code>02-listings.html</code></td>
+          <td>Live listing management page with add and edit support, but without delete/status management and without image upload yet.</td>
+        </tr>
+        <tr>
+          <td><code>03-listings.html</code></td>
+          <td>Listing management page with delete and sold/active status management added, but still without image upload.</td>
+        </tr>
+        <tr>
+          <td><code>04-auth.js</code></td>
+          <td>Auth/data layer with image upload support added, but still without forgot password yet.</td>
+        </tr>
+        <tr>
+          <td><code>04-listings.html</code></td>
+          <td>Final listing management page with image upload and previews.</td>
+        </tr>
+        <tr>
+          <td><code>05-search.html</code></td>
+          <td>Marketplace page with clickable cards, listing images, and a full detail modal.</td>
+        </tr>
+        <tr>
+          <td><code>06-auth.js</code></td>
+          <td>Final auth/data layer including forgot password helpers.</td>
+        </tr>
+        <tr>
+          <td><code>06-login.html</code></td>
+          <td>Final login page including forgot password request and password recovery flow.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Recommended Commit Order</h2>
+
+    <div class="card">
+      <h3>1. Add seller listing CRUD foundation</h3>
+      <div class="meta">
+        <span class="pill">Stories covered: Add listing, Edit listing, Delete listing, Mark sold/active</span>
+        <span class="pill">Owner suggestion: Hlaku</span>
+      </div>
+      <ul>
+        <li>Replace the clean repo's <code>auth.js</code> with the snapshot version below.</li>
+        <li>This adds the seller-side listing methods needed before the management page can become live.</li>
+      </ul>
+      <pre>Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\01-auth.js" ".\auth.js" -Force
+git add auth.js
+git commit -m "feat(listings): add seller listing CRUD helpers in the Supabase service layer"</pre>
+    </div>
+
+    <div class="card">
+      <h3>2. Replace the placeholder listings page with a live add and edit experience</h3>
+      <div class="meta">
+        <span class="pill">Stories covered: Add listing, Edit listing</span>
+        <span class="pill">Owner suggestion: Ethan</span>
+      </div>
+      <ul>
+        <li>Replace the clean repo's placeholder <code>listings.html</code> with the snapshot below.</li>
+        <li>This turns listing management into a real working page for create and edit flows.</li>
+        <li>At this stage, delete/status controls and image upload are not added yet.</li>
+      </ul>
+      <pre>Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\02-listings.html" ".\listings.html" -Force
+git add listings.html
+git commit -m "feat(listings-ui): build live listing management with create and edit support"</pre>
+    </div>
+
+    <div class="card">
+      <h3>3. Add delete and sold or active status controls</h3>
+      <div class="meta">
+        <span class="pill">Stories covered: Delete listing, Mark sold/active</span>
+        <span class="pill">Owner suggestion: Josh</span>
+      </div>
+      <ul>
+        <li>Replace <code>listings.html</code> with the next snapshot below.</li>
+        <li>This adds delete actions and sold/active management to the seller listings view.</li>
+      </ul>
+      <pre>Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\03-listings.html" ".\listings.html" -Force
+git add listings.html
+git commit -m "feat(listings): add delete actions and sold or active status management"</pre>
+    </div>
+
+    <div class="card">
+      <h3>4. Add listing image upload support</h3>
+      <div class="meta">
+        <span class="pill">Story covered: Add listing with item image</span>
+        <span class="pill">Owner suggestion: Elijah</span>
+      </div>
+      <ul>
+        <li>Replace both <code>auth.js</code> and <code>listings.html</code> with the image-upload versions below.</li>
+        <li>This adds Supabase Storage upload logic, image preview, and image URLs in listings.</li>
+      </ul>
+      <pre>Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\04-auth.js" ".\auth.js" -Force
+Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\04-listings.html" ".\listings.html" -Force
+git add auth.js listings.html
+git commit -m "feat(storage): add image upload support to seller listings"</pre>
+      <p class="note">Database and storage setup needed for this commit: add the <code>image_url</code> column to <code>public.listings</code>, create the <code>listing-images</code> bucket, and add the storage policies.</p>
+    </div>
+
+    <div class="card">
+      <h3>5. Make marketplace cards clickable and show full listing details</h3>
+      <div class="meta">
+        <span class="pill">Story covered: View listing details</span>
+        <span class="pill">Owner suggestion: Nkosi</span>
+      </div>
+      <ul>
+        <li>Replace the clean repo's <code>search.html</code> with the snapshot below.</li>
+        <li>This adds clickable listing cards, image thumbnails, and the listing detail modal.</li>
+      </ul>
+      <pre>Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\05-search.html" ".\search.html" -Force
+git add search.html
+git commit -m "feat(marketplace): make listing cards clickable and add full listing detail views"</pre>
+    </div>
+
+    <div class="card">
+      <h3>6. Add forgot password and password recovery flow</h3>
+      <div class="meta">
+        <span class="pill">Story covered: Forgot password</span>
+        <span class="pill">Owner suggestion: Nkosi</span>
+      </div>
+      <ul>
+        <li>Replace <code>auth.js</code> and <code>login.html</code> with the final recovery-enabled versions below.</li>
+        <li>This adds reset-email requests and the password recovery step when the user returns from the Supabase email link.</li>
+      </ul>
+      <pre>Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\06-auth.js" ".\auth.js" -Force
+Copy-Item "C:\Users\joshu\Desktop\UniMart\docs\commit-snapshots\new-user-stories\06-login.html" ".\login.html" -Force
+git add auth.js login.html
+git commit -m "feat(auth): add forgot password request flow and Supabase password recovery handling"</pre>
+      <p class="note">Supabase redirect setup needed for this commit: add your login page URLs, such as <code>https://joshgoldy.github.io/UniMart/login.html</code> and <code>http://localhost:3000/login.html</code>, to Supabase Auth redirect URLs.</p>
+    </div>
+
+    <div class="card">
+      <h3>7. Document the new setup requirements</h3>
+      <div class="meta">
+        <span class="pill">Owner suggestion: Josh or Nkosi</span>
+      </div>
+      <ul>
+        <li>Update your README or docs with the storage bucket, <code>image_url</code> field, RLS/storage policies, and forgot-password redirect configuration.</li>
+        <li>This keeps the clean repo understandable for demos and handoff.</li>
+      </ul>
+      <pre>git add README.md docs/
+git commit -m "docs(project): document listing image upload and password recovery setup"</pre>
+    </div>
+
+    <h2>What This Gets You</h2>
+    <div class="card">
+      <ul>
+        <li>Seller listing CRUD in the clean repo.</li>
+        <li>Live listing management with sold/active status updates.</li>
+        <li>Listing image upload through Supabase Storage.</li>
+        <li>Clickable marketplace cards with full listing details.</li>
+        <li>Working forgot-password and password reset flow.</li>
+      </ul>
+    </div>
+
+    <p class="note">This guide is intentionally practical: instead of making you hand-merge large HTML files, it points you to milestone snapshots you can copy in sequence.</p>
+  </div>
+</body>
+</html>

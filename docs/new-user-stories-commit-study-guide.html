@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UniMart New User Stories Commit Study Guide</title>
+  <style>
+    :root {
+      --ink: #1f2a1f;
+      --muted: #5e695e;
+      --sage: #3a6645;
+      --sand: #f3efe6;
+      --line: #d8d3c7;
+      --paper: #fffdfa;
+      --mint: #e8f1ea;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.55;
+      padding: 32px;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 {
+      font-size: 28px;
+      color: var(--sage);
+    }
+    h2 {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 2px solid var(--line);
+      font-size: 20px;
+    }
+    h3 { font-size: 17px; }
+    p, li, td, th {
+      font-size: 14px;
+    }
+    .muted { color: var(--muted); }
+    .intro, .card, .summary {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+    .intro {
+      background: var(--sand);
+      padding: 18px 20px;
+      margin: 18px 0 22px;
+    }
+    .summary {
+      padding: 16px 18px;
+      margin-bottom: 20px;
+    }
+    .card {
+      padding: 16px 18px;
+      margin-bottom: 18px;
+      break-inside: avoid;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--mint);
+      color: var(--sage);
+      font-weight: 700;
+    }
+    ul {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--sand); }
+    code {
+      background: #f0eee7;
+      padding: 2px 5px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 16px; }
+      .card { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>UniMart New User Stories Commit Study Guide</h1>
+    <p class="muted">High-level revision notes for the actual 6-person commit order used for the newer UniMart features.</p>
+
+    <div class="intro">
+      <p><strong>Purpose:</strong> this guide helps each teammate understand what happened in their commit, what files were affected, what the feature does, and how to explain it in a presentation, viva, or demo discussion.</p>
+      <p><strong>Actual ownership order used:</strong> Hlaku committed 1st, Ndumiso 2nd, Josh 3rd, Elijah 4th, Ethan 5th, and Nkosi 6th.</p>
+    </div>
+
+    <div class="summary">
+      <h3>Quick Feature Map</h3>
+      <ul>
+        <li>Commit 1: seller listing CRUD foundation in <code>auth.js</code></li>
+        <li>Commit 2: live listing management create/edit UI in <code>listings.html</code></li>
+        <li>Commit 3: delete and sold/active status controls in <code>listings.html</code></li>
+        <li>Commit 4: listing image upload with Supabase Storage in <code>auth.js</code> and <code>listings.html</code></li>
+        <li>Commit 5: clickable marketplace cards and listing details in <code>search.html</code></li>
+        <li>Commit 6: forgot password and password recovery in <code>auth.js</code> and <code>login.html</code></li>
+      </ul>
+    </div>
+
+    <h2>Commit 1: Hlaku</h2>
+    <div class="card">
+      <h3>Seller Listing CRUD Foundation</h3>
+      <div class="meta">
+        <span class="pill">Main file: auth.js</span>
+        <span class="pill">Theme: Backend / Supabase logic</span>
+      </div>
+      <p><strong>What happened:</strong> this commit added the core listing logic to the shared service layer so the app could create, update, delete, and fetch seller-owned listings from Supabase.</p>
+      <ul>
+        <li>Added methods such as <code>getMyListings()</code>, <code>createListing()</code>, <code>updateListing()</code>, and <code>deleteListing()</code>.</li>
+        <li>Created a consistent listing data shape so the frontend could render listings more easily.</li>
+        <li>Connected the app more deeply to the <code>listings</code> table in Supabase.</li>
+      </ul>
+      <p><strong>Why it matters:</strong> this commit is the foundation for all later listing features. Without it, the listing management page would still be static.</p>
+      <p><strong>Simple explanation to give:</strong> “I worked on the backend-style service layer for listings. I added the JavaScript functions that talk to Supabase so sellers can create, fetch, update, and delete their own listings.”</p>
+      <p><strong>Key things to remember:</strong></p>
+      <ul>
+        <li><code>auth.js</code> acts like the app's service layer.</li>
+        <li>Supabase is called directly from the frontend through the JS SDK.</li>
+        <li>RLS policies still control which rows the user can actually access.</li>
+      </ul>
+    </div>
+
+    <h2>Commit 2: Ndumiso</h2>
+    <div class="card">
+      <h3>Live Listing Management UI</h3>
+      <div class="meta">
+        <span class="pill">Main file: listings.html</span>
+        <span class="pill">Theme: Frontend form and page behavior</span>
+      </div>
+      <p><strong>What happened:</strong> this commit replaced the old coming-soon listing management page with a real form and seller view where users can create and edit listings.</p>
+      <ul>
+        <li>Added a create-listing form with fields like title, description, price, category, condition, and tradeable option.</li>
+        <li>Added rendering of the seller's listings on the same page.</li>
+        <li>Added edit mode so an existing listing can be loaded back into the form.</li>
+      </ul>
+      <p><strong>Why it matters:</strong> this is the first point where listing management becomes visibly usable to the user.</p>
+      <p><strong>Simple explanation to give:</strong> “I turned the listings page from a placeholder into a working management page where sellers can add new listings and edit existing ones.”</p>
+      <p><strong>Key things to remember:</strong></p>
+      <ul>
+        <li>The page uses form inputs and client-side validation.</li>
+        <li>The UI calls the methods in <code>auth.js</code> to persist changes.</li>
+        <li>The listing list is re-rendered after changes so the UI stays in sync with Supabase.</li>
+      </ul>
+    </div>
+
+    <h2>Commit 3: Josh</h2>
+    <div class="card">
+      <h3>Delete And Sold Or Active Status Controls</h3>
+      <div class="meta">
+        <span class="pill">Main file: listings.html</span>
+        <span class="pill">Theme: Listing state management</span>
+      </div>
+      <p><strong>What happened:</strong> this commit completed the seller-side management actions by allowing a user to delete a listing and mark it as sold or active.</p>
+      <ul>
+        <li>Added action buttons on each seller-owned listing card.</li>
+        <li>Added logic for toggling listing status between <code>active</code> and <code>sold</code>.</li>
+        <li>Added delete confirmation and removal behavior.</li>
+      </ul>
+      <p><strong>Why it matters:</strong> this makes the listing management page practical, because sellers can now manage the full lifecycle of their items.</p>
+      <p><strong>Simple explanation to give:</strong> “I added the management actions that let sellers delete listings and keep availability accurate by marking items as sold or active.”</p>
+      <p><strong>Key things to remember:</strong></p>
+      <ul>
+        <li>Status matters because buyers should not see sold items as still available.</li>
+        <li>Delete and update actions still rely on the Supabase methods from commit 1.</li>
+        <li>This commit completed the seller control side of listing management.</li>
+      </ul>
+    </div>
+
+    <h2>Commit 4: Elijah</h2>
+    <div class="card">
+      <h3>Image Upload Support For Listings</h3>
+      <div class="meta">
+        <span class="pill">Main files: auth.js, listings.html</span>
+        <span class="pill">Theme: Supabase Storage integration</span>
+      </div>
+      <p><strong>What happened:</strong> this commit added real image upload support so sellers can attach images to their listings instead of just text details.</p>
+      <ul>
+        <li>Added <code>uploadListingImage()</code> in <code>auth.js</code>.</li>
+        <li>Connected the upload flow to a Supabase Storage bucket called <code>listing-images</code>.</li>
+        <li>Stored the public image URL in the <code>listings</code> table.</li>
+        <li>Added preview behavior on the listing management page.</li>
+      </ul>
+      <p><strong>Why it matters:</strong> images make listings much more realistic and useful in a marketplace app.</p>
+      <p><strong>Simple explanation to give:</strong> “I integrated Supabase Storage so sellers can upload real images, get a public image URL back, and save that URL in the listing record.”</p>
+      <p><strong>Key things to remember:</strong></p>
+      <ul>
+        <li>The image itself is stored in Supabase Storage, not in the database table.</li>
+        <li>The database only stores the image URL.</li>
+        <li>This required both frontend form updates and backend-style storage logic.</li>
+      </ul>
+    </div>
+
+    <h2>Commit 5: Ethan</h2>
+    <div class="card">
+      <h3>Clickable Marketplace Cards And Full Listing Details</h3>
+      <div class="meta">
+        <span class="pill">Main file: search.html</span>
+        <span class="pill">Theme: Buyer experience</span>
+      </div>
+      <p><strong>What happened:</strong> this commit improved the marketplace page so users can click listing cards and open a fuller detail view before deciding whether they are interested.</p>
+      <ul>
+        <li>Made cards interactive.</li>
+        <li>Added listing thumbnails to the marketplace cards.</li>
+        <li>Added the details modal showing more item information such as image, price, condition, description, status, and seller details.</li>
+      </ul>
+      <p><strong>Why it matters:</strong> this improves the buyer journey because users can inspect a listing properly before taking action.</p>
+      <p><strong>Simple explanation to give:</strong> “I improved the marketplace browsing experience by making cards clickable and showing a more complete listing detail view.”</p>
+      <p><strong>Key things to remember:</strong></p>
+      <ul>
+        <li>The search page is no longer just a simple card list.</li>
+        <li>The modal gives more context without leaving the page.</li>
+        <li>This commit is mainly about user interaction and presentation.</li>
+      </ul>
+    </div>
+
+    <h2>Commit 6: Nkosi</h2>
+    <div class="card">
+      <h3>Forgot Password And Password Recovery</h3>
+      <div class="meta">
+        <span class="pill">Main files: auth.js, login.html</span>
+        <span class="pill">Theme: Auth recovery flow</span>
+      </div>
+      <p><strong>What happened:</strong> this commit added a proper forgot-password workflow so users can request a reset email and then set a new password when they return from the recovery link.</p>
+      <ul>
+        <li>Added <code>requestPasswordReset()</code> in <code>auth.js</code>.</li>
+        <li>Added <code>completePasswordRecovery()</code> in <code>auth.js</code>.</li>
+        <li>Expanded <code>login.html</code> to include a reset-email step and a new-password step.</li>
+        <li>Handled the Supabase recovery redirect and password update flow.</li>
+      </ul>
+      <p><strong>Why it matters:</strong> a real app needs account recovery so users are not locked out permanently if they forget a password.</p>
+      <p><strong>Simple explanation to give:</strong> “I implemented the forgot-password flow by letting the user request a reset email and then complete the password reset through Supabase when the recovery link opens the login page again.”</p>
+      <p><strong>Key things to remember:</strong></p>
+      <ul>
+        <li>Supabase Auth sends the reset email.</li>
+        <li>The app needs the correct redirect URL configured in Supabase.</li>
+        <li>The password update is done securely through Supabase Auth, not by manually storing passwords anywhere in our tables.</li>
+      </ul>
+    </div>
+
+    <h2>Quick Revision Table</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Person</th>
+            <th>Commit theme</th>
+            <th>Main file(s)</th>
+            <th>One-line explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hlaku</td>
+            <td>Listing CRUD logic</td>
+            <td><code>auth.js</code></td>
+            <td>Added the Supabase helper methods that power seller listing management.</td>
+          </tr>
+          <tr>
+            <td>Ndumiso</td>
+            <td>Listing management UI</td>
+            <td><code>listings.html</code></td>
+            <td>Turned listing management into a working create/edit page.</td>
+          </tr>
+          <tr>
+            <td>Josh</td>
+            <td>Delete and status controls</td>
+            <td><code>listings.html</code></td>
+            <td>Added seller actions for deleting listings and marking them sold or active.</td>
+          </tr>
+          <tr>
+            <td>Elijah</td>
+            <td>Image upload</td>
+            <td><code>auth.js</code>, <code>listings.html</code></td>
+            <td>Integrated Supabase Storage so sellers can upload listing images.</td>
+          </tr>
+          <tr>
+            <td>Ethan</td>
+            <td>Listing detail view</td>
+            <td><code>search.html</code></td>
+            <td>Made marketplace cards clickable and added full listing details.</td>
+          </tr>
+          <tr>
+            <td>Nkosi</td>
+            <td>Forgot password</td>
+            <td><code>auth.js</code>, <code>login.html</code></td>
+            <td>Added password recovery and reset flow through Supabase Auth.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Simple Closing Line For Each Person</h3>
+      <p>“My commit focused on one specific part of the UniMart feature rollout, and my job was to move that feature from placeholder or partial functionality into a working part of the app.”</p>
+      <p class="small">This guide is high level on purpose, so each teammate can revise quickly without needing to reread large files.</p>
+    </div>
+  </div>
+</body>
+</html>

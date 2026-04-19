@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In - UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .auth-step { display: none; }
+    .auth-step.active { display: block; }
+  </style>
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
+    </div>
+
+    <div id="step-login" class="auth-step active">
+      <div class="auth-header">
+        <h1>Welcome back</h1>
+        <p>Sign in to your UniMart account</p>
+      </div>
+
+      <form class="auth-form" id="login-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="login-email">Email address</label>
+          <input class="form-input" id="login-email" type="email" placeholder="you@university.edu" autocomplete="email" required />
+          <span class="form-error" id="email-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-password">Password</label>
+          <div class="input-wrapper">
+            <input class="form-input" id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility"></button>
+          </div>
+          <span class="form-error" id="password-error"></span>
+        </div>
+
+        <div class="auth-form-link-row">
+          <a href="#" id="forgot-password-link">Forgot password?</a>
+        </div>
+
+        <div class="form-error" id="login-error" style="text-align:center; font-size:.85rem;"></div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg auth-form-submit" id="login-btn">
+          Sign in
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Don't have an account? <a href="signup.html">Create one</a>
+      </div>
+    </div>
+
+    <div id="step-forgot-password" class="auth-step">
+      <div class="auth-header">
+        <h1>Reset your password</h1>
+        <p>Enter your account email and we'll send you a password reset link.</p>
+      </div>
+
+      <form class="auth-form" id="forgot-password-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="reset-email">Email address</label>
+          <input class="form-input" id="reset-email" type="email" placeholder="you@university.edu" autocomplete="email" required />
+          <span class="form-error" id="reset-email-error"></span>
+        </div>
+
+        <div class="form-error" id="reset-request-error" style="text-align:center; font-size:.85rem;"></div>
+        <div class="auth-footer" id="reset-request-success" style="display:none; margin-top:0; text-align:left;"></div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg auth-form-submit" id="reset-request-btn">
+          Send reset link
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Remembered your password? <a href="#" id="back-to-login-link">Back to sign in</a>
+      </div>
+    </div>
+
+    <div id="step-reset-password" class="auth-step">
+      <div class="auth-header">
+        <h1>Create a new password</h1>
+        <p>Choose a new password for your UniMart account.</p>
+      </div>
+
+      <form class="auth-form" id="reset-password-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="new-password">New password</label>
+          <div class="input-wrapper">
+            <input class="form-input" id="new-password" type="password" placeholder="Enter your new password" autocomplete="new-password" required />
+            <button type="button" class="input-toggle" id="new-pw-toggle" aria-label="Toggle new password visibility"></button>
+          </div>
+          <span class="form-error" id="new-password-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm-new-password">Confirm new password</label>
+          <div class="input-wrapper">
+            <input class="form-input" id="confirm-new-password" type="password" placeholder="Re-enter your new password" autocomplete="new-password" required />
+            <button type="button" class="input-toggle" id="confirm-new-pw-toggle" aria-label="Toggle confirm password visibility"></button>
+          </div>
+          <span class="form-error" id="confirm-new-password-error"></span>
+        </div>
+
+        <div class="form-error" id="reset-password-error" style="text-align:center; font-size:.85rem;"></div>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg auth-form-submit" id="reset-password-btn">
+          Update password
+        </button>
+      </form>
+
+      <div class="auth-footer" id="reset-password-success" style="display:none;">
+        Your password has been updated. <a href="#" id="reset-success-login-link">Return to sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const stepIds = ['step-login', 'step-forgot-password', 'step-reset-password'];
+    const recoveryHashPattern = /type=recovery/;
+    let recoveryMode = false;
+
+    function showStep(stepId) {
+      stepIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('active', id === stepId);
+      });
+    }
+
+    function isValidEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.form-error').forEach(el => {
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = msg;
+        el.classList.add('visible');
+      }
+    }
+
+    function hideResetRequestSuccess() {
+      const el = document.getElementById('reset-request-success');
+      if (el) {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    }
+
+    function hideResetPasswordSuccess() {
+      const el = document.getElementById('reset-password-success');
+      if (el) el.style.display = 'none';
+    }
+
+    function clearRecoveryUrl() {
+      if (window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
+    function getRecoveryRedirectUrl() {
+      return new URL('login.html', window.location.href).href;
+    }
+
+    const passwordToggleIcons = {
+      hidden: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 10s2.75-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.75 4.5-7.5 4.5S2.5 10 2.5 10Z"/><circle cx="10" cy="10" r="2.25"/></svg></span>',
+      visible: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l14 14" stroke-linecap="round"/><path d="M8.7 5.8A8.5 8.5 0 0 1 10 5.5c4.75 0 7.5 4.5 7.5 4.5a14.4 14.4 0 0 1-2.55 2.9"/><path d="M11.8 11.9A2.25 2.25 0 0 1 8.1 8.2"/><path d="M6.1 6.2C4 7.4 2.5 10 2.5 10s2.75 4.5 7.5 4.5c1.1 0 2.08-.24 2.95-.62" stroke-linecap="round"/></svg></span>'
+    };
+
+    function bindPasswordToggle(toggleId, inputId) {
+      const toggle = document.getElementById(toggleId);
+      const input = document.getElementById(inputId);
+      if (!toggle || !input) return;
+
+      toggle.innerHTML = passwordToggleIcons.hidden;
+      toggle.addEventListener('click', function () {
+        input.type = input.type === 'password' ? 'text' : 'password';
+        toggle.innerHTML = input.type === 'password' ? passwordToggleIcons.hidden : passwordToggleIcons.visible;
+      });
+    }
+
+    bindPasswordToggle('pw-toggle', 'login-password');
+    bindPasswordToggle('new-pw-toggle', 'new-password');
+    bindPasswordToggle('confirm-new-pw-toggle', 'confirm-new-password');
+
+    document.getElementById('forgot-password-link').addEventListener('click', function (e) {
+      e.preventDefault();
+      clearErrors();
+      hideResetRequestSuccess();
+      document.getElementById('reset-email').value = document.getElementById('login-email').value.trim();
+      showStep('step-forgot-password');
+    });
+
+    document.getElementById('back-to-login-link').addEventListener('click', function (e) {
+      e.preventDefault();
+      clearErrors();
+      hideResetRequestSuccess();
+      showStep('step-login');
+    });
+
+    document.getElementById('reset-success-login-link').addEventListener('click', function (e) {
+      e.preventDefault();
+      clearErrors();
+      hideResetPasswordSuccess();
+      clearRecoveryUrl();
+      showStep('step-login');
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearErrors();
+
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      let valid = true;
+
+      if (!email) {
+        showError('email-error', 'Email is required.');
+        valid = false;
+      } else if (!isValidEmail(email)) {
+        showError('email-error', 'Enter a valid email.');
+        valid = false;
+      }
+
+      if (!password) {
+        showError('password-error', 'Password is required.');
+        valid = false;
+      }
+
+      if (!valid) return;
+
+      const btn = document.getElementById('login-btn');
+      btn.textContent = 'Signing in...';
+      btn.disabled = true;
+
+      const result = await Auth.signIn({ email, password });
+
+      btn.textContent = 'Sign in';
+      btn.disabled = false;
+
+      if (result.error) {
+        showError('login-error', result.error);
+        return;
+      }
+
+      window.location.href = 'search.html';
+    });
+
+    document.getElementById('forgot-password-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearErrors();
+      hideResetRequestSuccess();
+
+      const email = document.getElementById('reset-email').value.trim();
+      if (!email) {
+        showError('reset-email-error', 'Email is required.');
+        return;
+      }
+      if (!isValidEmail(email)) {
+        showError('reset-email-error', 'Enter a valid email.');
+        return;
+      }
+
+      const btn = document.getElementById('reset-request-btn');
+      btn.textContent = 'Sending link...';
+      btn.disabled = true;
+
+      const redirectTo = getRecoveryRedirectUrl();
+      const result = await Auth.requestPasswordReset({ email, redirectTo });
+
+      btn.textContent = 'Send reset link';
+      btn.disabled = false;
+
+      if (result.error) {
+        showError('reset-request-error', result.error);
+        return;
+      }
+
+      const success = document.getElementById('reset-request-success');
+      success.textContent = `Reset link sent to ${email}. Open the email and follow the link to choose a new password.`;
+      success.style.display = 'block';
+    });
+
+    document.getElementById('reset-password-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearErrors();
+      hideResetPasswordSuccess();
+
+      const newPassword = document.getElementById('new-password').value;
+      const confirmNewPassword = document.getElementById('confirm-new-password').value;
+      let valid = true;
+
+      if (!newPassword) {
+        showError('new-password-error', 'New password is required.');
+        valid = false;
+      } else if (newPassword.length < 8) {
+        showError('new-password-error', 'Use at least 8 characters.');
+        valid = false;
+      }
+
+      if (!confirmNewPassword) {
+        showError('confirm-new-password-error', 'Please confirm your new password.');
+        valid = false;
+      } else if (newPassword !== confirmNewPassword) {
+        showError('confirm-new-password-error', 'Passwords do not match.');
+        valid = false;
+      }
+
+      if (!valid) return;
+
+      const btn = document.getElementById('reset-password-btn');
+      btn.textContent = 'Updating password...';
+      btn.disabled = true;
+
+      const result = await Auth.completePasswordRecovery({ newPassword });
+
+      btn.textContent = 'Update password';
+      btn.disabled = false;
+
+      if (result.error) {
+        showError('reset-password-error', result.error);
+        return;
+      }
+
+      document.getElementById('reset-password-form').reset();
+      document.getElementById('reset-password-success').style.display = 'block';
+      clearRecoveryUrl();
+    });
+
+    _sb.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        recoveryMode = true;
+        clearErrors();
+        hideResetPasswordSuccess();
+        showStep('step-reset-password');
+      }
+    });
+
+    recoveryMode = recoveryHashPattern.test(window.location.hash || '') || recoveryHashPattern.test(window.location.search || '');
+    if (recoveryMode) {
+      showStep('step-reset-password');
+    } else {
+      Auth.getUser().then(user => {
+        if (user) window.location.href = 'search.html';
+      });
+    }
+  </script>
+</body>
+</html>

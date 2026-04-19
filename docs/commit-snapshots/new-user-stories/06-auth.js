@@ -5,7 +5,6 @@
 const SUPABASE_URL      = 'https://xdxnzkowvmphveiwzufm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_WqqtaVhge6rIPosltnGktw_xVHBE5L_';
 const LISTING_IMAGE_BUCKET = 'listing-images';
-const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
  
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  
@@ -297,10 +296,6 @@ const Auth = (() => {
   }
 
   async function uploadListingImage(file, userId) {
-    if (file.size > LISTING_IMAGE_MAX_BYTES) {
-      return { error: 'Image must be 5 MB or smaller.' };
-    }
-
     const extension = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const safeExt = extension.replace(/[^a-z0-9]/g, '') || 'jpg';
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${safeExt}`;

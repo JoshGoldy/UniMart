@@ -4,9 +4,6 @@
  
 const SUPABASE_URL      = 'https://xdxnzkowvmphveiwzufm.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_WqqtaVhge6rIPosltnGktw_xVHBE5L_';
-const LISTING_IMAGE_BUCKET = 'listing-images';
-const LISTING_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
- 
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  
 const Auth = (() => {
@@ -106,18 +103,6 @@ const Auth = (() => {
     return { success: true };
   }
 
-  async function requestPasswordReset({ email, redirectTo }) {
-    const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) return { error: error.message };
-    return { success: true };
-  }
-
-  async function completePasswordRecovery({ newPassword }) {
-    const { error } = await _sb.auth.updateUser({ password: newPassword });
-    if (error) return { error: error.message };
-    return { success: true };
-  }
-
   /* ---------- dashboard analytics ---------- */
   async function getListingDashboard(userId) {
     const { data, error } = await _sb
@@ -199,7 +184,7 @@ const Auth = (() => {
   async function getMarketplaceListings() {
     const { data, error } = await _sb
       .from('listings')
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
@@ -217,7 +202,6 @@ const Auth = (() => {
         condition: listing.condition || 'Not specified',
         isTradeable: Boolean(listing.is_tradeable),
         status: listing.status || 'active',
-        imageUrl: listing.image_url || '',
         createdAt: listing.created_at,
       })),
     };
@@ -226,7 +210,7 @@ const Auth = (() => {
   async function getMyListings(userId) {
     const { data, error } = await _sb
       .from('listings')
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
       .eq('seller_id', userId)
       .order('created_at', { ascending: false });
 
@@ -238,7 +222,7 @@ const Auth = (() => {
     };
   }
 
-  async function createListing({ sellerId, title, description, price, category, condition, isTradeable, status, imageUrl }) {
+  async function createListing({ sellerId, title, description, price, category, condition, isTradeable, status }) {
     const payload = {
       seller_id: sellerId,
       title: title.trim(),
@@ -248,20 +232,19 @@ const Auth = (() => {
       condition: condition,
       is_tradeable: Boolean(isTradeable),
       status: status || 'active',
-      image_url: imageUrl.trim() || null,
     };
 
     const { data, error } = await _sb
       .from('listings')
       .insert(payload)
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
       .single();
 
     if (error) return { error: error.message };
     return { success: true, listing: _mapListingRecord(data) };
   }
 
-  async function updateListing({ listingId, sellerId, title, description, price, category, condition, isTradeable, status, imageUrl }) {
+  async function updateListing({ listingId, sellerId, title, description, price, category, condition, isTradeable, status }) {
     const payload = {
       title: title.trim(),
       description: description.trim() || null,
@@ -270,7 +253,6 @@ const Auth = (() => {
       condition: condition,
       is_tradeable: Boolean(isTradeable),
       status: status || 'active',
-      image_url: imageUrl.trim() || null,
     };
 
     const { data, error } = await _sb
@@ -278,7 +260,7 @@ const Auth = (() => {
       .update(payload)
       .eq('listing_id', listingId)
       .eq('seller_id', sellerId)
-      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, image_url, created_at')
+      .select('listing_id, seller_id, title, description, price, category, condition, is_tradeable, status, created_at')
       .single();
 
     if (error) return { error: error.message };
@@ -296,37 +278,6 @@ const Auth = (() => {
     return { success: true };
   }
 
-  async function uploadListingImage(file, userId) {
-    if (file.size > LISTING_IMAGE_MAX_BYTES) {
-      return { error: 'Image must be 5 MB or smaller.' };
-    }
-
-    const extension = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const safeExt = extension.replace(/[^a-z0-9]/g, '') || 'jpg';
-    const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${safeExt}`;
-    const path = `${userId}/${filename}`;
-
-    const { error: uploadError } = await _sb.storage
-      .from(LISTING_IMAGE_BUCKET)
-      .upload(path, file, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: file.type || undefined,
-      });
-
-    if (uploadError) return { error: uploadError.message };
-
-    const { data } = _sb.storage
-      .from(LISTING_IMAGE_BUCKET)
-      .getPublicUrl(path);
-
-    return {
-      success: true,
-      path,
-      imageUrl: data.publicUrl,
-    };
-  }
- 
   /* ---------- helpers ---------- */
   async function _getProfile(authUser) {
     const { data } = await _sb.from('users').select('*').eq('id', authUser.id).single();
@@ -383,10 +334,9 @@ const Auth = (() => {
       condition: listing.condition || 'Not specified',
       isTradeable: Boolean(listing.is_tradeable),
       status: listing.status || 'active',
-      imageUrl: listing.image_url || '',
       createdAt: listing.created_at,
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing };
 })();
