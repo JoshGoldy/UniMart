@@ -508,30 +508,109 @@ const Auth = (() => {
 
   async function getFacilityOverview() {
     const { data, error } = await _sb
-      .from('listings')
-      .select('listing_id, seller_id, title, price, category, condition, is_tradeable, status, image_url, created_at')
-      .order('created_at', { ascending: false })
+      .from('facility_bookings')
+      .select('booking_id, listing_id, buyer_id, seller_id, status, dropoff_scheduled_at, collection_scheduled_at, item_received_at, ready_for_collection_at, released_at, created_at, updated_at')
+      .order('dropoff_scheduled_at', { ascending: true })
       .limit(80);
 
     if (error) return { error: error.message };
 
-    const listings = (data || []).map(_mapListingRecord);
-    const tradeable = listings.filter(item => item.isTradeable);
-    const activeTrades = tradeable.filter(item => item.status === 'active');
-    const soldTrades = tradeable.filter(item => item.status === 'sold');
-    const highValue = tradeable.filter(item => item.price >= 1000);
+    const bookings = data || [];
+    const listingMap = await _getListingMap(bookings.map(item => item.listing_id));
+    const userMap = await _getUserDisplayMap(bookings.flatMap(item => [item.buyer_id, item.seller_id]));
+    const mapped = bookings.map(item => _mapFacilityBooking(item, listingMap, userMap));
+    const dropoffs = mapped.filter(item => ['booked', 'dropoff_scheduled'].includes(item.status));
+    const collections = mapped.filter(item => ['received', 'ready_for_collection'].includes(item.status));
+    const completed = mapped.filter(item => item.status === 'released');
 
     return {
       success: true,
       metrics: {
-        tradeable: tradeable.length,
-        activeTrades: activeTrades.length,
-        completedTrades: soldTrades.length,
-        highValue: highValue.length,
+        dropoffs: dropoffs.length,
+        collections: collections.length,
+        ready: mapped.filter(item => item.status === 'ready_for_collection').length,
+        completed: completed.length,
       },
-      queue: activeTrades.slice(0, 20),
-      completed: soldTrades.slice(0, 8),
+      dropoffs,
+      collections,
+      completed: completed.slice(0, 8),
     };
+  }
+
+  async function updateFacilityBooking({ bookingId, staffId, action, releaseToUserId }) {
+    if (!bookingId || !staffId) return { error: 'Missing staff workflow details.' };
+    const validActions = ['confirm_receipt', 'mark_ready', 'release_item'];
+    if (!validActions.includes(action)) return { error: 'Invalid facility workflow action.' };
+
+    const { data: booking, error: fetchError } = await _sb
+      .from('facility_bookings')
+      .select('booking_id, listing_id, buyer_id, seller_id, status')
+      .eq('booking_id', bookingId)
+      .single();
+
+    if (fetchError) return { error: fetchError.message };
+    if (!booking) return { error: 'Booking not found.' };
+
+    const now = new Date().toISOString();
+    let nextStatus;
+    let updatePayload;
+    let notificationUserId;
+    let notificationMessage;
+    let actionLabel;
+
+    if (action === 'confirm_receipt') {
+      if (!['booked', 'dropoff_scheduled'].includes(booking.status)) return { error: 'This booking is not waiting for drop-off receipt.' };
+      nextStatus = 'received';
+      updatePayload = { status: nextStatus, item_received_at: now, received_by: staffId, updated_at: now };
+      notificationUserId = booking.seller_id;
+      notificationMessage = 'Trade facility staff confirmed your item was received.';
+      actionLabel = 'confirmed_receipt';
+    }
+
+    if (action === 'mark_ready') {
+      if (booking.status !== 'received') return { error: 'Item must be received before it can be marked ready for collection.' };
+      nextStatus = 'ready_for_collection';
+      updatePayload = { status: nextStatus, ready_for_collection_at: now, ready_by: staffId, updated_at: now };
+      notificationUserId = booking.buyer_id;
+      notificationMessage = 'Your trade facility item is ready for collection.';
+      actionLabel = 'marked_ready_for_collection';
+    }
+
+    if (action === 'release_item') {
+      if (booking.status !== 'ready_for_collection') return { error: 'Item must be ready for collection before release.' };
+      if (releaseToUserId && releaseToUserId !== booking.buyer_id) return { error: 'Release user does not match the expected collector.' };
+      nextStatus = 'released';
+      updatePayload = { status: nextStatus, released_at: now, released_by: staffId, released_to_user_id: booking.buyer_id, updated_at: now };
+      notificationUserId = booking.seller_id;
+      notificationMessage = 'Trade facility staff confirmed your item was released to the collector.';
+      actionLabel = 'released_item';
+    }
+
+    const { data: updated, error: updateError } = await _sb
+      .from('facility_bookings')
+      .update(updatePayload)
+      .eq('booking_id', bookingId)
+      .select('booking_id, listing_id, buyer_id, seller_id, status, dropoff_scheduled_at, collection_scheduled_at, item_received_at, ready_for_collection_at, released_at, created_at, updated_at')
+      .single();
+
+    if (updateError) return { error: updateError.message };
+
+    await Promise.all([
+      _sb.from('facility_staff_actions').insert({
+        booking_id: bookingId,
+        staff_id: staffId,
+        action: actionLabel,
+        from_status: booking.status,
+        to_status: nextStatus,
+      }),
+      _sb.from('facility_notifications').insert({
+        user_id: notificationUserId,
+        booking_id: bookingId,
+        message: notificationMessage,
+      }),
+    ]);
+
+    return { success: true, booking: updated };
   }
 
   async function getAdminOverview() {
@@ -625,6 +704,52 @@ const Auth = (() => {
       map[user.id] = _formatDisplayName(user.username, user.full_name, user.email, user.id);
       return map;
     }, {});
+  }
+
+  async function _getListingMap(listingIds) {
+    const ids = [...new Set((listingIds || []).filter(Boolean))];
+    if (!ids.length) return {};
+
+    const { data } = await _sb
+      .from('listings')
+      .select('listing_id, title, price, category, condition, image_url')
+      .in('listing_id', ids);
+
+    return (data || []).reduce((map, listing) => {
+      map[listing.listing_id] = {
+        title: listing.title || 'Untitled listing',
+        price: Number(listing.price) || 0,
+        category: listing.category || 'Other',
+        condition: listing.condition || 'Not specified',
+        imageUrl: listing.image_url || '',
+      };
+      return map;
+    }, {});
+  }
+
+  function _mapFacilityBooking(booking, listingMap, userMap) {
+    const listing = listingMap[booking.listing_id] || {};
+    return {
+      id: booking.booking_id,
+      listingId: booking.listing_id,
+      buyerId: booking.buyer_id,
+      sellerId: booking.seller_id,
+      buyerName: userMap[booking.buyer_id] || _formatDisplayName('', '', '', booking.buyer_id),
+      sellerName: userMap[booking.seller_id] || _formatDisplayName('', '', '', booking.seller_id),
+      status: booking.status || 'booked',
+      dropoffScheduledAt: booking.dropoff_scheduled_at,
+      collectionScheduledAt: booking.collection_scheduled_at,
+      itemReceivedAt: booking.item_received_at,
+      readyForCollectionAt: booking.ready_for_collection_at,
+      releasedAt: booking.released_at,
+      title: listing.title || 'Trade booking',
+      price: listing.price || 0,
+      category: listing.category || 'Other',
+      condition: listing.condition || 'Not specified',
+      imageUrl: listing.imageUrl || '',
+      createdAt: booking.created_at,
+      updatedAt: booking.updated_at,
+    };
   }
 
   function _normalizeUsername(value) {
@@ -748,7 +873,7 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityOverview, getAdminOverview, updateUserRole };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole };
 })();
 
 if (typeof module !== 'undefined') {

@@ -21,9 +21,7 @@
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-sm);
     }
-    .metric-card {
-      padding: 16px;
-    }
+    .metric-card { padding: 16px; }
     .metric-label {
       font-size: 0.78rem;
       color: var(--muted);
@@ -39,8 +37,9 @@
     }
     .facility-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      grid-template-columns: 1fr 1fr;
       gap: 18px;
+      margin-bottom: 18px;
     }
     .panel-header {
       padding: 16px;
@@ -56,19 +55,18 @@
       font-size: 0.84rem;
       color: var(--muted);
     }
-    .queue-list {
+    .booking-list {
       display: flex;
       flex-direction: column;
     }
-    .queue-item {
-      display: grid;
-      grid-template-columns: 48px minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-      padding: 14px 16px;
+    .booking-card {
+      padding: 16px;
       border-bottom: 1px solid var(--sand);
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr);
+      gap: 12px;
     }
-    .queue-thumb {
+    .booking-thumb {
       width: 48px;
       height: 48px;
       border-radius: var(--radius);
@@ -82,48 +80,69 @@
       font-size: 0.7rem;
       font-weight: 700;
     }
-    .queue-thumb img {
+    .booking-thumb img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-    .queue-title {
+    .booking-title {
       font-weight: 800;
       color: var(--ink);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      margin-bottom: 4px;
     }
-    .queue-meta {
-      margin-top: 3px;
+    .booking-meta {
       color: var(--muted);
       font-size: 0.82rem;
+      line-height: 1.5;
     }
-    .queue-price {
+    .booking-footer {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding-top: 8px;
+    }
+    .status-pill {
+      display: inline-flex;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--mint);
       color: var(--sage);
       font-weight: 800;
-      white-space: nowrap;
+      font-size: 0.75rem;
+      text-transform: capitalize;
     }
-    .checklist {
+    .booking-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .release-input {
+      min-width: 220px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font: inherit;
+    }
+    .workflow-note {
       padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .check-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      color: var(--ink);
+      color: var(--muted);
       font-size: 0.9rem;
-    }
-    .check-row input {
-      margin-top: 3px;
+      line-height: 1.6;
     }
     @media (max-width: 950px) {
       .facility-grid,
       .facility-layout {
         grid-template-columns: 1fr;
+      }
+      .booking-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .booking-actions {
+        justify-content: flex-start;
       }
     }
   </style>
@@ -159,40 +178,44 @@
     </header>
     <main class="page-content">
       <div class="page-header">
-        <h1>Trade Facility</h1>
-        <p>Review tradeable listings and support safe campus handoffs.</p>
+        <h1>Trade Facility Staff Dashboard</h1>
+        <p>Manage drop-offs, collections, and accountable staff handoffs.</p>
       </div>
 
       <div class="facility-grid">
-        <div class="metric-card"><div class="metric-label">Tradeable listings</div><div class="metric-value" id="metric-tradeable">0</div></div>
-        <div class="metric-card"><div class="metric-label">Active queue</div><div class="metric-value" id="metric-active">0</div></div>
-        <div class="metric-card"><div class="metric-label">Completed trades</div><div class="metric-value" id="metric-completed">0</div></div>
-        <div class="metric-card"><div class="metric-label">High value items</div><div class="metric-value" id="metric-high-value">0</div></div>
+        <div class="metric-card"><div class="metric-label">Drop-offs due</div><div class="metric-value" id="metric-dropoffs">0</div></div>
+        <div class="metric-card"><div class="metric-label">Collections due</div><div class="metric-value" id="metric-collections">0</div></div>
+        <div class="metric-card"><div class="metric-label">Ready now</div><div class="metric-value" id="metric-ready">0</div></div>
+        <div class="metric-card"><div class="metric-label">Released</div><div class="metric-value" id="metric-completed">0</div></div>
       </div>
 
       <div class="facility-layout">
         <section class="facility-panel">
           <div class="panel-header">
-            <div class="panel-title">Trade Handoff Queue</div>
-            <div class="panel-copy">Active tradeable listings staff may need to verify or coordinate.</div>
+            <div class="panel-title">Upcoming Drop-Off Bookings</div>
+            <div class="panel-copy">Confirm receipt when the seller drops the item at the facility.</div>
           </div>
-          <div class="queue-list" id="handoff-queue"></div>
+          <div class="booking-list" id="dropoff-list"></div>
         </section>
 
         <section class="facility-panel">
           <div class="panel-header">
-            <div class="panel-title">Staff Handoff Checklist</div>
-            <div class="panel-copy">Use this during in-person exchange support.</div>
+            <div class="panel-title">Upcoming Collection Bookings</div>
+            <div class="panel-copy">Mark items ready, then release them to the correct collector.</div>
           </div>
-          <div class="checklist">
-            <label class="check-row"><input type="checkbox" /> Confirm both students match their campus profile details.</label>
-            <label class="check-row"><input type="checkbox" /> Inspect item condition against the listing description.</label>
-            <label class="check-row"><input type="checkbox" /> Confirm both parties agree to trade or payment terms.</label>
-            <label class="check-row"><input type="checkbox" /> Remind students not to share sensitive banking details in public.</label>
-            <label class="check-row"><input type="checkbox" /> Record any incident or dispute through the facility desk process.</label>
-          </div>
+          <div class="booking-list" id="collection-list"></div>
         </section>
       </div>
+
+      <section class="facility-panel">
+        <div class="panel-header">
+          <div class="panel-title">Workflow Rules</div>
+          <div class="panel-copy">Only trade facility staff can update these statuses. Every action writes an audit log.</div>
+        </div>
+        <div class="workflow-note">
+          Receipt records the staff member and timestamp. Ready-for-collection notifies the buyer. Release requires the collector identifier to match the expected buyer UUID and records the release timestamp.
+        </div>
+      </section>
     </main>
   </div>
 </div>
@@ -203,8 +226,15 @@
 <script>
   if (window.innerWidth <= 768) document.getElementById('sidebar-toggle').style.display = 'flex';
 
+  const facilityState = {
+    user: null,
+    dropoffs: [],
+    collections: [],
+  };
+
   initPage().then(user => {
     if (!user) return;
+    facilityState.user = user;
     loadFacilityOverview();
   });
 
@@ -212,45 +242,114 @@
     const result = await Auth.getFacilityOverview();
     if (result.error) {
       showToast(result.error, 'error');
-      document.getElementById('handoff-queue').innerHTML = renderEmpty('Unable to load trade queue.');
+      document.getElementById('dropoff-list').innerHTML = renderEmpty('Unable to load drop-off bookings.');
+      document.getElementById('collection-list').innerHTML = renderEmpty('Unable to load collection bookings.');
       return;
     }
 
-    document.getElementById('metric-tradeable').textContent = result.metrics.tradeable;
-    document.getElementById('metric-active').textContent = result.metrics.activeTrades;
-    document.getElementById('metric-completed').textContent = result.metrics.completedTrades;
-    document.getElementById('metric-high-value').textContent = result.metrics.highValue;
+    facilityState.dropoffs = result.dropoffs || [];
+    facilityState.collections = result.collections || [];
+    document.getElementById('metric-dropoffs').textContent = result.metrics.dropoffs;
+    document.getElementById('metric-collections').textContent = result.metrics.collections;
+    document.getElementById('metric-ready').textContent = result.metrics.ready;
+    document.getElementById('metric-completed').textContent = result.metrics.completed;
 
-    const queue = result.queue || [];
-    document.getElementById('handoff-queue').innerHTML = queue.length
-      ? queue.map(renderQueueItem).join('')
-      : renderEmpty('No active tradeable listings need attention right now.');
+    document.getElementById('dropoff-list').innerHTML = facilityState.dropoffs.length
+      ? facilityState.dropoffs.map(renderDropoffBooking).join('')
+      : renderEmpty('No upcoming drop-offs.');
+    document.getElementById('collection-list').innerHTML = facilityState.collections.length
+      ? facilityState.collections.map(renderCollectionBooking).join('')
+      : renderEmpty('No upcoming collections.');
+
+    document.querySelectorAll('[data-workflow-action]').forEach(button => {
+      button.addEventListener('click', () => handleWorkflowAction(button));
+    });
   }
 
-  function renderQueueItem(listing) {
+  function renderDropoffBooking(booking) {
+    return renderBookingCard(booking, `
+      <button class="btn btn-primary" type="button" data-workflow-action="confirm_receipt" data-booking-id="${escapeAttribute(booking.id)}">Confirm receipt</button>
+    `, `Drop-off: ${formatDateTime(booking.dropoffScheduledAt)}`);
+  }
+
+  function renderCollectionBooking(booking) {
+    const readyAction = booking.status === 'received'
+      ? `<button class="btn btn-primary" type="button" data-workflow-action="mark_ready" data-booking-id="${escapeAttribute(booking.id)}">Mark ready</button>`
+      : '';
+    const releaseAction = booking.status === 'ready_for_collection'
+      ? `<input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Collector user UUID" value="${escapeAttribute(booking.buyerId)}" />
+         <button class="btn btn-primary" type="button" data-workflow-action="release_item" data-booking-id="${escapeAttribute(booking.id)}">Release item</button>`
+      : '';
+    return renderBookingCard(booking, `${readyAction}${releaseAction}`, `Collection: ${formatDateTime(booking.collectionScheduledAt)}`);
+  }
+
+  function renderBookingCard(booking, actions, scheduleLabel) {
     return `
-      <article class="queue-item">
-        <div class="queue-thumb">${listing.imageUrl ? `<img src="${escapeAttribute(listing.imageUrl)}" alt="${escapeAttribute(listing.title)}" />` : 'Item'}</div>
+      <article class="booking-card">
+        <div class="booking-thumb">${booking.imageUrl ? `<img src="${escapeAttribute(booking.imageUrl)}" alt="${escapeAttribute(booking.title)}" />` : 'Item'}</div>
         <div>
-          <div class="queue-title">${escapeHtml(listing.title)}</div>
-          <div class="queue-meta">${escapeHtml(listing.category)} - ${escapeHtml(listing.condition)} - ${formatDate(listing.createdAt)}</div>
+          <div class="booking-title">${escapeHtml(booking.title)}</div>
+          <div class="booking-meta">${escapeHtml(booking.category)} - ${escapeHtml(booking.condition)} - ${formatCurrency(booking.price)}</div>
+          <div class="booking-meta">Seller: ${escapeHtml(booking.sellerName)} | Buyer: ${escapeHtml(booking.buyerName)}</div>
+          <div class="booking-meta">${escapeHtml(scheduleLabel)}</div>
         </div>
-        <div class="queue-price">${formatCurrency(listing.price)}</div>
+        <div class="booking-footer">
+          <span class="status-pill">${escapeHtml(formatStatus(booking.status))}</span>
+          <div class="booking-actions">${actions}</div>
+        </div>
       </article>
     `;
+  }
+
+  async function handleWorkflowAction(button) {
+    const bookingId = button.dataset.bookingId;
+    const action = button.dataset.workflowAction;
+    const releaseInput = document.querySelector(`[data-release-input="${CSS.escape(bookingId)}"]`);
+    const releaseToUserId = releaseInput?.value.trim();
+
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Saving...';
+
+    const result = await Auth.updateFacilityBooking({
+      bookingId,
+      staffId: facilityState.user.id,
+      action,
+      releaseToUserId,
+    });
+
+    button.disabled = false;
+    button.textContent = originalText;
+
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+
+    const successMessages = {
+      confirm_receipt: 'Item receipt confirmed.',
+      mark_ready: 'Item marked ready for collection.',
+      release_item: 'Item release confirmed.',
+    };
+    showToast(successMessages[action] || 'Workflow updated.', 'success');
+    loadFacilityOverview();
   }
 
   function renderEmpty(message) {
     return `<div class="empty-state"><h3>${escapeHtml(message)}</h3></div>`;
   }
 
+  function formatStatus(value) {
+    return String(value || '').replace(/_/g, ' ');
+  }
+
   function formatCurrency(value) {
     return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(value || 0);
   }
 
-  function formatDate(value) {
-    if (!value) return 'No date';
-    return new Intl.DateTimeFormat('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
+  function formatDateTime(value) {
+    if (!value) return 'Not scheduled';
+    return new Intl.DateTimeFormat('en-ZA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
   }
 
   function escapeHtml(value) {
