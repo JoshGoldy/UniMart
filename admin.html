@@ -299,7 +299,7 @@
     <main class="page-content">
       <div class="page-header">
         <h1>Admin Dashboard</h1>
-        <p>Manage platform access, trade facility settings, roles, and moderation activity.</p>
+        <p>Keep UniMart running smoothly by managing users, facility hours, reports, and listings.</p>
       </div>
 
       <div class="admin-grid">
@@ -312,7 +312,7 @@
       <div class="management-grid">
         <a class="management-card" href="#facility-config"><span class="management-title">Trade Facility</span><span class="management-copy">Set operating hours and booking capacity.</span></a>
         <a class="management-card" href="#role-management"><span class="management-title">User Roles</span><span class="management-copy">Assign student, staff, and admin access.</span></a>
-        <a class="management-card" href="#permission-management"><span class="management-title">Permissions</span><span class="management-copy">Maintain feature availability by role.</span></a>
+        <a class="management-card" href="#permission-management"><span class="management-title">Access Rules</span><span class="management-copy">Choose what each role can see and do.</span></a>
         <a class="management-card" href="#moderation"><span class="management-title">Moderation</span><span class="management-copy">Review reports and remove bad listings.</span></a>
       </div>
 
@@ -320,8 +320,8 @@
         <div class="admin-stack">
           <section class="admin-panel" id="facility-config">
             <div class="panel-header">
-              <div class="panel-title">Trade Facility Configuration</div>
-              <div class="panel-copy">These settings are stored in Supabase and drive booking availability rules.</div>
+              <div class="panel-title">Trade Facility Schedule</div>
+              <div class="panel-copy">Set when students can book drop-offs and collections.</div>
             </div>
             <form class="panel-body" id="facility-config-form">
               <div class="config-grid">
@@ -348,7 +348,7 @@
               </div>
               <div class="admin-note" id="facility-availability-note"></div>
               <div class="admin-actions">
-                <button type="submit" class="btn-primary">Save configuration</button>
+                <button type="submit" class="btn btn-primary">Save schedule</button>
               </div>
             </form>
           </section>
@@ -356,7 +356,7 @@
           <section class="admin-panel" id="role-management">
             <div class="panel-header">
               <div class="panel-title">User and Role Management</div>
-              <div class="panel-copy">Promote students to staff/admin or return accounts to student access.</div>
+              <div class="panel-copy">Give users the right level of access for their responsibilities.</div>
             </div>
             <table class="admin-table">
               <thead>
@@ -368,8 +368,8 @@
 
           <section class="admin-panel" id="permission-management">
             <div class="panel-header">
-              <div class="panel-title">Role Permissions</div>
-              <div class="panel-copy">Permission changes are saved for admin governance and future feature checks.</div>
+              <div class="panel-title">Access Rules</div>
+              <div class="panel-copy">Control which features are available to students, staff, and admins.</div>
             </div>
             <div class="panel-body">
               <div class="permission-grid" id="permission-grid"></div>
@@ -410,7 +410,7 @@
           <section class="admin-panel">
             <div class="panel-header">
               <div class="panel-title">Moderation Activity</div>
-              <div class="panel-copy">Recent admin actions for accountability and audit trails.</div>
+              <div class="panel-copy">A record of recent changes made from this dashboard.</div>
             </div>
             <table class="admin-table">
               <thead>
@@ -540,7 +540,7 @@
       showToast(result.error, 'error');
       return;
     }
-    showToast('Facility configuration saved', 'success');
+    showToast('Facility schedule saved', 'success');
     loadAdminOverview();
   }
 
@@ -768,7 +768,16 @@
   }
 
   function formatPermission(value) {
-    return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+    const labels = {
+      marketplace_browsing: 'Browse marketplace',
+      listing_management: 'Manage listings',
+      messaging: 'Use messages',
+      trade_facility_workflow: 'Manage facility handovers',
+      admin_configuration: 'Manage platform settings',
+      moderation: 'Review reported content',
+      removed_listing: 'Removed listing',
+    };
+    return labels[value] || String(value || '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
   }
 
   function escapeHtml(value) {

@@ -66,7 +66,31 @@
         </div>
  
         <div class="form-group">
-          <label class="form-label">Account type</label>
+          <label class="form-label">What kind of account do you need?</label>
+          <div class="account-type-group" id="role-type-group">
+            <label class="account-type-option selected" id="opt-role-student">
+              <input type="radio" name="user-role" value="student" checked />
+              <div class="account-type-radio"></div>
+              <div class="account-type-info">
+                <strong>Student</strong>
+                <span>Browse, buy, and list items on the marketplace</span>
+              </div>
+            </label>
+
+            <label class="account-type-option" id="opt-role-staff">
+              <input type="radio" name="user-role" value="staff" />
+              <div class="account-type-radio"></div>
+              <div class="account-type-info">
+                <strong>Trade Facility Staff</strong>
+                <span>Manage drop-offs, collections, and handovers</span>
+              </div>
+            </label>
+          </div>
+          <span class="form-error" id="role-error"></span>
+        </div>
+
+        <div class="form-group" id="student-account-type-section">
+          <label class="form-label">How will you use the marketplace?</label>
           <div class="account-type-group" id="account-type-group">
  
             <label class="account-type-option" id="opt-buyer">
@@ -89,7 +113,7 @@
  
           </div>
           <span class="form-error" id="type-error"></span>
-          <p style="font-size:.75rem; color:var(--muted); margin-top:.5rem;">💡 Don't worry — you can change your account type anytime in Settings once logged in.</p>
+          <p style="font-size:.75rem; color:var(--muted); margin-top:.5rem;">You can change this later in your profile.</p>
         </div>
  
         <div class="form-group">
@@ -166,7 +190,7 @@
         <p style="max-width:280px; margin-bottom:28px;">
           Welcome to UniMart. Your account has been verified and you're ready to go.
         </p>
-        <a href="search.html" class="btn btn-primary btn-lg">Go to marketplace <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+        <a href="index.html" class="btn btn-primary btn-lg">Go to UniMart <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
       </div>
     </div>
  
@@ -180,14 +204,34 @@
  
     let pendingEmail = '';
  
-    /* ---- Account type selection ---- */
-    document.querySelectorAll('.account-type-option').forEach(opt => {
+    /* ---- Role and account type selection ---- */
+    document.querySelectorAll('#role-type-group .account-type-option').forEach(opt => {
       opt.addEventListener('click', function () {
-        document.querySelectorAll('.account-type-option').forEach(o => o.classList.remove('selected'));
+        document.querySelectorAll('#role-type-group .account-type-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+        this.querySelector('input[type="radio"]').checked = true;
+        updateRoleFields();
+      });
+    });
+
+    document.querySelectorAll('#account-type-group .account-type-option').forEach(opt => {
+      opt.addEventListener('click', function () {
+        document.querySelectorAll('#account-type-group .account-type-option').forEach(o => o.classList.remove('selected'));
         this.classList.add('selected');
         this.querySelector('input[type="radio"]').checked = true;
       });
     });
+    updateRoleFields();
+
+    function updateRoleFields() {
+      const role = document.querySelector('input[name="user-role"]:checked')?.value || 'student';
+      const accountSection = document.getElementById('student-account-type-section');
+      accountSection.style.display = role === 'student' ? 'block' : 'none';
+      if (role === 'staff') {
+        document.querySelectorAll('#account-type-group .account-type-option').forEach(o => o.classList.remove('selected'));
+        document.querySelectorAll('input[name="account-type"]').forEach(input => { input.checked = false; });
+      }
+    }
  
     /* ---- Password toggles ---- */
     const passwordToggleIcons = {
@@ -230,7 +274,10 @@
       const email       = document.getElementById('signup-email').value.trim();
       const password    = document.getElementById('signup-password').value;
       const confirm     = document.getElementById('confirm-password').value;
-      const accountType   = document.querySelector('input[name="account-type"]:checked')?.value;
+      const userRole      = document.querySelector('input[name="user-role"]:checked')?.value;
+      const accountType   = userRole === 'student'
+        ? document.querySelector('input[name="account-type"]:checked')?.value
+        : 'buyer';
       const university    = document.getElementById('signup-university').value.trim();
       const campus        = document.getElementById('signup-campus').value.trim();
       const studentNumber = document.getElementById('signup-student-number').value.trim();
@@ -242,14 +289,15 @@
       if (!password) { showError('password-error', 'Password is required.'); valid = false; }
       else if (password.length < 8) { showError('password-error', 'Password must be at least 8 characters.'); valid = false; }
       if (password !== confirm) { showError('confirm-error', 'Passwords do not match.'); valid = false; }
-      if (!accountType) { showError('type-error', 'Please select an account type.'); valid = false; }
+      if (!userRole) { showError('role-error', 'Please choose Student or Trade Facility Staff.'); valid = false; }
+      if (userRole === 'student' && !accountType) { showError('type-error', 'Please select how you will use the marketplace.'); valid = false; }
       if (!valid) return;
  
       const btn = document.getElementById('signup-btn');
       btn.textContent = 'Creating account…';
       btn.disabled = true;
  
-      const result = await Auth.signUp({ fullName, email, password, accountType, university, campus, studentNumber });
+      const result = await Auth.signUp({ fullName, email, password, accountType, userRole, university, campus, studentNumber });
  
       btn.textContent = 'Create account';
       btn.disabled = false;

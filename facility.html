@@ -209,11 +209,11 @@
 
       <section class="facility-panel">
         <div class="panel-header">
-          <div class="panel-title">Workflow Rules</div>
-          <div class="panel-copy">Only trade facility staff can update these statuses. Every action writes an audit log.</div>
+          <div class="panel-title">Handover Guidelines</div>
+          <div class="panel-copy">Use these actions to keep each drop-off and collection moving clearly.</div>
         </div>
         <div class="workflow-note">
-          Receipt records the staff member and timestamp. Ready-for-collection notifies the buyer. Release requires the collector identifier to match the expected buyer UUID and records the release timestamp.
+          Confirm receipt when the seller drops off the item. Mark it ready once the buyer can collect it. Release the item only after checking that the collector matches the expected buyer.
         </div>
       </section>
     </main>
@@ -277,7 +277,7 @@
       ? `<button class="btn btn-primary" type="button" data-workflow-action="mark_ready" data-booking-id="${escapeAttribute(booking.id)}">Mark ready</button>`
       : '';
     const releaseAction = booking.status === 'ready_for_collection'
-      ? `<input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Collector user UUID" value="${escapeAttribute(booking.buyerId)}" />
+      ? `<input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Expected collector ID" value="${escapeAttribute(booking.buyerId)}" />
          <button class="btn btn-primary" type="button" data-workflow-action="release_item" data-booking-id="${escapeAttribute(booking.id)}">Release item</button>`
       : '';
     return renderBookingCard(booking, `${readyAction}${releaseAction}`, `Collection: ${formatDateTime(booking.collectionScheduledAt)}`);

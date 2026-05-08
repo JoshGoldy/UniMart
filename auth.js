@@ -12,12 +12,16 @@ const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const Auth = (() => {
  
   /* ---------- sign-up ---------- */
-  async function signUp({ fullName, email, password, accountType, university, campus, studentNumber }) {
+  async function signUp({ fullName, email, password, accountType, userRole = 'student', university, campus, studentNumber }) {
+    const cleanRole = ['student', 'staff'].includes(userRole) ? userRole : 'student';
+    const cleanAccountType = cleanRole === 'student' && ['buyer', 'seller_buyer'].includes(accountType)
+      ? accountType
+      : 'buyer';
     const { error } = await _sb.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, account_type: accountType, user_role: 'student', university: university || null, campus: campus || null, student_number: studentNumber || null }
+        data: { full_name: fullName, account_type: cleanAccountType, user_role: cleanRole, university: university || null, campus: campus || null, student_number: studentNumber || null }
       }
     });
     if (error) return { error: error.message };
