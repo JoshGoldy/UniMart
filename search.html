@@ -18,7 +18,7 @@
 
     .advanced-filters {
       display: grid;
-      grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) auto;
+      grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.75fr) auto;
       gap: 12px;
       align-items: end;
       margin: -8px 0 22px;
@@ -264,6 +264,12 @@
       line-height: 1.7;
     }
 
+    .buyer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     .details-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -449,6 +455,14 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label" for="tradeable-filter">Tradeable</label>
+          <select class="form-input" id="tradeable-filter">
+            <option value="all">Any trade status</option>
+            <option value="yes">Tradeable only</option>
+            <option value="no">Not tradeable</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label" for="min-price-filter">Min price</label>
           <input class="form-input" id="min-price-filter" type="number" min="0" step="1" inputmode="numeric" placeholder="R0" />
         </div>
@@ -500,6 +514,10 @@
         <div class="details-price" id="modal-price"></div>
         <div class="listing-tags" id="modal-tags"></div>
         <div class="details-copy" id="modal-description"></div>
+        <div class="buyer-actions" id="modal-buyer-actions">
+          <button class="btn btn-primary" type="button" data-buyer-action="offer">Make offer</button>
+          <button class="btn btn-secondary" type="button" data-buyer-action="message">Message seller</button>
+        </div>
         <div class="details-grid">
           <div class="details-meta-card">
             <strong>Condition</strong>
@@ -536,8 +554,11 @@
     query: '',
     category: 'all',
     condition: 'all',
+    tradeable: 'all',
     minPrice: '',
     maxPrice: '',
+    user: null,
+    selectedListing: null,
   };
   const modal = document.getElementById('listing-modal');
 
@@ -561,12 +582,18 @@
   });
 
   const conditionFilter = document.getElementById('condition-filter');
+  const tradeableFilter = document.getElementById('tradeable-filter');
   const minPriceFilter = document.getElementById('min-price-filter');
   const maxPriceFilter = document.getElementById('max-price-filter');
   const clearFiltersBtn = document.getElementById('clear-filters-btn');
 
   conditionFilter.addEventListener('change', function () {
     state.condition = this.value || 'all';
+    renderListings();
+  });
+
+  tradeableFilter.addEventListener('change', function () {
+    state.tradeable = this.value || 'all';
     renderListings();
   });
 
@@ -589,6 +616,7 @@
 
   initPage().then(user => {
     if (!user) return;
+    state.user = user;
 
     const welcomed = sessionStorage.getItem('unimart_welcomed');
     if (!welcomed) {
@@ -618,6 +646,7 @@
     const filtered = state.listings.filter(listing => {
       const matchesCategory = state.category === 'all' || normalizeCategory(listing.category) === normalizeCategory(state.category);
       const matchesCondition = state.condition === 'all' || normalizeCondition(listing.condition) === normalizeCondition(state.condition);
+      const matchesTradeable = state.tradeable === 'all' || (state.tradeable === 'yes' && listing.isTradeable) || (state.tradeable === 'no' && !listing.isTradeable);
       const listingPrice = Number(listing.price) || 0;
       const minPrice = parsePriceFilter(state.minPrice);
       const maxPrice = parsePriceFilter(state.maxPrice);
@@ -628,10 +657,11 @@
         listing.description,
         listing.category,
         listing.condition,
+        listing.isTradeable ? 'tradeable trade swap' : 'not tradeable',
         String(listing.price),
       ].join(' ').toLowerCase();
       const matchesQuery = !state.query || haystack.includes(state.query);
-      return matchesCategory && matchesCondition && matchesMinPrice && matchesMaxPrice && matchesQuery;
+      return matchesCategory && matchesCondition && matchesTradeable && matchesMinPrice && matchesMaxPrice && matchesQuery;
     });
 
     const grid = document.getElementById('listings-grid');
@@ -653,7 +683,7 @@
     if (!filtered.length) {
       document.getElementById('empty-title').textContent = 'No matching listings';
       document.getElementById('empty-copy').textContent = hasActiveFilters()
-        ? 'No listings match the current keyword, category, condition, and price filters. Clear filters or adjust the range to see more results.'
+        ? 'No listings match the current keyword, category, condition, tradeable, and price filters. Clear filters or adjust the filters to see more results.'
         : 'Try a different search term or switch to another category.';
       empty.style.display = 'flex';
       grid.style.display = 'none';
@@ -711,6 +741,7 @@
   }
 
   function openListingModal(listing) {
+    state.selectedListing = listing;
     document.getElementById('modal-title').textContent = listing.title;
     document.getElementById('modal-subtitle').textContent = `${listing.category} - ${formatDate(listing.createdAt)}`;
     document.getElementById('modal-price').textContent = formatCurrency(listing.price);
@@ -724,6 +755,9 @@
       ${listing.isTradeable ? '<span class="listing-tag trade">Tradeable</span>' : ''}
       <span class="listing-tag">${escapeHtml(listing.status)}</span>
     `;
+
+    const buyerActions = document.getElementById('modal-buyer-actions');
+    buyerActions.style.display = shouldShowBuyerActions(listing) ? 'flex' : 'none';
 
     const imageWrap = document.getElementById('modal-image-wrap');
     const image = document.getElementById('modal-image');
@@ -748,7 +782,20 @@
   function closeListingModal() {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
+    state.selectedListing = null;
   }
+
+  document.querySelectorAll('[data-buyer-action]').forEach(button => {
+    button.addEventListener('click', function () {
+      if (!state.selectedListing) return;
+      const action = this.dataset.buyerAction;
+      const title = state.selectedListing.title || 'this listing';
+      const message = action === 'offer'
+        ? `Offer flow opened for ${title}.`
+        : `Messaging opened for ${title}.`;
+      showToast(message, 'info');
+    });
+  });
 
   function formatCurrency(value) {
     return new Intl.NumberFormat('en-ZA', {
@@ -772,6 +819,11 @@
     return `${value.slice(0, 8)}...`;
   }
 
+  function shouldShowBuyerActions(listing) {
+    if (!state.user) return false;
+    return listing.sellerId !== state.user.id;
+  }
+
   function normalizeCategory(value) {
     return String(value || '').trim().toLowerCase();
   }
@@ -791,6 +843,7 @@
       state.query ||
       state.category !== 'all' ||
       state.condition !== 'all' ||
+      state.tradeable !== 'all' ||
       parsePriceFilter(state.minPrice) !== null ||
       parsePriceFilter(state.maxPrice) !== null
     );
@@ -805,11 +858,13 @@
     state.query = '';
     state.category = 'all';
     state.condition = 'all';
+    state.tradeable = 'all';
     state.minPrice = '';
     state.maxPrice = '';
 
     searchInput.value = '';
     conditionFilter.value = 'all';
+    tradeableFilter.value = 'all';
     minPriceFilter.value = '';
     maxPriceFilter.value = '';
     document.querySelectorAll('.filter-chip').forEach(chip => {

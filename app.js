@@ -13,6 +13,67 @@ function iconMarkup(name) {
   return `<span class="ui-icon">${icons[name] || icons.info}</span>`;
 }
 
+function isSellerAccount(user) {
+  return user?.accountType === 'seller_buyer';
+}
+
+function getCurrentPage() {
+  return window.location.pathname.split('/').pop() || 'search.html';
+}
+
+function getAllowedPages(user) {
+  const pages = ['search.html', 'profile.html'];
+  if (isSellerAccount(user)) pages.push('dashboard.html', 'listings.html', 'messages.html');
+  return pages;
+}
+
+function canAccessPage(user, page = getCurrentPage()) {
+  return getAllowedPages(user).includes(page);
+}
+
+function navIcon(name) {
+  const icons = {
+    search: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/></svg>',
+    dashboard: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>',
+    listings: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/></svg>',
+    messages: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg>',
+    profile: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 16c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" stroke-linecap="round"/></svg>',
+  };
+  return icons[name] || icons.search;
+}
+
+function renderNavItem(item) {
+  return `
+      <a href="${item.href}" class="nav-item" data-page="${item.href}">
+        ${navIcon(item.icon)}
+        ${item.label}
+      </a>`;
+}
+
+function buildDynamicNavigation(user) {
+  const mainItems = [
+    { href: 'search.html', label: 'Search Listings', icon: 'search' },
+  ];
+  const manageItems = [
+    { href: 'profile.html', label: 'My Profile', icon: 'profile' },
+  ];
+
+  if (isSellerAccount(user)) {
+    mainItems.push({ href: 'dashboard.html', label: 'Seller Dashboard', icon: 'dashboard' });
+    manageItems.unshift({ href: 'listings.html', label: 'Listing Management', icon: 'listings' });
+    manageItems.push({ href: 'messages.html', label: 'Seller Messages', icon: 'messages' });
+  }
+
+  document.querySelectorAll('.sidebar-nav').forEach(nav => {
+    nav.innerHTML = `
+      <div class="sidebar-section-label">Main</div>
+      ${mainItems.map(renderNavItem).join('')}
+      <div class="sidebar-section-label">Manage</div>
+      ${manageItems.map(renderNavItem).join('')}
+    `;
+  });
+}
+
 /* ---- Toast notifications ---- */
 function showToast(message, type = 'default', duration = 3500) {
   let container = document.getElementById('toast-container');
@@ -100,7 +161,13 @@ async function initPage() {
   const user = await Auth.requireAuth();
   if (!user) return;
 
+  if (!canAccessPage(user)) {
+    window.location.href = 'search.html';
+    return null;
+  }
+
   populateUserShell(user);
+  buildDynamicNavigation(user);
   initDropdowns();
   setActiveNav();
   initMobileSidebar();
@@ -114,5 +181,5 @@ async function initPage() {
 
 /* ---- Node.js exports for testing ---- */
 if (typeof module !== 'undefined') {
-  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, initPage };
+  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, initPage };
 }
