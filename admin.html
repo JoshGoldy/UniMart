@@ -7,6 +7,103 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .metric-card,
+    .admin-panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+    .metric-card {
+      padding: 16px;
+    }
+    .metric-label {
+      font-size: 0.76rem;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .metric-value {
+      margin-top: 8px;
+      color: var(--ink);
+      font-size: 1.7rem;
+      font-weight: 800;
+    }
+    .admin-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 18px;
+    }
+    .panel-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title {
+      font-size: 1rem;
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .panel-copy {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .admin-table th,
+    .admin-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--sand);
+      text-align: left;
+      font-size: 0.86rem;
+      vertical-align: middle;
+    }
+    .admin-table th {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .role-select {
+      min-width: 120px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: var(--sand);
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: capitalize;
+    }
+    @media (max-width: 1000px) {
+      .admin-grid,
+      .admin-layout {
+        grid-template-columns: 1fr;
+      }
+      .admin-panel {
+        overflow-x: auto;
+      }
+    }
+  </style>
 </head>
 <body>
 <div class="overlay" id="sidebar-overlay"></div>
@@ -40,12 +137,43 @@
     <main class="page-content">
       <div class="page-header">
         <h1>Admin Config</h1>
-        <p>Admin-only configuration and governance workspace.</p>
+        <p>Govern platform access, users, and marketplace activity.</p>
       </div>
-      <div class="empty-state">
-        <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2.5 16 5v4.5c0 3.55-2.42 6.78-6 7.9-3.58-1.12-6-4.35-6-7.9V5l6-2.5Z"/><path d="M7.5 10.2 9.2 12l3.3-4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-        <h3>Admin tools</h3>
-        <p>Restricted configuration features can be added here without exposing them to students or staff.</p>
+
+      <div class="admin-grid">
+        <div class="metric-card"><div class="metric-label">Users</div><div class="metric-value" id="metric-users">0</div></div>
+        <div class="metric-card"><div class="metric-label">Students</div><div class="metric-value" id="metric-students">0</div></div>
+        <div class="metric-card"><div class="metric-label">Staff</div><div class="metric-value" id="metric-staff">0</div></div>
+        <div class="metric-card"><div class="metric-label">Admins</div><div class="metric-value" id="metric-admins">0</div></div>
+        <div class="metric-card"><div class="metric-label">Active listings</div><div class="metric-value" id="metric-active-listings">0</div></div>
+      </div>
+
+      <div class="admin-layout">
+        <section class="admin-panel">
+          <div class="panel-header">
+            <div class="panel-title">User Role Management</div>
+            <div class="panel-copy">Promote students to staff/admin or return accounts to student access.</div>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr><th>User</th><th>Email</th><th>Role</th></tr>
+            </thead>
+            <tbody id="user-role-table"></tbody>
+          </table>
+        </section>
+
+        <section class="admin-panel">
+          <div class="panel-header">
+            <div class="panel-title">Recent Listings</div>
+            <div class="panel-copy">Quick oversight of recent marketplace records.</div>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr><th>Listing</th><th>Category</th><th>Status</th><th>Price</th></tr>
+            </thead>
+            <tbody id="listing-table"></tbody>
+          </table>
+        </section>
       </div>
     </main>
   </div>
@@ -56,7 +184,89 @@
 <script src="app.js"></script>
 <script>
   if (window.innerWidth <= 768) document.getElementById('sidebar-toggle').style.display = 'flex';
-  initPage();
+
+  const adminState = {
+    user: null,
+    users: [],
+  };
+
+  initPage().then(user => {
+    if (!user) return;
+    adminState.user = user;
+    loadAdminOverview();
+  });
+
+  async function loadAdminOverview() {
+    const result = await Auth.getAdminOverview();
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+
+    adminState.users = result.users || [];
+    document.getElementById('metric-users').textContent = result.metrics.users;
+    document.getElementById('metric-students').textContent = result.metrics.students;
+    document.getElementById('metric-staff').textContent = result.metrics.staff;
+    document.getElementById('metric-admins').textContent = result.metrics.admins;
+    document.getElementById('metric-active-listings').textContent = result.metrics.activeListings;
+
+    renderUsers();
+    renderListings(result.recentListings || []);
+  }
+
+  function renderUsers() {
+    const body = document.getElementById('user-role-table');
+    body.innerHTML = adminState.users.map(user => `
+      <tr>
+        <td>${escapeHtml(user.fullName)}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td>
+          <select class="role-select" data-user-id="${escapeAttribute(user.id)}" ${user.id === adminState.user.id ? 'disabled title="You cannot change your own role here"' : ''}>
+            <option value="student" ${user.userRole === 'student' ? 'selected' : ''}>Student</option>
+            <option value="staff" ${user.userRole === 'staff' ? 'selected' : ''}>Staff</option>
+            <option value="admin" ${user.userRole === 'admin' ? 'selected' : ''}>Admin</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+
+    body.querySelectorAll('[data-user-id]').forEach(select => {
+      select.addEventListener('change', async function () {
+        const result = await Auth.updateUserRole({ userId: this.dataset.userId, role: this.value });
+        if (result.error) {
+          showToast(result.error, 'error');
+          loadAdminOverview();
+          return;
+        }
+        showToast('User role updated', 'success');
+        loadAdminOverview();
+      });
+    });
+  }
+
+  function renderListings(listings) {
+    const body = document.getElementById('listing-table');
+    body.innerHTML = listings.length ? listings.map(listing => `
+      <tr>
+        <td>${escapeHtml(listing.title)}</td>
+        <td>${escapeHtml(listing.category)}</td>
+        <td><span class="status-pill">${escapeHtml(listing.status)}</span></td>
+        <td>${formatCurrency(listing.price)}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="4">No recent listings.</td></tr>';
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(value || 0);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
+  }
 </script>
 </body>
 </html>

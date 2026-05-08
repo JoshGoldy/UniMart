@@ -505,6 +505,98 @@ const Auth = (() => {
     const count = result.conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
     return { success: true, count };
   }
+
+  async function getFacilityOverview() {
+    const { data, error } = await _sb
+      .from('listings')
+      .select('listing_id, seller_id, title, price, category, condition, is_tradeable, status, image_url, created_at')
+      .order('created_at', { ascending: false })
+      .limit(80);
+
+    if (error) return { error: error.message };
+
+    const listings = (data || []).map(_mapListingRecord);
+    const tradeable = listings.filter(item => item.isTradeable);
+    const activeTrades = tradeable.filter(item => item.status === 'active');
+    const soldTrades = tradeable.filter(item => item.status === 'sold');
+    const highValue = tradeable.filter(item => item.price >= 1000);
+
+    return {
+      success: true,
+      metrics: {
+        tradeable: tradeable.length,
+        activeTrades: activeTrades.length,
+        completedTrades: soldTrades.length,
+        highValue: highValue.length,
+      },
+      queue: activeTrades.slice(0, 20),
+      completed: soldTrades.slice(0, 8),
+    };
+  }
+
+  async function getAdminOverview() {
+    const [{ data: users, error: usersError }, { data: listings, error: listingsError }] = await Promise.all([
+      _sb.from('users').select('id, full_name, email, account_type, user_role, username').order('email', { ascending: true }),
+      _sb.from('listings').select('listing_id, seller_id, title, price, category, status, created_at').order('created_at', { ascending: false }).limit(80),
+    ]);
+
+    if (usersError || listingsError) return { error: (usersError || listingsError).message };
+
+    const safeUsers = users || [];
+    const safeListings = listings || [];
+    const roleCounts = safeUsers.reduce((acc, user) => {
+      const role = user.user_role || 'student';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, { student: 0, staff: 0, admin: 0 });
+
+    const listingCounts = safeListings.reduce((acc, listing) => {
+      const status = listing.status || 'active';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, { active: 0, sold: 0, draft: 0 });
+
+    return {
+      success: true,
+      metrics: {
+        users: safeUsers.length,
+        students: roleCounts.student || 0,
+        staff: roleCounts.staff || 0,
+        admins: roleCounts.admin || 0,
+        listings: safeListings.length,
+        activeListings: listingCounts.active || 0,
+      },
+      users: safeUsers.map(user => ({
+        id: user.id,
+        fullName: user.full_name || user.email,
+        email: user.email,
+        accountType: user.account_type || 'buyer',
+        userRole: user.user_role || 'student',
+        username: user.username || '',
+      })),
+      recentListings: safeListings.map(listing => ({
+        id: listing.listing_id,
+        sellerId: listing.seller_id,
+        title: listing.title || 'Untitled listing',
+        price: Number(listing.price) || 0,
+        category: listing.category || 'Other',
+        status: listing.status || 'active',
+        createdAt: listing.created_at,
+      })),
+    };
+  }
+
+  async function updateUserRole({ userId, role }) {
+    if (!['student', 'staff', 'admin'].includes(role)) return { error: 'Choose a valid role.' };
+
+    const { error } = await _sb
+      .from('users')
+      .update({ user_role: role })
+      .eq('id', userId);
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
  
   /* ---------- helpers ---------- */
   async function _getAccessibleConversation(conversationId, userId) {
@@ -656,7 +748,7 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityOverview, getAdminOverview, updateUserRole };
 })();
 
 if (typeof module !== 'undefined') {

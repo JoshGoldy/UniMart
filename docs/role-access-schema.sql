@@ -48,6 +48,27 @@ as $$
   select public.current_user_role() = 'student';
 $$;
 
+create or replace function public.prevent_non_admin_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(new.user_role, 'student') is distinct from coalesce(old.user_role, 'student')
+     and not public.is_admin() then
+    raise exception 'Only admins can change user roles';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists users_prevent_non_admin_role_change on public.users;
+create trigger users_prevent_non_admin_role_change
+before update of user_role on public.users
+for each row
+execute function public.prevent_non_admin_role_change();
+
 -- Users can read/update their own profile. Admins can read/update profiles for configuration.
 alter table public.users enable row level security;
 
@@ -63,11 +84,7 @@ on public.users
 for update
 using (auth.uid() = id or public.is_admin())
 with check (
-  public.is_admin()
-  or (
-    auth.uid() = id
-    and coalesce(user_role, 'student') = coalesce((select old_user.user_role from public.users old_user where old_user.id = auth.uid()), 'student')
-  )
+  auth.uid() = id or public.is_admin()
 );
 
 -- Marketplace listings are student-facing. Staff/admin can inspect records, but students own write actions.
