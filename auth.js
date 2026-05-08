@@ -614,15 +614,29 @@ const Auth = (() => {
   }
 
   async function getAdminOverview() {
-    const [{ data: users, error: usersError }, { data: listings, error: listingsError }] = await Promise.all([
+    const [
+      { data: users, error: usersError },
+      { data: listings, error: listingsError },
+      { data: facilityConfig, error: facilityConfigError },
+      { data: rolePermissions, error: rolePermissionsError },
+      { data: reports, error: reportsError },
+      { data: moderationActions, error: moderationActionsError },
+    ] = await Promise.all([
       _sb.from('users').select('id, full_name, email, account_type, user_role, username').order('email', { ascending: true }),
       _sb.from('listings').select('listing_id, seller_id, title, price, category, status, created_at').order('created_at', { ascending: false }).limit(80),
+      _sb.from('facility_config').select('config_id, operating_days, opens_at, closes_at, slot_minutes, slot_capacity, updated_at').eq('config_id', 'default').maybeSingle(),
+      _sb.from('role_permissions').select('role, permission, enabled').order('role', { ascending: true }).order('permission', { ascending: true }),
+      _sb.from('content_reports').select('report_id, reporter_id, target_type, target_id, listing_id, reason, status, resolution_note, created_at, resolved_at').order('created_at', { ascending: false }).limit(50),
+      _sb.from('moderation_actions').select('action_id, admin_id, target_type, target_id, action, note, created_at').order('created_at', { ascending: false }).limit(30),
     ]);
 
-    if (usersError || listingsError) return { error: (usersError || listingsError).message };
+    const firstError = usersError || listingsError || facilityConfigError || rolePermissionsError || reportsError || moderationActionsError;
+    if (firstError) return { error: firstError.message };
 
     const safeUsers = users || [];
     const safeListings = listings || [];
+    const safeReports = reports || [];
+    const safeActions = moderationActions || [];
     const roleCounts = safeUsers.reduce((acc, user) => {
       const role = user.user_role || 'student';
       acc[role] = (acc[role] || 0) + 1;
@@ -644,7 +658,44 @@ const Auth = (() => {
         admins: roleCounts.admin || 0,
         listings: safeListings.length,
         activeListings: listingCounts.active || 0,
+        openReports: safeReports.filter(report => report.status === 'open').length,
+        resolvedReports: safeReports.filter(report => ['resolved', 'dismissed'].includes(report.status)).length,
+        moderationActions: safeActions.length,
       },
+      facilityConfig: {
+        operatingDays: facilityConfig?.operating_days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        opensAt: String(facilityConfig?.opens_at || '09:00').slice(0, 5),
+        closesAt: String(facilityConfig?.closes_at || '17:00').slice(0, 5),
+        slotMinutes: Number(facilityConfig?.slot_minutes) || 30,
+        slotCapacity: Number(facilityConfig?.slot_capacity) || 4,
+        updatedAt: facilityConfig?.updated_at || null,
+      },
+      rolePermissions: (rolePermissions || []).map(item => ({
+        role: item.role,
+        permission: item.permission,
+        enabled: Boolean(item.enabled),
+      })),
+      reports: safeReports.map(report => ({
+        id: report.report_id,
+        reporterId: report.reporter_id,
+        targetType: report.target_type,
+        targetId: report.target_id,
+        listingId: report.listing_id,
+        reason: report.reason || 'No reason provided',
+        status: report.status || 'open',
+        resolutionNote: report.resolution_note || '',
+        createdAt: report.created_at,
+        resolvedAt: report.resolved_at,
+      })),
+      moderationActions: safeActions.map(action => ({
+        id: action.action_id,
+        adminId: action.admin_id,
+        targetType: action.target_type,
+        targetId: action.target_id,
+        action: action.action,
+        note: action.note || '',
+        createdAt: action.created_at,
+      })),
       users: safeUsers.map(user => ({
         id: user.id,
         fullName: user.full_name || user.email,
@@ -672,6 +723,81 @@ const Auth = (() => {
       .from('users')
       .update({ user_role: role })
       .eq('id', userId);
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function updateFacilityConfig({ adminId, operatingDays, opensAt, closesAt, slotMinutes, slotCapacity }) {
+    if (!adminId) return { error: 'Missing admin account.' };
+    const cleanDays = (operatingDays || []).filter(Boolean);
+    if (!cleanDays.length) return { error: 'Choose at least one operating day.' };
+    if (!opensAt || !closesAt || opensAt >= closesAt) return { error: 'Opening time must be before closing time.' };
+
+    const { error } = await _sb
+      .from('facility_config')
+      .upsert({
+        config_id: 'default',
+        operating_days: cleanDays,
+        opens_at: opensAt,
+        closes_at: closesAt,
+        slot_minutes: Number(slotMinutes) || 30,
+        slot_capacity: Number(slotCapacity) || 1,
+        updated_by: adminId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'config_id' });
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function updateRolePermission({ role, permission, enabled }) {
+    if (!['student', 'staff', 'admin'].includes(role)) return { error: 'Choose a valid role.' };
+    if (!permission) return { error: 'Missing permission.' };
+
+    const { error } = await _sb
+      .from('role_permissions')
+      .upsert({ role, permission, enabled: Boolean(enabled), updated_at: new Date().toISOString() }, { onConflict: 'role,permission' });
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function updateContentReport({ reportId, adminId, status, note }) {
+    if (!reportId || !adminId) return { error: 'Missing report details.' };
+    if (!['open', 'reviewing', 'resolved', 'dismissed'].includes(status)) return { error: 'Choose a valid report status.' };
+
+    const resolved = ['resolved', 'dismissed'].includes(status);
+    const { error } = await _sb
+      .from('content_reports')
+      .update({
+        status,
+        resolution_note: note || null,
+        resolved_by: resolved ? adminId : null,
+        resolved_at: resolved ? new Date().toISOString() : null,
+      })
+      .eq('report_id', reportId);
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function removeListingAsAdmin({ listingId, adminId, note }) {
+    if (!listingId || !adminId) return { error: 'Missing moderation details.' };
+
+    const { error: logError } = await _sb.from('moderation_actions').insert({
+      admin_id: adminId,
+      target_type: 'listing',
+      target_id: listingId,
+      action: 'removed_listing',
+      note: note || 'Listing removed by admin',
+    });
+    if (logError) return { error: logError.message };
+
+    const { error } = await _sb
+      .from('listings')
+      .delete()
+      .eq('listing_id', listingId);
 
     if (error) return { error: error.message };
     return { success: true };
@@ -873,7 +999,7 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole, updateFacilityConfig, updateRolePermission, updateContentReport, removeListingAsAdmin };
 })();
 
 if (typeof module !== 'undefined') {

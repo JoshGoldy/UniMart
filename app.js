@@ -95,7 +95,7 @@ function buildDynamicNavigation(user) {
   if (role === 'staff') {
     mainItems = [{ href: 'facility.html', label: 'Trade Facility', icon: 'facility' }];
   } else if (role === 'admin') {
-    mainItems = [{ href: 'admin.html', label: 'Admin Config', icon: 'admin' }];
+    mainItems = [{ href: 'admin.html', label: 'Admin Dashboard', icon: 'admin' }];
   } else {
     mainItems = [{ href: 'search.html', label: 'Search Listings', icon: 'search' }];
     manageItems.unshift({ href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' });

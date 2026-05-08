@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Config - UniMart</title>
+  <title>Admin Dashboard - UniMart</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <style>
     .admin-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 14px;
-      margin-bottom: 22px;
+      margin-bottom: 18px;
     }
     .metric-card,
-    .admin-panel {
+    .admin-panel,
+    .management-card {
       background: #fff;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
@@ -37,9 +38,37 @@
       font-size: 1.7rem;
       font-weight: 800;
     }
+    .management-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .management-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px;
+      color: inherit;
+      text-decoration: none;
+    }
+    .management-title {
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .management-copy {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
     .admin-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.86fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .admin-stack {
+      display: grid;
       gap: 18px;
     }
     .panel-header {
@@ -55,6 +84,9 @@
       margin-top: 4px;
       color: var(--muted);
       font-size: 0.84rem;
+    }
+    .panel-body {
+      padding: 16px;
     }
     .admin-table {
       width: 100%;
@@ -74,14 +106,57 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .role-select {
-      min-width: 120px;
-      padding: 8px 10px;
+    .admin-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .role-select,
+    .admin-input,
+    .admin-select {
+      width: 100%;
+      padding: 9px 10px;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: #fff;
       color: var(--ink);
       font: inherit;
+    }
+    .role-select {
+      min-width: 120px;
+    }
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .admin-field label,
+    .weekday-group legend {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+    .weekday-group {
+      grid-column: 1 / -1;
+      padding: 0;
+      border: 0;
+    }
+    .weekday-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .weekday-options label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: #fff;
     }
     .status-pill {
       display: inline-flex;
@@ -93,14 +168,101 @@
       font-size: 0.74rem;
       font-weight: 800;
       text-transform: capitalize;
+      white-space: nowrap;
     }
-    @media (max-width: 1000px) {
+    .status-pill.open,
+    .status-pill.reviewing {
+      background: #fff0d6;
+      color: #8a5a00;
+    }
+    .status-pill.resolved {
+      background: #dff1e5;
+      color: var(--primary);
+    }
+    .status-pill.dismissed {
+      background: #f1f1ef;
+      color: var(--muted);
+    }
+    .permission-grid {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) repeat(3, 96px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .permission-cell {
+      padding: 11px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.84rem;
+      background: #fff;
+    }
+    .permission-cell:nth-child(4n) {
+      border-right: 0;
+    }
+    .permission-cell.header {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--sand);
+    }
+    .permission-cell.name {
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .permission-toggle {
+      display: flex;
+      justify-content: center;
+    }
+    .admin-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .btn-secondary {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-secondary:hover {
+      background: var(--sand);
+    }
+    .admin-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+    .empty-row {
+      color: var(--muted);
+      text-align: center;
+    }
+    @media (max-width: 1100px) {
       .admin-grid,
+      .management-grid,
       .admin-layout {
         grid-template-columns: 1fr;
       }
       .admin-panel {
         overflow-x: auto;
+      }
+    }
+    @media (max-width: 720px) {
+      .config-grid,
+      .permission-grid {
+        grid-template-columns: 1fr;
+      }
+      .permission-cell,
+      .permission-cell:nth-child(4n) {
+        border-right: 0;
       }
     }
   </style>
@@ -126,7 +288,7 @@
   <div class="main-content">
     <header class="topbar">
       <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/></svg></button>
-      <span class="topbar-title">Admin Config</span>
+      <span class="topbar-title">Admin Dashboard</span>
       <div class="topbar-actions" style="margin-left:auto"><div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div></div>
       <div class="dropdown-menu" id="topbar-user-menu">
         <a class="dropdown-item" href="profile.html"><span data-user-name>My Account</span></a>
@@ -136,44 +298,128 @@
     </header>
     <main class="page-content">
       <div class="page-header">
-        <h1>Admin Config</h1>
-        <p>Govern platform access, users, and marketplace activity.</p>
+        <h1>Admin Dashboard</h1>
+        <p>Manage platform access, trade facility settings, roles, and moderation activity.</p>
       </div>
 
       <div class="admin-grid">
         <div class="metric-card"><div class="metric-label">Users</div><div class="metric-value" id="metric-users">0</div></div>
-        <div class="metric-card"><div class="metric-label">Students</div><div class="metric-value" id="metric-students">0</div></div>
-        <div class="metric-card"><div class="metric-label">Staff</div><div class="metric-value" id="metric-staff">0</div></div>
-        <div class="metric-card"><div class="metric-label">Admins</div><div class="metric-value" id="metric-admins">0</div></div>
         <div class="metric-card"><div class="metric-label">Active listings</div><div class="metric-value" id="metric-active-listings">0</div></div>
+        <div class="metric-card"><div class="metric-label">Open reports</div><div class="metric-value" id="metric-open-reports">0</div></div>
+        <div class="metric-card"><div class="metric-label">Moderation actions</div><div class="metric-value" id="metric-actions">0</div></div>
+      </div>
+
+      <div class="management-grid">
+        <a class="management-card" href="#facility-config"><span class="management-title">Trade Facility</span><span class="management-copy">Set operating hours and booking capacity.</span></a>
+        <a class="management-card" href="#role-management"><span class="management-title">User Roles</span><span class="management-copy">Assign student, staff, and admin access.</span></a>
+        <a class="management-card" href="#permission-management"><span class="management-title">Permissions</span><span class="management-copy">Maintain feature availability by role.</span></a>
+        <a class="management-card" href="#moderation"><span class="management-title">Moderation</span><span class="management-copy">Review reports and remove bad listings.</span></a>
       </div>
 
       <div class="admin-layout">
-        <section class="admin-panel">
-          <div class="panel-header">
-            <div class="panel-title">User Role Management</div>
-            <div class="panel-copy">Promote students to staff/admin or return accounts to student access.</div>
-          </div>
-          <table class="admin-table">
-            <thead>
-              <tr><th>User</th><th>Email</th><th>Role</th></tr>
-            </thead>
-            <tbody id="user-role-table"></tbody>
-          </table>
-        </section>
+        <div class="admin-stack">
+          <section class="admin-panel" id="facility-config">
+            <div class="panel-header">
+              <div class="panel-title">Trade Facility Configuration</div>
+              <div class="panel-copy">These settings are stored in Supabase and drive booking availability rules.</div>
+            </div>
+            <form class="panel-body" id="facility-config-form">
+              <div class="config-grid">
+                <div class="admin-field">
+                  <label for="opens-at">Opening time</label>
+                  <input class="admin-input" id="opens-at" type="time" required />
+                </div>
+                <div class="admin-field">
+                  <label for="closes-at">Closing time</label>
+                  <input class="admin-input" id="closes-at" type="time" required />
+                </div>
+                <div class="admin-field">
+                  <label for="slot-minutes">Slot duration</label>
+                  <input class="admin-input" id="slot-minutes" type="number" min="10" step="5" required />
+                </div>
+                <div class="admin-field">
+                  <label for="slot-capacity">Slot capacity</label>
+                  <input class="admin-input" id="slot-capacity" type="number" min="1" step="1" required />
+                </div>
+                <fieldset class="weekday-group">
+                  <legend>Operating days</legend>
+                  <div class="weekday-options" id="weekday-options"></div>
+                </fieldset>
+              </div>
+              <div class="admin-note" id="facility-availability-note"></div>
+              <div class="admin-actions">
+                <button type="submit" class="btn-primary">Save configuration</button>
+              </div>
+            </form>
+          </section>
 
-        <section class="admin-panel">
-          <div class="panel-header">
-            <div class="panel-title">Recent Listings</div>
-            <div class="panel-copy">Quick oversight of recent marketplace records.</div>
-          </div>
-          <table class="admin-table">
-            <thead>
-              <tr><th>Listing</th><th>Category</th><th>Status</th><th>Price</th></tr>
-            </thead>
-            <tbody id="listing-table"></tbody>
-          </table>
-        </section>
+          <section class="admin-panel" id="role-management">
+            <div class="panel-header">
+              <div class="panel-title">User and Role Management</div>
+              <div class="panel-copy">Promote students to staff/admin or return accounts to student access.</div>
+            </div>
+            <table class="admin-table">
+              <thead>
+                <tr><th>User</th><th>Email</th><th>Account</th><th>Role</th></tr>
+              </thead>
+              <tbody id="user-role-table"></tbody>
+            </table>
+          </section>
+
+          <section class="admin-panel" id="permission-management">
+            <div class="panel-header">
+              <div class="panel-title">Role Permissions</div>
+              <div class="panel-copy">Permission changes are saved for admin governance and future feature checks.</div>
+            </div>
+            <div class="panel-body">
+              <div class="permission-grid" id="permission-grid"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="admin-stack">
+          <section class="admin-panel" id="moderation">
+            <div class="panel-header">
+              <div class="panel-title">Moderation and Reporting</div>
+              <div class="panel-copy">Review flagged content, resolve reports, and export moderation data.</div>
+            </div>
+            <table class="admin-table">
+              <thead>
+                <tr><th>Report</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody id="report-table"></tbody>
+            </table>
+            <div class="panel-body">
+              <button class="btn-secondary" id="export-reports-btn" type="button">Export reports</button>
+            </div>
+          </section>
+
+          <section class="admin-panel">
+            <div class="panel-header">
+              <div class="panel-title">Recent Listings</div>
+              <div class="panel-copy">Quick oversight of recent marketplace records.</div>
+            </div>
+            <table class="admin-table">
+              <thead>
+                <tr><th>Listing</th><th>Status</th><th>Price</th><th></th></tr>
+              </thead>
+              <tbody id="listing-table"></tbody>
+            </table>
+          </section>
+
+          <section class="admin-panel">
+            <div class="panel-header">
+              <div class="panel-title">Moderation Activity</div>
+              <div class="panel-copy">Recent admin actions for accountability and audit trails.</div>
+            </div>
+            <table class="admin-table">
+              <thead>
+                <tr><th>Action</th><th>Target</th><th>Date</th></tr>
+              </thead>
+              <tbody id="activity-table"></tbody>
+            </table>
+          </section>
+        </div>
       </div>
     </main>
   </div>
@@ -188,13 +434,41 @@
   const adminState = {
     user: null,
     users: [],
+    listings: [],
+    reports: [],
+    actions: [],
+    permissions: [],
   };
+  const weekdays = [
+    ['monday', 'Mon'],
+    ['tuesday', 'Tue'],
+    ['wednesday', 'Wed'],
+    ['thursday', 'Thu'],
+    ['friday', 'Fri'],
+    ['saturday', 'Sat'],
+    ['sunday', 'Sun'],
+  ];
+  const defaultPermissions = [
+    'marketplace_browsing',
+    'listing_management',
+    'messaging',
+    'trade_facility_workflow',
+    'admin_configuration',
+    'moderation',
+  ];
 
   initPage().then(user => {
     if (!user) return;
     adminState.user = user;
+    renderWeekdays([]);
+    bindEvents();
     loadAdminOverview();
   });
+
+  function bindEvents() {
+    document.getElementById('facility-config-form').addEventListener('submit', saveFacilityConfig);
+    document.getElementById('export-reports-btn').addEventListener('click', exportReports);
+  }
 
   async function loadAdminOverview() {
     const result = await Auth.getAdminOverview();
@@ -204,22 +478,79 @@
     }
 
     adminState.users = result.users || [];
-    document.getElementById('metric-users').textContent = result.metrics.users;
-    document.getElementById('metric-students').textContent = result.metrics.students;
-    document.getElementById('metric-staff').textContent = result.metrics.staff;
-    document.getElementById('metric-admins').textContent = result.metrics.admins;
-    document.getElementById('metric-active-listings').textContent = result.metrics.activeListings;
+    adminState.listings = result.recentListings || [];
+    adminState.reports = result.reports || [];
+    adminState.actions = result.moderationActions || [];
+    adminState.permissions = result.rolePermissions || [];
 
+    document.getElementById('metric-users').textContent = result.metrics.users;
+    document.getElementById('metric-active-listings').textContent = result.metrics.activeListings;
+    document.getElementById('metric-open-reports').textContent = result.metrics.openReports;
+    document.getElementById('metric-actions').textContent = result.metrics.moderationActions;
+
+    populateFacilityConfig(result.facilityConfig);
     renderUsers();
-    renderListings(result.recentListings || []);
+    renderPermissions();
+    renderReports();
+    renderListings();
+    renderActivity();
+  }
+
+  function populateFacilityConfig(config) {
+    document.getElementById('opens-at').value = config.opensAt;
+    document.getElementById('closes-at').value = config.closesAt;
+    document.getElementById('slot-minutes').value = config.slotMinutes;
+    document.getElementById('slot-capacity').value = config.slotCapacity;
+    renderWeekdays(config.operatingDays || []);
+    updateFacilityNote();
+  }
+
+  function renderWeekdays(selectedDays) {
+    const selected = new Set(selectedDays);
+    document.getElementById('weekday-options').innerHTML = weekdays.map(([value, label]) => `
+      <label>
+        <input type="checkbox" name="operating-day" value="${value}" ${selected.has(value) ? 'checked' : ''} />
+        ${label}
+      </label>
+    `).join('');
+  }
+
+  function updateFacilityNote() {
+    const opensAt = document.getElementById('opens-at').value || '09:00';
+    const closesAt = document.getElementById('closes-at').value || '17:00';
+    const slotMinutes = Number(document.getElementById('slot-minutes').value) || 30;
+    const slotCapacity = Number(document.getElementById('slot-capacity').value) || 1;
+    const slotsPerDay = Math.max(0, Math.floor(minutesBetween(opensAt, closesAt) / slotMinutes));
+    document.getElementById('facility-availability-note').textContent =
+      `${slotsPerDay} slots per operating day, up to ${slotsPerDay * slotCapacity} bookings daily.`;
+  }
+
+  async function saveFacilityConfig(event) {
+    event.preventDefault();
+    const payload = {
+      adminId: adminState.user.id,
+      opensAt: document.getElementById('opens-at').value,
+      closesAt: document.getElementById('closes-at').value,
+      slotMinutes: document.getElementById('slot-minutes').value,
+      slotCapacity: document.getElementById('slot-capacity').value,
+      operatingDays: Array.from(document.querySelectorAll('[name="operating-day"]:checked')).map(input => input.value),
+    };
+    const result = await Auth.updateFacilityConfig(payload);
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    showToast('Facility configuration saved', 'success');
+    loadAdminOverview();
   }
 
   function renderUsers() {
     const body = document.getElementById('user-role-table');
-    body.innerHTML = adminState.users.map(user => `
+    body.innerHTML = adminState.users.length ? adminState.users.map(user => `
       <tr>
         <td>${escapeHtml(user.fullName)}</td>
         <td>${escapeHtml(user.email)}</td>
+        <td>${escapeHtml(formatAccountType(user.accountType))}</td>
         <td>
           <select class="role-select" data-user-id="${escapeAttribute(user.id)}" ${user.id === adminState.user.id ? 'disabled title="You cannot change your own role here"' : ''}>
             <option value="student" ${user.userRole === 'student' ? 'selected' : ''}>Student</option>
@@ -228,7 +559,7 @@
           </select>
         </td>
       </tr>
-    `).join('');
+    `).join('') : '<tr><td colspan="4" class="empty-row">No users found.</td></tr>';
 
     body.querySelectorAll('[data-user-id]').forEach(select => {
       select.addEventListener('change', async function () {
@@ -244,20 +575,200 @@
     });
   }
 
-  function renderListings(listings) {
-    const body = document.getElementById('listing-table');
-    body.innerHTML = listings.length ? listings.map(listing => `
+  function renderPermissions() {
+    const permissions = [...new Set([...defaultPermissions, ...adminState.permissions.map(item => item.permission)])];
+    const enabledMap = adminState.permissions.reduce((map, item) => {
+      map[`${item.role}:${item.permission}`] = item.enabled;
+      return map;
+    }, {});
+
+    document.getElementById('permission-grid').innerHTML = [
+      '<div class="permission-cell header">Feature</div>',
+      '<div class="permission-cell header">Student</div>',
+      '<div class="permission-cell header">Staff</div>',
+      '<div class="permission-cell header">Admin</div>',
+      ...permissions.flatMap(permission => [
+        `<div class="permission-cell name">${escapeHtml(formatPermission(permission))}</div>`,
+        renderPermissionToggle('student', permission, enabledMap),
+        renderPermissionToggle('staff', permission, enabledMap),
+        renderPermissionToggle('admin', permission, enabledMap),
+      ]),
+    ].join('');
+
+    document.querySelectorAll('[data-permission-toggle]').forEach(input => {
+      input.addEventListener('change', async function () {
+        const result = await Auth.updateRolePermission({
+          role: this.dataset.role,
+          permission: this.dataset.permission,
+          enabled: this.checked,
+        });
+        if (result.error) {
+          showToast(result.error, 'error');
+          loadAdminOverview();
+          return;
+        }
+        showToast('Permission updated', 'success');
+      });
+    });
+  }
+
+  function renderPermissionToggle(role, permission, enabledMap) {
+    const fallback = {
+      student: ['marketplace_browsing', 'listing_management', 'messaging'],
+      staff: ['trade_facility_workflow'],
+      admin: ['admin_configuration', 'moderation'],
+    };
+    const key = `${role}:${permission}`;
+    const checked = Object.prototype.hasOwnProperty.call(enabledMap, key)
+      ? enabledMap[key]
+      : fallback[role].includes(permission);
+    return `
+      <div class="permission-cell permission-toggle">
+        <input type="checkbox" data-permission-toggle data-role="${role}" data-permission="${escapeAttribute(permission)}" ${checked ? 'checked' : ''} />
+      </div>
+    `;
+  }
+
+  function renderReports() {
+    const body = document.getElementById('report-table');
+    body.innerHTML = adminState.reports.length ? adminState.reports.map(report => `
       <tr>
-        <td>${escapeHtml(listing.title)}</td>
-        <td>${escapeHtml(listing.category)}</td>
+        <td>
+          <strong>${escapeHtml(formatPermission(report.targetType))}</strong><br />
+          <span class="muted">${escapeHtml(report.reason)}</span>
+        </td>
+        <td><span class="status-pill ${escapeAttribute(report.status)}">${escapeHtml(report.status)}</span></td>
+        <td>
+          <select class="admin-select" data-report-status="${escapeAttribute(report.id)}">
+            <option value="open" ${report.status === 'open' ? 'selected' : ''}>Open</option>
+            <option value="reviewing" ${report.status === 'reviewing' ? 'selected' : ''}>Reviewing</option>
+            <option value="resolved" ${report.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+            <option value="dismissed" ${report.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
+          </select>
+          ${report.listingId ? `<button class="btn-secondary" style="margin-top:8px;width:100%" data-remove-listing="${escapeAttribute(report.listingId)}">Remove listing</button>` : ''}
+        </td>
+      </tr>
+    `).join('') : '<tr><td colspan="3" class="empty-row">No flagged content yet.</td></tr>';
+
+    body.querySelectorAll('[data-report-status]').forEach(select => {
+      select.addEventListener('change', async function () {
+        const result = await Auth.updateContentReport({
+          reportId: this.dataset.reportStatus,
+          adminId: adminState.user.id,
+          status: this.value,
+          note: `Marked ${this.value} from admin dashboard`,
+        });
+        if (result.error) {
+          showToast(result.error, 'error');
+          loadAdminOverview();
+          return;
+        }
+        showToast('Report updated', 'success');
+        loadAdminOverview();
+      });
+    });
+
+    body.querySelectorAll('[data-remove-listing]').forEach(button => {
+      button.addEventListener('click', async function () {
+        if (!window.confirm('Remove this listing from the marketplace?')) return;
+        const result = await Auth.removeListingAsAdmin({
+          listingId: this.dataset.removeListing,
+          adminId: adminState.user.id,
+          note: 'Removed from flagged content review',
+        });
+        if (result.error) {
+          showToast(result.error, 'error');
+          return;
+        }
+        showToast('Listing removed', 'success');
+        loadAdminOverview();
+      });
+    });
+  }
+
+  function renderListings() {
+    const body = document.getElementById('listing-table');
+    body.innerHTML = adminState.listings.length ? adminState.listings.map(listing => `
+      <tr>
+        <td>${escapeHtml(listing.title)}<br /><span class="muted">${escapeHtml(listing.category)}</span></td>
         <td><span class="status-pill">${escapeHtml(listing.status)}</span></td>
         <td>${formatCurrency(listing.price)}</td>
+        <td><button class="btn-secondary" data-remove-listing="${escapeAttribute(listing.id)}">Remove</button></td>
       </tr>
-    `).join('') : '<tr><td colspan="4">No recent listings.</td></tr>';
+    `).join('') : '<tr><td colspan="4" class="empty-row">No recent listings.</td></tr>';
+
+    body.querySelectorAll('[data-remove-listing]').forEach(button => {
+      button.addEventListener('click', async function () {
+        if (!window.confirm('Remove this listing from the marketplace?')) return;
+        const result = await Auth.removeListingAsAdmin({
+          listingId: this.dataset.removeListing,
+          adminId: adminState.user.id,
+          note: 'Removed from recent listing review',
+        });
+        if (result.error) {
+          showToast(result.error, 'error');
+          return;
+        }
+        showToast('Listing removed', 'success');
+        loadAdminOverview();
+      });
+    });
   }
+
+  function renderActivity() {
+    const body = document.getElementById('activity-table');
+    body.innerHTML = adminState.actions.length ? adminState.actions.map(action => `
+      <tr>
+        <td>${escapeHtml(formatPermission(action.action))}</td>
+        <td>${escapeHtml(action.targetType)}<br /><span class="muted">${escapeHtml(String(action.targetId || '').slice(0, 8))}</span></td>
+        <td>${formatDate(action.createdAt)}</td>
+      </tr>
+    `).join('') : '<tr><td colspan="3" class="empty-row">No moderation activity yet.</td></tr>';
+  }
+
+  function exportReports() {
+    const rows = [
+      ['type', 'target', 'reason_or_action', 'status', 'created_at'],
+      ...adminState.reports.map(report => ['report', report.targetId || report.listingId || '', report.reason, report.status, report.createdAt]),
+      ...adminState.actions.map(action => ['action', action.targetId || '', action.action, action.note, action.createdAt]),
+    ];
+    const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `unimart-moderation-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function minutesBetween(start, end) {
+    const [startHours, startMinutes] = start.split(':').map(Number);
+    const [endHours, endMinutes] = end.split(':').map(Number);
+    return ((endHours * 60) + endMinutes) - ((startHours * 60) + startMinutes);
+  }
+
+  ['opens-at', 'closes-at', 'slot-minutes', 'slot-capacity'].forEach(id => {
+    document.addEventListener('input', event => {
+      if (event.target && event.target.id === id) updateFacilityNote();
+    });
+  });
 
   function formatCurrency(value) {
     return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(value || 0);
+  }
+
+  function formatDate(value) {
+    if (!value) return 'Not recorded';
+    return new Intl.DateTimeFormat('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+  }
+
+  function formatAccountType(value) {
+    return value === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer Only';
+  }
+
+  function formatPermission(value) {
+    return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
   }
 
   function escapeHtml(value) {
