@@ -395,6 +395,11 @@
                 </div>
               </div>
               <div class="form-group">
+                <label class="form-label" for="edit-username">Username</label>
+                <input class="form-input" id="edit-username" type="text" placeholder="jane_smith" autocomplete="username" />
+                <span class="form-error" id="username-error"></span>
+              </div>
+              <div class="form-group">
                 <label class="form-label">Account type</label>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                   <label class="account-type-option" id="opt-buyer" style="flex:1; min-width:180px;">
@@ -645,6 +650,7 @@
     /* ---- Pre-fill personal details form ---- */
     document.getElementById('edit-fullname').value = user.fullName;
     document.getElementById('edit-email').value = user.email;
+    document.getElementById('edit-username').value = user.username || '';
  
     /* ---- Pre-fill campus fields ---- */
     document.getElementById('edit-university').value = user.university || '';
@@ -688,25 +694,27 @@
     clearErrors();
     const fullName    = document.getElementById('edit-fullname').value.trim();
     const email       = document.getElementById('edit-email').value.trim();
+    const username    = document.getElementById('edit-username').value.trim().replace(/^@+/, '').toLowerCase();
     const accountType = document.querySelector('input[name="edit-account-type"]:checked')?.value;
     let valid = true;
  
     if (!fullName) { showError('name-error', 'Name is required.'); valid = false; }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('email-error', 'Enter a valid email.'); valid = false; }
+    if (username && !/^[a-z0-9_]{3,24}$/.test(username)) { showError('username-error', 'Use 3-24 lowercase letters, numbers, or underscores.'); valid = false; }
     if (!accountType) { showError('type-error', 'Select an account type.'); valid = false; }
     if (!valid) return;
  
     this.textContent = 'Saving…';
     this.disabled = true;
  
-    const result = await Auth.updateProfile({ id: currentUser.id, fullName, email, accountType });
+    const result = await Auth.updateProfile({ id: currentUser.id, fullName, email, accountType, username });
  
     this.textContent = 'Save changes';
     this.disabled = false;
  
     if (result.error) { showToast(result.error, 'error'); return; }
  
-    currentUser = { ...currentUser, fullName, email, accountType };
+    currentUser = { ...currentUser, fullName, email, accountType, username, displayName: username ? `@${username}` : formatProfileDisplayName(fullName, email) };
  
     document.getElementById('profile-name-display').textContent = fullName;
     document.getElementById('profile-email-display').textContent = email;
@@ -782,6 +790,13 @@
   function showError(id, msg) {
     const el = document.getElementById(id);
     if (el) { el.textContent = msg; el.classList.add('visible'); }
+  }
+
+  function formatProfileDisplayName(fullName, email) {
+    const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+    if (parts.length === 1) return parts[0];
+    return String(email || '').split('@')[0] || 'User';
   }
  
   /* ---- Profile nav: click to scroll + scroll-spy ---- */

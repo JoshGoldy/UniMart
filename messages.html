@@ -345,7 +345,7 @@
         </div>
         <div>
           <div class="conversation-title">${escapeHtml(conversation.listingTitle)}</div>
-          <div class="conversation-meta">${conversation.role === 'buyer' ? 'Seller' : 'Buyer'}: ${escapeHtml(shortId(conversation.otherUserId))}</div>
+          <div class="conversation-meta">${conversation.role === 'buyer' ? 'Seller' : 'Buyer'}: ${escapeHtml(conversation.otherDisplayName || shortId(conversation.otherUserId))}</div>
           <div class="conversation-date">${formatDateTime(conversation.lastMessageAt)}</div>
         </div>
         ${conversation.unreadCount ? `<span class="conversation-unread">${conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>` : ''}
@@ -362,7 +362,7 @@
     const conversation = state.conversations.find(item => item.id === conversationId);
     if (conversation) {
       document.getElementById('thread-title').textContent = conversation.listingTitle;
-      document.getElementById('thread-subtitle').textContent = `${conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${shortId(conversation.otherUserId)}`;
+      document.getElementById('thread-subtitle').textContent = `${conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${conversation.otherDisplayName || shortId(conversation.otherUserId)}`;
     }
 
     document.getElementById('message-input').disabled = false;
@@ -384,7 +384,7 @@
 
     state.messages = result.messages || [];
     document.getElementById('thread-title').textContent = result.conversation.listingTitle;
-    document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${shortId(result.conversation.otherUserId)}`;
+    document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${result.conversation.otherDisplayName || shortId(result.conversation.otherUserId)}`;
 
     if (!state.messages.length) {
       stack.innerHTML = renderEmptyPanel('No messages in this thread yet.');

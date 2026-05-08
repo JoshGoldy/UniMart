@@ -73,14 +73,16 @@ const Auth = (() => {
   }
  
   /* ---------- profile update ---------- */
-  async function updateProfile({ id, fullName, email, accountType }) {
+  async function updateProfile({ id, fullName, email, accountType, username }) {
+    const cleanUsername = _normalizeUsername(username);
     const [{ error: dbErr }, { error: authErr }] = await Promise.all([
       _sb.from('users').update({
         full_name: fullName,
         email: email.toLowerCase(),
         account_type: accountType,
+        username: cleanUsername || null,
       }).eq('id', id),
-      _sb.auth.updateUser({ data: { full_name: fullName, account_type: accountType } }),
+      _sb.auth.updateUser({ data: { full_name: fullName, account_type: accountType, username: cleanUsername || null } }),
     ]);
     if (dbErr || authErr) return { error: (dbErr || authErr).message };
     return { success: true };
@@ -204,12 +206,14 @@ const Auth = (() => {
       .order('created_at', { ascending: false });
 
     if (error) return { error: error.message };
+    const sellerMap = await _getUserDisplayMap((data || []).map(listing => listing.seller_id));
 
     return {
       success: true,
       listings: (data || []).map(listing => ({
         id: listing.listing_id,
         sellerId: listing.seller_id,
+        sellerDisplayName: sellerMap[listing.seller_id] || _formatDisplayName('', '', '', listing.seller_id),
         title: listing.title || 'Untitled listing',
         description: listing.description || '',
         price: Number(listing.price) || 0,
@@ -392,10 +396,11 @@ const Auth = (() => {
       .order('last_message_at', { ascending: false, nullsFirst: false });
 
     if (error) return { error: error.message };
+    const userMap = await _getUserDisplayMap((data || []).flatMap(item => [item.buyer_id, item.seller_id]));
 
     return {
       success: true,
-      conversations: (data || []).map(item => _mapConversationRecord(item, userId)),
+      conversations: (data || []).map(item => _mapConversationRecord(item, userId, userMap)),
     };
   }
 
@@ -418,7 +423,7 @@ const Auth = (() => {
 
     return {
       success: true,
-      conversation: _mapConversationRecord(access.conversation, userId),
+      conversation: _mapConversationRecord(access.conversation, userId, await _getUserDisplayMap([access.conversation.buyer_id, access.conversation.seller_id])),
       messages: (data || []).map(_mapMessageRecord),
     };
   }
@@ -514,15 +519,49 @@ const Auth = (() => {
     return { success: true, conversation: data };
   }
 
-  function _mapConversationRecord(record, currentUserId) {
+  async function _getUserDisplayMap(userIds) {
+    const ids = [...new Set((userIds || []).filter(Boolean))];
+    if (!ids.length) return {};
+
+    const { data } = await _sb
+      .from('users')
+      .select('id, username, full_name, email')
+      .in('id', ids);
+
+    return (data || []).reduce((map, user) => {
+      map[user.id] = _formatDisplayName(user.username, user.full_name, user.email, user.id);
+      return map;
+    }, {});
+  }
+
+  function _normalizeUsername(value) {
+    return String(value || '')
+      .trim()
+      .replace(/^@+/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '');
+  }
+
+  function _formatDisplayName(username, fullName, email, id) {
+    if (username) return `@${username}`;
+    const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+    if (parts.length === 1) return parts[0];
+    if (email) return String(email).split('@')[0];
+    return id ? `User ${String(id).slice(0, 8)}` : 'User';
+  }
+
+  function _mapConversationRecord(record, currentUserId, userMap = {}) {
     const userIsBuyer = record.buyer_id === currentUserId;
     const listing = record.listings || {};
+    const otherUserId = userIsBuyer ? record.seller_id : record.buyer_id;
     return {
       id: record.conversation_id,
       listingId: record.listing_id,
       buyerId: record.buyer_id,
       sellerId: record.seller_id,
-      otherUserId: userIsBuyer ? record.seller_id : record.buyer_id,
+      otherUserId,
+      otherDisplayName: userMap[otherUserId] || _formatDisplayName('', '', '', otherUserId),
       role: userIsBuyer ? 'buyer' : 'seller',
       status: record.status || 'open',
       unreadCount: Number(userIsBuyer ? record.buyer_unread_count : record.seller_unread_count) || 0,
@@ -552,6 +591,8 @@ const Auth = (() => {
       return {
         id: data.id,
         fullName: data.full_name,
+        username: data.username || '',
+        displayName: _formatDisplayName(data.username, data.full_name, data.email || authUser.email, data.id),
         email: data.email || authUser.email,
         accountType: data.account_type || 'buyer',
         university: data.university || '',
@@ -563,6 +604,8 @@ const Auth = (() => {
     return {
       id: authUser.id,
       fullName: meta.full_name || authUser.email,
+      username: meta.username || '',
+      displayName: _formatDisplayName(meta.username, meta.full_name, authUser.email, authUser.id),
       email: authUser.email,
       accountType: meta.account_type || 'buyer',
       university: meta.university || '',
@@ -577,6 +620,8 @@ const Auth = (() => {
     return {
       id: authUser.id,
       fullName: meta.full_name || authUser.email,
+      username: meta.username || '',
+      displayName: _formatDisplayName(meta.username, meta.full_name, authUser.email, authUser.id),
       email: authUser.email,
       accountType: meta.account_type || 'buyer',
       university: meta.university || '',
@@ -594,6 +639,7 @@ const Auth = (() => {
     return {
       id: listing.listing_id,
       sellerId: listing.seller_id,
+      sellerDisplayName: listing.sellerDisplayName || _formatDisplayName('', '', '', listing.seller_id),
       title: listing.title || 'Untitled listing',
       description: listing.description || '',
       price: Number(listing.price) || 0,

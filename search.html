@@ -740,7 +740,7 @@
           <span class="listing-tag">${escapeHtml(listing.status)}</span>
         </div>
         <div class="listing-card-footer">
-          <div class="listing-card-date">Seller ID: ${escapeHtml(shortId(listing.sellerId))}</div>
+          <div class="listing-card-date">Seller: ${escapeHtml(getSellerName(listing))}</div>
           <div class="listing-card-action">
             <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             <span>View details</span>
@@ -758,7 +758,7 @@
     document.getElementById('modal-description').textContent = listing.description || 'No description added yet.';
     document.getElementById('modal-condition').textContent = listing.condition;
     document.getElementById('modal-status').textContent = listing.status;
-    document.getElementById('modal-seller').textContent = shortId(listing.sellerId);
+    document.getElementById('modal-seller').textContent = getSellerName(listing);
     document.getElementById('modal-date').textContent = formatDate(listing.createdAt);
     document.getElementById('modal-tags').innerHTML = `
       <span class="listing-tag">${escapeHtml(listing.condition)}</span>
@@ -854,6 +854,10 @@
   function shortId(value) {
     if (!value) return 'Unknown';
     return `${value.slice(0, 8)}...`;
+  }
+
+  function getSellerName(listing) {
+    return listing.sellerDisplayName || shortId(listing.sellerId);
   }
 
   function shouldShowBuyerActions(listing) {
