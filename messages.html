@@ -292,13 +292,14 @@
     activeConversationId: new URLSearchParams(window.location.search).get('conversation'),
     messages: [],
     messageSignature: '',
+    conversationSignature: '',
     refreshTimer: null,
   };
 
   initPage().then(user => {
     if (!user) return;
     state.user = user;
-    loadConversations().then(() => {
+    loadConversations({ showLoading: true, forceRender: true }).then(() => {
       if (state.activeConversationId) openConversation(state.activeConversationId);
     });
     state.refreshTimer = setInterval(refreshActiveThread, 12000);
@@ -313,23 +314,34 @@
     await submitMessage();
   });
 
-  async function loadConversations() {
+  async function loadConversations(options = {}) {
+    const { showLoading = false, forceRender = false } = options;
     const stack = document.getElementById('conversation-stack');
     const count = document.getElementById('conversation-count');
-    stack.innerHTML = '';
-    count.textContent = 'Loading conversations...';
+    if (showLoading) {
+      stack.innerHTML = '';
+      count.textContent = 'Loading conversations...';
+    }
 
     const result = await Auth.getConversations(state.user.id);
     if (result.error) {
       count.textContent = 'Unable to load inbox';
-      stack.innerHTML = renderEmptyPanel(result.error);
+      if (showLoading || !state.conversations.length) stack.innerHTML = renderEmptyPanel(result.error);
+      else showToast(result.error, 'error');
       return;
     }
 
-    state.conversations = result.conversations || [];
+    const conversations = result.conversations || [];
+    const nextSignature = conversations.map(item => `${item.id}:${item.unreadCount}:${item.lastMessageAt || ''}:${item.status}`).join('|');
+    count.textContent = `${state.conversations.length} conversation${state.conversations.length === 1 ? '' : 's'}`;
+    setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
+
+    if (!forceRender && nextSignature === state.conversationSignature) return;
+
+    state.conversations = conversations;
+    state.conversationSignature = nextSignature;
     count.textContent = `${state.conversations.length} conversation${state.conversations.length === 1 ? '' : 's'}`;
     renderConversations();
-    setUnreadMessageBadge(state.conversations.reduce((total, item) => total + item.unreadCount, 0));
   }
 
   function renderConversations() {
@@ -371,7 +383,7 @@
     renderConversations();
     state.messageSignature = '';
     await loadMessages(conversationId, true, { showLoading: true, forceRender: true });
-    await loadConversations();
+    await loadConversations({ forceRender: true });
   }
 
   async function loadMessages(conversationId, markRead, options = {}) {
@@ -441,7 +453,7 @@
 
     input.value = '';
     await loadMessages(state.activeConversationId, false, { forceRender: true });
-    await loadConversations();
+    await loadConversations({ forceRender: true });
   }
 
   async function refreshActiveThread() {
