@@ -291,6 +291,7 @@
     conversations: [],
     activeConversationId: new URLSearchParams(window.location.search).get('conversation'),
     messages: [],
+    messageSignature: '',
     refreshTimer: null,
   };
 
@@ -368,23 +369,33 @@
     document.getElementById('message-input').disabled = false;
     document.getElementById('send-message-btn').disabled = false;
     renderConversations();
-    await loadMessages(conversationId, true);
+    state.messageSignature = '';
+    await loadMessages(conversationId, true, { showLoading: true, forceRender: true });
     await loadConversations();
   }
 
-  async function loadMessages(conversationId, markRead) {
+  async function loadMessages(conversationId, markRead, options = {}) {
+    const { showLoading = false, forceRender = false } = options;
     const stack = document.getElementById('message-stack');
-    stack.innerHTML = renderEmptyPanel('Loading messages...');
+    if (showLoading) stack.innerHTML = renderEmptyPanel('Loading messages...');
 
     const result = await Auth.getConversationMessages({ conversationId, userId: state.user.id, markRead });
     if (result.error) {
-      stack.innerHTML = renderEmptyPanel(result.error);
+      if (showLoading || !state.messages.length) stack.innerHTML = renderEmptyPanel(result.error);
+      else showToast(result.error, 'error');
       return;
     }
 
-    state.messages = result.messages || [];
+    const messages = result.messages || [];
+    const nextSignature = messages.map(message => `${message.id}:${message.createdAt}:${message.readAt || ''}`).join('|');
     document.getElementById('thread-title').textContent = result.conversation.listingTitle;
     document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${result.conversation.otherDisplayName || shortId(result.conversation.otherUserId)}`;
+
+    if (!forceRender && nextSignature === state.messageSignature) return;
+
+    const nearBottom = stack.scrollHeight - stack.scrollTop - stack.clientHeight < 80;
+    state.messages = messages;
+    state.messageSignature = nextSignature;
 
     if (!state.messages.length) {
       stack.innerHTML = renderEmptyPanel('No messages in this thread yet.');
@@ -392,7 +403,7 @@
     }
 
     stack.innerHTML = state.messages.map(renderMessage).join('');
-    stack.scrollTop = stack.scrollHeight;
+    if (nearBottom || forceRender) stack.scrollTop = stack.scrollHeight;
   }
 
   async function submitMessage() {
@@ -429,7 +440,7 @@
     }
 
     input.value = '';
-    await loadMessages(state.activeConversationId, false);
+    await loadMessages(state.activeConversationId, false, { forceRender: true });
     await loadConversations();
   }
 
