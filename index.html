@@ -13,7 +13,13 @@
       try {
         const user = await Auth.getUser();
         if (user) {
-          window.location.replace('search.html');
+          const role = user.userRole || 'student';
+          const landingPages = {
+            student: 'search.html',
+            staff: 'facility.html',
+            admin: 'admin.html',
+          };
+          window.location.replace(landingPages[role] || 'search.html');
         } else {
           window.location.replace('login.html');
         }

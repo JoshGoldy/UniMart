@@ -17,7 +17,7 @@ const Auth = (() => {
       email,
       password,
       options: {
-        data: { full_name: fullName, account_type: accountType, university: university || null, campus: campus || null, student_number: studentNumber || null }
+        data: { full_name: fullName, account_type: accountType, user_role: 'student', university: university || null, campus: campus || null, student_number: studentNumber || null }
       }
     });
     if (error) return { error: error.message };
@@ -42,6 +42,7 @@ const Auth = (() => {
         full_name: meta.full_name,
         email: data.user.email,
         account_type: meta.account_type || 'buyer',
+        user_role: meta.user_role || 'student',
         university: meta.university || null,
         uni_campus: meta.campus || null,
         student_number: meta.student_number || null,
@@ -595,6 +596,7 @@ const Auth = (() => {
         displayName: _formatDisplayName(data.username, data.full_name, data.email || authUser.email, data.id),
         email: data.email || authUser.email,
         accountType: data.account_type || 'buyer',
+        userRole: data.user_role || 'student',
         university: data.university || '',
         campus: data.uni_campus || '',
         studentNumber: data.student_number || '',
@@ -608,6 +610,7 @@ const Auth = (() => {
       displayName: _formatDisplayName(meta.username, meta.full_name, authUser.email, authUser.id),
       email: authUser.email,
       accountType: meta.account_type || 'buyer',
+      userRole: meta.user_role || 'student',
       university: meta.university || '',
       campus: meta.campus || '',
       studentNumber: meta.student_number || '',
@@ -624,6 +627,7 @@ const Auth = (() => {
       displayName: _formatDisplayName(meta.username, meta.full_name, authUser.email, authUser.id),
       email: authUser.email,
       accountType: meta.account_type || 'buyer',
+      userRole: meta.user_role || 'student',
       university: meta.university || '',
       campus: meta.campus || '',
       studentNumber: meta.student_number || '',

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade Facility - UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="overlay" id="sidebar-overlay"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" /></div>
+    <nav class="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-user dropdown" data-dropdown-trigger="user-menu">
+        <div class="user-avatar" data-user-initials>?</div>
+        <div class="user-info"><div class="user-name" data-user-name>Loading...</div><div class="user-role" data-user-role></div></div>
+        <div class="dropdown-menu" id="user-menu">
+          <a class="dropdown-item" href="profile.html">My Profile</a>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger" data-action="signout">Sign out</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="main-content">
+    <header class="topbar">
+      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/></svg></button>
+      <span class="topbar-title">Trade Facility</span>
+      <div class="topbar-actions" style="margin-left:auto"><div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div></div>
+      <div class="dropdown-menu" id="topbar-user-menu">
+        <a class="dropdown-item" href="profile.html"><span data-user-name>My Account</span></a>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" data-action="signout">Sign out</div>
+      </div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <h1>Trade Facility</h1>
+        <p>Staff-only workspace for handling trade facility operations.</p>
+      </div>
+      <div class="empty-state">
+        <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.5 8.5 10 3l6.5 5.5"/><path d="M5 8v8h10V8"/><path d="M8 16v-5h4v5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+        <h3>Trade facility tools</h3>
+        <p>Restricted staff workflows can be added here without exposing them to students.</p>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="toast-container" id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth.js"></script>
+<script src="app.js"></script>
+<script>
+  if (window.innerWidth <= 768) document.getElementById('sidebar-toggle').style.display = 'flex';
+  initPage();
+</script>
+</body>
+</html>

@@ -21,6 +21,8 @@ const {
   initDropdowns,
   setActiveNav,
   initMobileSidebar,
+  getAllowedPages,
+  canAccessPage,
   initPage,
 } = require('../app.js');
 
@@ -114,20 +116,45 @@ describe('populateUserShell', () => {
     expect(document.querySelector('[data-user-name]').textContent).toBe('Joshua Goldberg');
   });
 
-  test('sets role label "Buyer" for buyer account', () => {
-    populateUserShell({ fullName: 'Joshua Goldberg', accountType: 'buyer' });
-    expect(document.querySelector('[data-user-role]').textContent).toBe('Buyer');
+  test('sets role label "Student" for student buyer account', () => {
+    populateUserShell({ fullName: 'Joshua Goldberg', accountType: 'buyer', userRole: 'student' });
+    expect(document.querySelector('[data-user-role]').textContent).toBe('Student');
   });
 
-  test('sets role label "Seller / Buyer" for seller_buyer account', () => {
-    populateUserShell({ fullName: 'Jane Doe', accountType: 'seller_buyer' });
-    expect(document.querySelector('[data-user-role]').textContent).toBe('Seller / Buyer');
+  test('sets role label "Student Seller / Buyer" for seller_buyer account', () => {
+    populateUserShell({ fullName: 'Jane Doe', accountType: 'seller_buyer', userRole: 'student' });
+    expect(document.querySelector('[data-user-role]').textContent).toBe('Student Seller / Buyer');
+  });
+
+  test('sets role label for staff account', () => {
+    populateUserShell({ fullName: 'Staff Member', accountType: 'buyer', userRole: 'staff' });
+    expect(document.querySelector('[data-user-role]').textContent).toBe('Trade Facility Staff');
   });
 
   test('sets initials via Auth.getUserInitials', () => {
     global.Auth.getUserInitials.mockReturnValue('JG');
     populateUserShell({ fullName: 'Joshua Goldberg', accountType: 'buyer' });
     expect(document.querySelector('[data-user-initials]').textContent).toBe('JG');
+  });
+});
+
+describe('role access control', () => {
+  test('student buyers can access marketplace but not facility', () => {
+    const user = { accountType: 'buyer', userRole: 'student' };
+    expect(canAccessPage(user, 'search.html')).toBe(true);
+    expect(canAccessPage(user, 'facility.html')).toBe(false);
+  });
+
+  test('staff can access facility but not marketplace', () => {
+    const user = { accountType: 'buyer', userRole: 'staff' };
+    expect(getAllowedPages(user)).toContain('facility.html');
+    expect(canAccessPage(user, 'search.html')).toBe(false);
+  });
+
+  test('admin can access admin config but not student listings', () => {
+    const user = { accountType: 'seller_buyer', userRole: 'admin' };
+    expect(canAccessPage(user, 'admin.html')).toBe(true);
+    expect(canAccessPage(user, 'listings.html')).toBe(false);
   });
 });
 

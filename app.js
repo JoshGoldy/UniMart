@@ -17,18 +17,52 @@ function isSellerAccount(user) {
   return user?.accountType === 'seller_buyer';
 }
 
+function getUserRole(user) {
+  return user?.userRole || 'student';
+}
+
+const ROLE_PERMISSIONS = {
+  student: {
+    landingPage: 'search.html',
+    pages: ['search.html', 'profile.html', 'messages.html', 'access-denied.html'],
+    features: ['marketplace', 'messages', 'offers'],
+  },
+  staff: {
+    landingPage: 'facility.html',
+    pages: ['facility.html', 'profile.html', 'access-denied.html'],
+    features: ['trade-facility'],
+  },
+  admin: {
+    landingPage: 'admin.html',
+    pages: ['admin.html', 'profile.html', 'access-denied.html'],
+    features: ['admin-config'],
+  },
+};
+
 function getCurrentPage() {
   return window.location.pathname.split('/').pop() || 'search.html';
 }
 
 function getAllowedPages(user) {
-  const pages = ['search.html', 'profile.html', 'messages.html'];
-  if (isSellerAccount(user)) pages.push('dashboard.html', 'listings.html');
+  const role = getUserRole(user);
+  const config = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student;
+  const pages = [...config.pages];
+  if (role === 'student' && isSellerAccount(user)) pages.push('dashboard.html', 'listings.html');
   return pages;
 }
 
 function canAccessPage(user, page = getCurrentPage()) {
   return getAllowedPages(user).includes(page);
+}
+
+function getRoleLandingPage(user) {
+  const role = getUserRole(user);
+  return (ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).landingPage;
+}
+
+function hasFeature(user, feature) {
+  const role = getUserRole(user);
+  return Boolean((ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).features.includes(feature));
 }
 
 function navIcon(name) {
@@ -37,6 +71,8 @@ function navIcon(name) {
     dashboard: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>',
     listings: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/></svg>',
     messages: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg>',
+    facility: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.5 8.5 10 3l6.5 5.5"/><path d="M5 8v8h10V8"/><path d="M8 16v-5h4v5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    admin: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2.5 16 5v4.5c0 3.55-2.42 6.78-6 7.9-3.58-1.12-6-4.35-6-7.9V5l6-2.5Z"/><path d="M7.5 10.2 9.2 12l3.3-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     profile: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 16c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" stroke-linecap="round"/></svg>',
   };
   return icons[name] || icons.search;
@@ -52,15 +88,20 @@ function renderNavItem(item) {
 }
 
 function buildDynamicNavigation(user) {
-  const mainItems = [
-    { href: 'search.html', label: 'Search Listings', icon: 'search' },
-  ];
-  const manageItems = [
-    { href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' },
-    { href: 'profile.html', label: 'My Profile', icon: 'profile' },
-  ];
+  const role = getUserRole(user);
+  let mainItems = [];
+  let manageItems = [{ href: 'profile.html', label: 'My Profile', icon: 'profile' }];
 
-  if (isSellerAccount(user)) {
+  if (role === 'staff') {
+    mainItems = [{ href: 'facility.html', label: 'Trade Facility', icon: 'facility' }];
+  } else if (role === 'admin') {
+    mainItems = [{ href: 'admin.html', label: 'Admin Config', icon: 'admin' }];
+  } else {
+    mainItems = [{ href: 'search.html', label: 'Search Listings', icon: 'search' }];
+    manageItems.unshift({ href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' });
+  }
+
+  if (role === 'student' && isSellerAccount(user)) {
     mainItems.push({ href: 'dashboard.html', label: 'Seller Dashboard', icon: 'dashboard' });
     manageItems.unshift({ href: 'listings.html', label: 'Listing Management', icon: 'listings' });
   }
@@ -118,7 +159,8 @@ function populateUserShell(user) {
   const roleEls = document.querySelectorAll('[data-user-role]');
   const initEls = document.querySelectorAll('[data-user-initials]');
   const initials = Auth.getUserInitials(user.fullName);
-  const roleLabel = user.accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+  const roleNames = { student: user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student', staff: 'Trade Facility Staff', admin: 'Admin' };
+  const roleLabel = roleNames[getUserRole(user)] || 'Student';
 
   nameEls.forEach(el => el.textContent = user.fullName);
   roleEls.forEach(el => el.textContent = roleLabel);
@@ -177,7 +219,10 @@ async function initPage() {
   if (!user) return;
 
   if (!canAccessPage(user)) {
-    window.location.href = 'search.html';
+    const target = getCurrentPage() === 'index.html'
+      ? getRoleLandingPage(user)
+      : `access-denied.html?from=${encodeURIComponent(getCurrentPage())}`;
+    window.location.href = target;
     return null;
   }
 
@@ -186,7 +231,7 @@ async function initPage() {
   initDropdowns();
   setActiveNav();
   initMobileSidebar();
-  refreshUnreadMessageCount(user);
+  if (hasFeature(user, 'messages')) refreshUnreadMessageCount(user);
 
   document.querySelectorAll('[data-action="signout"]').forEach(btn => {
     btn.addEventListener('click', () => Auth.signOut());
@@ -197,5 +242,5 @@ async function initPage() {
 
 /* ---- Node.js exports for testing ---- */
 if (typeof module !== 'undefined') {
-  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, setUnreadMessageBadge, refreshUnreadMessageCount, initPage };
+  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, getRoleLandingPage, hasFeature, setUnreadMessageBadge, refreshUnreadMessageCount, initPage };
 }
