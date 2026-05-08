@@ -16,6 +16,24 @@
       margin-bottom: 18px;
     }
 
+    .advanced-filters {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) auto;
+      gap: 12px;
+      align-items: end;
+      margin: -8px 0 22px;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .advanced-filter-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
     .results-meta {
       font-size: 0.84rem;
       color: var(--muted);
@@ -280,6 +298,18 @@
         align-items: flex-start;
       }
 
+      .advanced-filters {
+        grid-template-columns: 1fr;
+      }
+
+      .advanced-filter-actions {
+        justify-content: stretch;
+      }
+
+      .advanced-filter-actions .btn {
+        width: 100%;
+      }
+
       .listing-card-header,
       .listing-card-footer {
         flex-direction: column;
@@ -406,6 +436,31 @@
         <button class="filter-chip" data-category="Other">Other</button>
       </div>
 
+      <div class="advanced-filters" aria-label="Marketplace filters">
+        <div class="form-group">
+          <label class="form-label" for="condition-filter">Condition</label>
+          <select class="form-input" id="condition-filter">
+            <option value="all">Any condition</option>
+            <option value="New">New</option>
+            <option value="Like New">Like New</option>
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
+            <option value="Used">Used</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="min-price-filter">Min price</label>
+          <input class="form-input" id="min-price-filter" type="number" min="0" step="1" inputmode="numeric" placeholder="R0" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="max-price-filter">Max price</label>
+          <input class="form-input" id="max-price-filter" type="number" min="0" step="1" inputmode="numeric" placeholder="Any" />
+        </div>
+        <div class="advanced-filter-actions">
+          <button class="btn btn-outline" id="clear-filters-btn" type="button">Clear filters</button>
+        </div>
+      </div>
+
       <div class="market-toolbar">
         <div class="results-meta" id="results-meta">Loading listings...</div>
       </div>
@@ -480,6 +535,9 @@
     listings: [],
     query: '',
     category: 'all',
+    condition: 'all',
+    minPrice: '',
+    maxPrice: '',
   };
   const modal = document.getElementById('listing-modal');
 
@@ -501,6 +559,26 @@
     state.query = this.value.trim().toLowerCase();
     renderListings();
   });
+
+  const conditionFilter = document.getElementById('condition-filter');
+  const minPriceFilter = document.getElementById('min-price-filter');
+  const maxPriceFilter = document.getElementById('max-price-filter');
+  const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
+  conditionFilter.addEventListener('change', function () {
+    state.condition = this.value || 'all';
+    renderListings();
+  });
+
+  [minPriceFilter, maxPriceFilter].forEach(input => {
+    input.addEventListener('input', function () {
+      state[this.id === 'min-price-filter' ? 'minPrice' : 'maxPrice'] = this.value;
+      renderListings();
+    });
+  });
+
+  clearFiltersBtn.addEventListener('click', clearFilters);
+
   document.getElementById('modal-close').addEventListener('click', closeListingModal);
   modal.addEventListener('click', function (event) {
     if (event.target === modal) closeListingModal();
@@ -539,6 +617,12 @@
   function renderListings() {
     const filtered = state.listings.filter(listing => {
       const matchesCategory = state.category === 'all' || normalizeCategory(listing.category) === normalizeCategory(state.category);
+      const matchesCondition = state.condition === 'all' || normalizeCondition(listing.condition) === normalizeCondition(state.condition);
+      const listingPrice = Number(listing.price) || 0;
+      const minPrice = parsePriceFilter(state.minPrice);
+      const maxPrice = parsePriceFilter(state.maxPrice);
+      const matchesMinPrice = minPrice === null || listingPrice >= minPrice;
+      const matchesMaxPrice = maxPrice === null || listingPrice <= maxPrice;
       const haystack = [
         listing.title,
         listing.description,
@@ -547,7 +631,7 @@
         String(listing.price),
       ].join(' ').toLowerCase();
       const matchesQuery = !state.query || haystack.includes(state.query);
-      return matchesCategory && matchesQuery;
+      return matchesCategory && matchesCondition && matchesMinPrice && matchesMaxPrice && matchesQuery;
     });
 
     const grid = document.getElementById('listings-grid');
@@ -564,11 +648,13 @@
       return;
     }
 
-    resultsMeta.textContent = `${filtered.length} listing${filtered.length === 1 ? '' : 's'} found`;
+    resultsMeta.textContent = `${filtered.length} listing${filtered.length === 1 ? '' : 's'} found${getFilterSummary()}`;
 
     if (!filtered.length) {
       document.getElementById('empty-title').textContent = 'No matching listings';
-      document.getElementById('empty-copy').textContent = 'Try a different search term or switch to another category.';
+      document.getElementById('empty-copy').textContent = hasActiveFilters()
+        ? 'No listings match the current keyword, category, condition, and price filters. Clear filters or adjust the range to see more results.'
+        : 'Try a different search term or switch to another category.';
       empty.style.display = 'flex';
       grid.style.display = 'none';
       grid.innerHTML = '';
@@ -688,6 +774,49 @@
 
   function normalizeCategory(value) {
     return String(value || '').trim().toLowerCase();
+  }
+
+  function normalizeCondition(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function parsePriceFilter(value) {
+    if (value === '' || value === null || value === undefined) return null;
+    const price = Number(value);
+    return Number.isFinite(price) && price >= 0 ? price : null;
+  }
+
+  function hasActiveFilters() {
+    return Boolean(
+      state.query ||
+      state.category !== 'all' ||
+      state.condition !== 'all' ||
+      parsePriceFilter(state.minPrice) !== null ||
+      parsePriceFilter(state.maxPrice) !== null
+    );
+  }
+
+  function getFilterSummary() {
+    if (!hasActiveFilters()) return '';
+    return ' with active filters';
+  }
+
+  function clearFilters() {
+    state.query = '';
+    state.category = 'all';
+    state.condition = 'all';
+    state.minPrice = '';
+    state.maxPrice = '';
+
+    searchInput.value = '';
+    conditionFilter.value = 'all';
+    minPriceFilter.value = '';
+    maxPriceFilter.value = '';
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.category === 'all');
+    });
+
+    renderListings();
   }
 
   function escapeHtml(value) {
