@@ -549,6 +549,7 @@
     editingId: null,
     currentImageUrl: '',
   };
+  const MAX_LISTING_IMAGE_BYTES = 5 * 1024 * 1024;
 
   initPage().then(user => {
     if (!user) return;
@@ -585,6 +586,10 @@
     const selectedFile = fileInput.files[0];
     if (selectedFile && !selectedFile.type.startsWith('image/')) {
       showError('image-error', 'Please choose a valid image file.');
+      valid = false;
+    }
+    if (selectedFile && selectedFile.size > MAX_LISTING_IMAGE_BYTES) {
+      showError('image-error', 'Image must be 5 MB or smaller.');
       valid = false;
     }
     if (!valid || !pageState.user) return;
@@ -813,6 +818,16 @@
     const file = document.getElementById('listing-image-file').files[0];
 
     if (file) {
+      if (file.size > MAX_LISTING_IMAGE_BYTES) {
+        showError('image-error', 'Image must be 5 MB or smaller.');
+        document.getElementById('listing-image-file').value = '';
+        image.removeAttribute('src');
+        image.style.display = 'none';
+        placeholder.style.display = 'flex';
+        preview.classList.add('show');
+        return;
+      }
+
       image.src = URL.createObjectURL(file);
       image.onload = () => URL.revokeObjectURL(image.src);
       image.style.display = 'block';
