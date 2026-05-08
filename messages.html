@@ -3,10 +3,191 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seller Messages - UniMart</title>
+  <title>Messages - UniMart</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .messages-layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.38fr) minmax(0, 0.62fr);
+      gap: 18px;
+      min-height: 620px;
+    }
+
+    .conversation-list,
+    .thread-panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    .conversation-list-header,
+    .thread-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .conversation-list-header h2,
+    .thread-header h2 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .conversation-stack {
+      display: flex;
+      flex-direction: column;
+      max-height: 620px;
+      overflow: auto;
+    }
+
+    .conversation-item {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--sand);
+      background: #fff;
+      transition: 0.18s ease;
+    }
+
+    .conversation-item:hover,
+    .conversation-item.active {
+      background: var(--linen);
+    }
+
+    .conversation-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius);
+      background: var(--sand);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .conversation-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .conversation-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .conversation-meta,
+    .conversation-date,
+    .thread-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .conversation-unread {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: var(--sage);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+    }
+
+    .thread-panel {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .message-stack {
+      flex: 1;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+      background: var(--linen);
+    }
+
+    .message-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 72%;
+    }
+
+    .message-row.mine {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .message-row.theirs {
+      align-self: flex-start;
+    }
+
+    .message-bubble {
+      padding: 10px 12px;
+      border-radius: 16px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--ink);
+      word-break: break-word;
+    }
+
+    .message-row.mine .message-bubble {
+      background: var(--sage);
+      color: #fff;
+      border-color: var(--sage);
+    }
+
+    .message-meta {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .message-compose {
+      border-top: 1px solid var(--border);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .message-compose-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    @media (max-width: 900px) {
+      .messages-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .message-row {
+        max-width: 88%;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -44,7 +225,7 @@
           <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/>
         </svg>
       </button>
-      <span class="topbar-title">Seller Messages</span>
+      <span class="topbar-title">Messages</span>
       <div class="topbar-actions" style="margin-left:auto">
         <div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div>
       </div>
@@ -57,14 +238,39 @@
 
     <main class="page-content">
       <div class="page-header">
-        <h1>Seller Messages</h1>
-        <p>Review buyer enquiries and offer conversations for your listings.</p>
+        <h1>Messages</h1>
+        <p>Manage listing conversations with buyers and sellers.</p>
       </div>
 
-      <div class="empty-state">
-        <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg></span></div>
-        <h3>No messages yet</h3>
-        <p>When buyers message you about a listing, those conversations will appear here.</p>
+      <div class="messages-layout">
+        <section class="conversation-list">
+          <div class="conversation-list-header">
+            <h2>Inbox</h2>
+            <p class="conversation-meta" id="conversation-count">Loading conversations...</p>
+          </div>
+          <div class="conversation-stack" id="conversation-stack"></div>
+        </section>
+
+        <section class="thread-panel">
+          <div class="thread-header">
+            <h2 id="thread-title">Select a conversation</h2>
+            <p class="thread-subtitle" id="thread-subtitle">Messages appear in chronological order.</p>
+          </div>
+          <div class="message-stack" id="message-stack">
+            <div class="empty-state">
+              <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg></span></div>
+              <h3>No conversation selected</h3>
+              <p>Choose a thread from your inbox to read and reply.</p>
+            </div>
+          </div>
+          <form class="message-compose" id="message-form">
+            <textarea class="form-input" id="message-input" rows="3" placeholder="Write a message..." disabled></textarea>
+            <span class="form-error" id="message-error"></span>
+            <div class="message-compose-actions">
+              <button class="btn btn-primary" id="send-message-btn" type="submit" disabled>Send message</button>
+            </div>
+          </form>
+        </section>
       </div>
     </main>
   </div>
@@ -80,7 +286,205 @@
     document.getElementById('sidebar-toggle').style.display = 'flex';
   }
 
-  initPage();
+  const state = {
+    user: null,
+    conversations: [],
+    activeConversationId: new URLSearchParams(window.location.search).get('conversation'),
+    messages: [],
+    refreshTimer: null,
+  };
+
+  initPage().then(user => {
+    if (!user) return;
+    state.user = user;
+    loadConversations().then(() => {
+      if (state.activeConversationId) openConversation(state.activeConversationId);
+    });
+    state.refreshTimer = setInterval(refreshActiveThread, 12000);
+  });
+
+  window.addEventListener('beforeunload', () => {
+    if (state.refreshTimer) clearInterval(state.refreshTimer);
+  });
+
+  document.getElementById('message-form').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    await submitMessage();
+  });
+
+  async function loadConversations() {
+    const stack = document.getElementById('conversation-stack');
+    const count = document.getElementById('conversation-count');
+    stack.innerHTML = '';
+    count.textContent = 'Loading conversations...';
+
+    const result = await Auth.getConversations(state.user.id);
+    if (result.error) {
+      count.textContent = 'Unable to load inbox';
+      stack.innerHTML = renderEmptyPanel(result.error);
+      return;
+    }
+
+    state.conversations = result.conversations || [];
+    count.textContent = `${state.conversations.length} conversation${state.conversations.length === 1 ? '' : 's'}`;
+    renderConversations();
+    setUnreadMessageBadge(state.conversations.reduce((total, item) => total + item.unreadCount, 0));
+  }
+
+  function renderConversations() {
+    const stack = document.getElementById('conversation-stack');
+    if (!state.conversations.length) {
+      stack.innerHTML = renderEmptyPanel('Start a conversation from a marketplace listing and it will appear here.');
+      return;
+    }
+
+    stack.innerHTML = state.conversations.map(conversation => `
+      <button class="conversation-item ${conversation.id === state.activeConversationId ? 'active' : ''}" type="button" data-conversation-id="${escapeAttribute(conversation.id)}">
+        <div class="conversation-thumb">
+          ${conversation.listingImageUrl ? `<img src="${escapeAttribute(conversation.listingImageUrl)}" alt="${escapeAttribute(conversation.listingTitle)}" />` : 'Item'}
+        </div>
+        <div>
+          <div class="conversation-title">${escapeHtml(conversation.listingTitle)}</div>
+          <div class="conversation-meta">${conversation.role === 'buyer' ? 'Seller' : 'Buyer'}: ${escapeHtml(shortId(conversation.otherUserId))}</div>
+          <div class="conversation-date">${formatDateTime(conversation.lastMessageAt)}</div>
+        </div>
+        ${conversation.unreadCount ? `<span class="conversation-unread">${conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>` : ''}
+      </button>
+    `).join('');
+
+    stack.querySelectorAll('[data-conversation-id]').forEach(button => {
+      button.addEventListener('click', () => openConversation(button.dataset.conversationId));
+    });
+  }
+
+  async function openConversation(conversationId) {
+    state.activeConversationId = conversationId;
+    const conversation = state.conversations.find(item => item.id === conversationId);
+    if (conversation) {
+      document.getElementById('thread-title').textContent = conversation.listingTitle;
+      document.getElementById('thread-subtitle').textContent = `${conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${shortId(conversation.otherUserId)}`;
+    }
+
+    document.getElementById('message-input').disabled = false;
+    document.getElementById('send-message-btn').disabled = false;
+    renderConversations();
+    await loadMessages(conversationId, true);
+    await loadConversations();
+  }
+
+  async function loadMessages(conversationId, markRead) {
+    const stack = document.getElementById('message-stack');
+    stack.innerHTML = renderEmptyPanel('Loading messages...');
+
+    const result = await Auth.getConversationMessages({ conversationId, userId: state.user.id, markRead });
+    if (result.error) {
+      stack.innerHTML = renderEmptyPanel(result.error);
+      return;
+    }
+
+    state.messages = result.messages || [];
+    document.getElementById('thread-title').textContent = result.conversation.listingTitle;
+    document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${shortId(result.conversation.otherUserId)}`;
+
+    if (!state.messages.length) {
+      stack.innerHTML = renderEmptyPanel('No messages in this thread yet.');
+      return;
+    }
+
+    stack.innerHTML = state.messages.map(renderMessage).join('');
+    stack.scrollTop = stack.scrollHeight;
+  }
+
+  async function submitMessage() {
+    const input = document.getElementById('message-input');
+    const error = document.getElementById('message-error');
+    const button = document.getElementById('send-message-btn');
+    const body = input.value.trim();
+    error.textContent = '';
+
+    if (!state.activeConversationId) {
+      error.textContent = 'Choose a conversation before sending.';
+      return;
+    }
+    if (!body) {
+      error.textContent = 'Message cannot be empty.';
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Sending...';
+
+    const result = await Auth.sendMessage({
+      conversationId: state.activeConversationId,
+      senderId: state.user.id,
+      body,
+    });
+
+    button.disabled = false;
+    button.textContent = 'Send message';
+
+    if (result.error) {
+      error.textContent = result.error;
+      return;
+    }
+
+    input.value = '';
+    await loadMessages(state.activeConversationId, false);
+    await loadConversations();
+  }
+
+  async function refreshActiveThread() {
+    if (!state.user || !state.activeConversationId) return;
+    await loadMessages(state.activeConversationId, true);
+    await loadConversations();
+  }
+
+  function renderMessage(message) {
+    const mine = message.senderId === state.user.id;
+    return `
+      <div class="message-row ${mine ? 'mine' : 'theirs'}">
+        <div class="message-meta">${mine ? 'You' : 'Them'} - ${formatDateTime(message.createdAt)}</div>
+        <div class="message-bubble">${escapeHtml(message.body)}</div>
+      </div>
+    `;
+  }
+
+  function renderEmptyPanel(message) {
+    return `
+      <div class="empty-state">
+        <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg></span></div>
+        <h3>${escapeHtml(message)}</h3>
+      </div>
+    `;
+  }
+
+  function shortId(value) {
+    if (!value) return 'Unknown';
+    return `${value.slice(0, 8)}...`;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return 'No activity yet';
+    return new Intl.DateTimeFormat('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
+  }
 </script>
 </body>
 </html>

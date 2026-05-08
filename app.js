@@ -22,8 +22,8 @@ function getCurrentPage() {
 }
 
 function getAllowedPages(user) {
-  const pages = ['search.html', 'profile.html'];
-  if (isSellerAccount(user)) pages.push('dashboard.html', 'listings.html', 'messages.html');
+  const pages = ['search.html', 'profile.html', 'messages.html'];
+  if (isSellerAccount(user)) pages.push('dashboard.html', 'listings.html');
   return pages;
 }
 
@@ -47,6 +47,7 @@ function renderNavItem(item) {
       <a href="${item.href}" class="nav-item" data-page="${item.href}">
         ${navIcon(item.icon)}
         ${item.label}
+        ${item.badgeId ? `<span class="nav-badge" id="${item.badgeId}" style="display:none">0</span>` : ''}
       </a>`;
 }
 
@@ -55,13 +56,13 @@ function buildDynamicNavigation(user) {
     { href: 'search.html', label: 'Search Listings', icon: 'search' },
   ];
   const manageItems = [
+    { href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' },
     { href: 'profile.html', label: 'My Profile', icon: 'profile' },
   ];
 
   if (isSellerAccount(user)) {
     mainItems.push({ href: 'dashboard.html', label: 'Seller Dashboard', icon: 'dashboard' });
     manageItems.unshift({ href: 'listings.html', label: 'Listing Management', icon: 'listings' });
-    manageItems.push({ href: 'messages.html', label: 'Seller Messages', icon: 'messages' });
   }
 
   document.querySelectorAll('.sidebar-nav').forEach(nav => {
@@ -72,6 +73,20 @@ function buildDynamicNavigation(user) {
       ${manageItems.map(renderNavItem).join('')}
     `;
   });
+}
+
+function setUnreadMessageBadge(count) {
+  document.querySelectorAll('#nav-message-count').forEach(badge => {
+    const safeCount = Number(count) || 0;
+    badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+    badge.style.display = safeCount > 0 ? 'inline-flex' : 'none';
+  });
+}
+
+async function refreshUnreadMessageCount(user) {
+  if (!Auth.getUnreadMessageCount || !user?.id) return;
+  const result = await Auth.getUnreadMessageCount(user.id);
+  if (!result.error) setUnreadMessageBadge(result.count);
 }
 
 /* ---- Toast notifications ---- */
@@ -171,6 +186,7 @@ async function initPage() {
   initDropdowns();
   setActiveNav();
   initMobileSidebar();
+  refreshUnreadMessageCount(user);
 
   document.querySelectorAll('[data-action="signout"]').forEach(btn => {
     btn.addEventListener('click', () => Auth.signOut());
@@ -181,5 +197,5 @@ async function initPage() {
 
 /* ---- Node.js exports for testing ---- */
 if (typeof module !== 'undefined') {
-  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, initPage };
+  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, setUnreadMessageBadge, refreshUnreadMessageCount, initPage };
 }

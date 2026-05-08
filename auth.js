@@ -326,8 +326,226 @@ const Auth = (() => {
       imageUrl: data.publicUrl,
     };
   }
+
+  async function startConversation({ listingId, buyerId, initialMessage }) {
+    const body = String(initialMessage || '').trim();
+    if (!listingId || !buyerId) return { error: 'Missing conversation details.' };
+    if (!body) return { error: 'Enter a message before starting the conversation.' };
+
+    const { data: listing, error: listingError } = await _sb
+      .from('listings')
+      .select('listing_id, seller_id, title, status')
+      .eq('listing_id', listingId)
+      .single();
+
+    if (listingError) return { error: listingError.message };
+    if (!listing) return { error: 'Listing not found.' };
+    if (listing.seller_id === buyerId) return { error: 'You cannot message yourself about your own listing.' };
+
+    let conversation;
+    const { data: existing, error: existingError } = await _sb
+      .from('conversations')
+      .select('conversation_id, listing_id, buyer_id, seller_id, status, buyer_unread_count, seller_unread_count, last_message_at, created_at, updated_at')
+      .eq('listing_id', listingId)
+      .eq('buyer_id', buyerId)
+      .eq('seller_id', listing.seller_id)
+      .maybeSingle();
+
+    if (existingError) return { error: existingError.message };
+    conversation = existing;
+
+    if (!conversation) {
+      const { data: created, error: createError } = await _sb
+        .from('conversations')
+        .insert({
+          listing_id: listingId,
+          buyer_id: buyerId,
+          seller_id: listing.seller_id,
+          status: 'open',
+          buyer_unread_count: 0,
+          seller_unread_count: 0,
+        })
+        .select('conversation_id, listing_id, buyer_id, seller_id, status, buyer_unread_count, seller_unread_count, last_message_at, created_at, updated_at')
+        .single();
+
+      if (createError) return { error: createError.message };
+      conversation = created;
+    }
+
+    const sent = await sendMessage({ conversationId: conversation.conversation_id, senderId: buyerId, body });
+    if (sent.error) return sent;
+
+    return {
+      success: true,
+      conversation: _mapConversationRecord({
+        ...sent.conversation,
+        listings: listing,
+      }, buyerId),
+    };
+  }
+
+  async function getConversations(userId) {
+    const { data, error } = await _sb
+      .from('conversations')
+      .select('conversation_id, listing_id, buyer_id, seller_id, status, buyer_unread_count, seller_unread_count, last_message_at, created_at, updated_at, listings(title, price, image_url)')
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .order('last_message_at', { ascending: false, nullsFirst: false });
+
+    if (error) return { error: error.message };
+
+    return {
+      success: true,
+      conversations: (data || []).map(item => _mapConversationRecord(item, userId)),
+    };
+  }
+
+  async function getConversationMessages({ conversationId, userId, markRead = true }) {
+    const access = await _getAccessibleConversation(conversationId, userId);
+    if (access.error) return access;
+
+    if (markRead) {
+      const read = await markConversationRead({ conversationId, userId });
+      if (read.error) return read;
+    }
+
+    const { data, error } = await _sb
+      .from('messages')
+      .select('message_id, conversation_id, sender_id, body, read_at, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (error) return { error: error.message };
+
+    return {
+      success: true,
+      conversation: _mapConversationRecord(access.conversation, userId),
+      messages: (data || []).map(_mapMessageRecord),
+    };
+  }
+
+  async function sendMessage({ conversationId, senderId, body }) {
+    const text = String(body || '').trim();
+    if (!text) return { error: 'Message cannot be empty.' };
+
+    const access = await _getAccessibleConversation(conversationId, senderId);
+    if (access.error) return access;
+
+    const conversation = access.conversation;
+    const senderIsBuyer = conversation.buyer_id === senderId;
+    const now = new Date().toISOString();
+
+    const { data: message, error: messageError } = await _sb
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: senderId,
+        body: text,
+      })
+      .select('message_id, conversation_id, sender_id, body, read_at, created_at')
+      .single();
+
+    if (messageError) return { error: messageError.message };
+
+    const updatePayload = {
+      status: 'open',
+      last_message_at: now,
+      updated_at: now,
+      buyer_unread_count: senderIsBuyer ? Number(conversation.buyer_unread_count) || 0 : (Number(conversation.buyer_unread_count) || 0) + 1,
+      seller_unread_count: senderIsBuyer ? (Number(conversation.seller_unread_count) || 0) + 1 : Number(conversation.seller_unread_count) || 0,
+    };
+
+    const { data: updated, error: updateError } = await _sb
+      .from('conversations')
+      .update(updatePayload)
+      .eq('conversation_id', conversationId)
+      .select('conversation_id, listing_id, buyer_id, seller_id, status, buyer_unread_count, seller_unread_count, last_message_at, created_at, updated_at, listings(title, price, image_url)')
+      .single();
+
+    if (updateError) return { error: updateError.message };
+
+    return {
+      success: true,
+      message: _mapMessageRecord(message),
+      conversation: updated,
+    };
+  }
+
+  async function markConversationRead({ conversationId, userId }) {
+    const access = await _getAccessibleConversation(conversationId, userId);
+    if (access.error) return access;
+
+    const conversation = access.conversation;
+    const userIsBuyer = conversation.buyer_id === userId;
+    const payload = userIsBuyer ? { buyer_unread_count: 0 } : { seller_unread_count: 0 };
+
+    const [{ error: conversationError }, { error: messagesError }] = await Promise.all([
+      _sb.from('conversations').update(payload).eq('conversation_id', conversationId),
+      _sb
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .neq('sender_id', userId)
+        .is('read_at', null),
+    ]);
+
+    if (conversationError || messagesError) return { error: (conversationError || messagesError).message };
+    return { success: true };
+  }
+
+  async function getUnreadMessageCount(userId) {
+    const result = await getConversations(userId);
+    if (result.error) return result;
+
+    const count = result.conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
+    return { success: true, count };
+  }
  
   /* ---------- helpers ---------- */
+  async function _getAccessibleConversation(conversationId, userId) {
+    const { data, error } = await _sb
+      .from('conversations')
+      .select('conversation_id, listing_id, buyer_id, seller_id, status, buyer_unread_count, seller_unread_count, last_message_at, created_at, updated_at, listings(title, price, image_url)')
+      .eq('conversation_id', conversationId)
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .single();
+
+    if (error) return { error: error.message };
+    if (!data) return { error: 'You do not have access to this conversation.' };
+    return { success: true, conversation: data };
+  }
+
+  function _mapConversationRecord(record, currentUserId) {
+    const userIsBuyer = record.buyer_id === currentUserId;
+    const listing = record.listings || {};
+    return {
+      id: record.conversation_id,
+      listingId: record.listing_id,
+      buyerId: record.buyer_id,
+      sellerId: record.seller_id,
+      otherUserId: userIsBuyer ? record.seller_id : record.buyer_id,
+      role: userIsBuyer ? 'buyer' : 'seller',
+      status: record.status || 'open',
+      unreadCount: Number(userIsBuyer ? record.buyer_unread_count : record.seller_unread_count) || 0,
+      listingTitle: listing.title || 'Listing conversation',
+      listingPrice: Number(listing.price) || 0,
+      listingImageUrl: listing.image_url || '',
+      lastMessageAt: record.last_message_at || record.updated_at || record.created_at,
+      createdAt: record.created_at,
+      updatedAt: record.updated_at,
+    };
+  }
+
+  function _mapMessageRecord(record) {
+    return {
+      id: record.message_id,
+      conversationId: record.conversation_id,
+      senderId: record.sender_id,
+      body: record.body || '',
+      readAt: record.read_at,
+      createdAt: record.created_at,
+    };
+  }
+
   async function _getProfile(authUser) {
     const { data } = await _sb.from('users').select('*').eq('id', authUser.id).single();
     if (data) {
@@ -388,7 +606,7 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage };
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount };
 })();
 
 if (typeof module !== 'undefined') {

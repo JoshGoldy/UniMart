@@ -266,6 +266,12 @@
 
     .buyer-actions {
       display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .buyer-action-row {
+      display: flex;
       flex-wrap: wrap;
       gap: 10px;
     }
@@ -515,8 +521,12 @@
         <div class="listing-tags" id="modal-tags"></div>
         <div class="details-copy" id="modal-description"></div>
         <div class="buyer-actions" id="modal-buyer-actions">
-          <button class="btn btn-primary" type="button" data-buyer-action="offer">Make offer</button>
-          <button class="btn btn-secondary" type="button" data-buyer-action="message">Message seller</button>
+          <textarea class="form-input" id="buyer-message-input" rows="3" placeholder="Ask a question or make an offer..."></textarea>
+          <span class="form-error" id="buyer-message-error"></span>
+          <div class="buyer-action-row">
+            <button class="btn btn-primary" type="button" data-buyer-action="message">Message seller</button>
+            <button class="btn btn-secondary" type="button" data-buyer-action="offer">Make offer</button>
+          </div>
         </div>
         <div class="details-grid">
           <div class="details-meta-card">
@@ -758,6 +768,8 @@
 
     const buyerActions = document.getElementById('modal-buyer-actions');
     buyerActions.style.display = shouldShowBuyerActions(listing) ? 'flex' : 'none';
+    document.getElementById('buyer-message-input').value = '';
+    document.getElementById('buyer-message-error').textContent = '';
 
     const imageWrap = document.getElementById('modal-image-wrap');
     const image = document.getElementById('modal-image');
@@ -786,14 +798,39 @@
   }
 
   document.querySelectorAll('[data-buyer-action]').forEach(button => {
-    button.addEventListener('click', function () {
+    button.addEventListener('click', async function () {
       if (!state.selectedListing) return;
       const action = this.dataset.buyerAction;
-      const title = state.selectedListing.title || 'this listing';
-      const message = action === 'offer'
-        ? `Offer flow opened for ${title}.`
-        : `Messaging opened for ${title}.`;
-      showToast(message, 'info');
+      const input = document.getElementById('buyer-message-input');
+      const error = document.getElementById('buyer-message-error');
+      const text = input.value.trim();
+      error.textContent = '';
+
+      if (!text) {
+        error.textContent = action === 'offer' ? 'Enter your offer before sending.' : 'Enter a message before sending.';
+        return;
+      }
+
+      const originalText = this.textContent;
+      document.querySelectorAll('[data-buyer-action]').forEach(btn => btn.disabled = true);
+      this.textContent = 'Sending...';
+
+      const result = await Auth.startConversation({
+        listingId: state.selectedListing.id,
+        buyerId: state.user.id,
+        initialMessage: action === 'offer' ? `Offer: ${text}` : text,
+      });
+
+      document.querySelectorAll('[data-buyer-action]').forEach(btn => btn.disabled = false);
+      this.textContent = originalText;
+
+      if (result.error) {
+        error.textContent = result.error;
+        return;
+      }
+
+      showToast('Conversation started', 'success');
+      window.location.href = `messages.html?conversation=${encodeURIComponent(result.conversation.id)}`;
     });
   });
 
