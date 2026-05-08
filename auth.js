@@ -390,3 +390,7 @@ const Auth = (() => {
  
   return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage };
 })();
+
+if (typeof module !== 'undefined') {
+  module.exports = { Auth };
+}

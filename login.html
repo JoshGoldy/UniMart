@@ -173,7 +173,7 @@
     }
 
     function getRecoveryRedirectUrl() {
-      return new URL('login.html', window.location.href).href;
+      return 'https://unimart-app-e2gaadawhwf6bng3.southafricanorth-01.azurewebsites.net/login.html';
     }
 
     const passwordToggleIcons = {
@@ -354,9 +354,13 @@
     if (recoveryMode) {
       showStep('step-reset-password');
     } else {
-      Auth.getUser().then(user => {
-        if (user) window.location.href = 'search.html';
-      });
+      setTimeout(() => {
+        if (!recoveryMode) {
+          Auth.getUser().then(user => {
+            if (user) window.location.href = 'search.html';
+          });
+        }
+      }, 500);
     }
   </script>
 </body>
