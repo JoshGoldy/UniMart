@@ -116,6 +116,12 @@ on public.users
 for select
 using (auth.uid() = id or public.is_admin());
 
+drop policy if exists "Users can create own profile" on public.users;
+create policy "Users can create own profile"
+on public.users
+for insert
+with check (auth.uid() = id);
+
 drop policy if exists "Users can update own profile" on public.users;
 create policy "Users can update own profile"
 on public.users

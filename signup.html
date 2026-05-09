@@ -140,6 +140,13 @@
         <button type="submit" class="btn btn-primary btn-full btn-lg auth-form-submit" id="signup-btn">
           Create account
         </button>
+
+        <div class="oauth-divider"><span>or</span></div>
+
+        <button type="button" class="btn btn-oauth btn-full btn-lg" id="google-signup-btn">
+          <span class="google-mark" aria-hidden="true">G</span>
+          Create account with Google
+        </button>
       </form>
  
       <div class="auth-footer">
@@ -203,7 +210,7 @@
   <script src="auth.js"></script>
   <script>
     // Redirect if already logged in
-    Auth.getUser().then(user => { if (user) window.location.href = 'search.html'; });
+    Auth.getUser().then(user => { if (user) window.location.href = getLandingPage(user); });
  
     let pendingEmail = '';
     const southAfricanUniversities = [
@@ -331,6 +338,33 @@
       showStep('verify');
       document.querySelector('.otp-input').focus();
     });
+
+    document.getElementById('google-signup-btn').addEventListener('click', async function () {
+      clearErrors();
+
+      const userRole = document.querySelector('input[name="user-role"]:checked')?.value || 'student';
+      const accountType = userRole === 'student'
+        ? (document.querySelector('input[name="account-type"]:checked')?.value || 'buyer')
+        : 'buyer';
+      Auth.setPendingOAuthProfile({
+        userRole,
+        accountType,
+        university: document.getElementById('signup-university').value,
+        campus: '',
+        studentNumber: document.getElementById('signup-student-number').value.trim(),
+      });
+
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="google-mark" aria-hidden="true">G</span>Opening Google...';
+
+      const result = await Auth.signInWithGoogle({ redirectTo: Auth.getOAuthRedirectUrl() });
+      if (result.error) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="google-mark" aria-hidden="true">G</span>Create account with Google';
+        showError('signup-error', result.error);
+      }
+    });
  
     /* ---- OTP inputs ---- */
     const otpInputs = document.querySelectorAll('.otp-input');
@@ -425,6 +459,13 @@
 
     function escapeAttribute(value) {
       return escapeHtml(value);
+    }
+
+    function getLandingPage(user) {
+      if (user?.userRole === 'admin') return 'admin.html';
+      if (user?.userRole === 'staff') return 'facility.html';
+      if (user?.accountType === 'seller' || user?.accountType === 'seller_buyer') return 'dashboard.html';
+      return 'search.html';
     }
   </script>
 </body>

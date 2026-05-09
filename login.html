@@ -49,6 +49,13 @@
         <button type="submit" class="btn btn-primary btn-full btn-lg auth-form-submit" id="login-btn">
           Sign in
         </button>
+
+        <div class="oauth-divider"><span>or</span></div>
+
+        <button type="button" class="btn btn-oauth btn-full btn-lg" id="google-login-btn">
+          <span class="google-mark" aria-hidden="true">G</span>
+          Continue with Google
+        </button>
       </form>
 
       <div class="auth-footer">
@@ -176,6 +183,13 @@
       return 'https://unimart-app-e2gaadawhwf6bng3.southafricanorth-01.azurewebsites.net/login.html';
     }
 
+    function getLandingPage(user) {
+      if (user?.userRole === 'admin') return 'admin.html';
+      if (user?.userRole === 'staff') return 'facility.html';
+      if (user?.accountType === 'seller' || user?.accountType === 'seller_buyer') return 'dashboard.html';
+      return 'search.html';
+    }
+
     const passwordToggleIcons = {
       hidden: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 10s2.75-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.75 4.5-7.5 4.5S2.5 10 2.5 10Z"/><circle cx="10" cy="10" r="2.25"/></svg></span>',
       visible: '<span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l14 14" stroke-linecap="round"/><path d="M8.7 5.8A8.5 8.5 0 0 1 10 5.5c4.75 0 7.5 4.5 7.5 4.5a14.4 14.4 0 0 1-2.55 2.9"/><path d="M11.8 11.9A2.25 2.25 0 0 1 8.1 8.2"/><path d="M6.1 6.2C4 7.4 2.5 10 2.5 10s2.75 4.5 7.5 4.5c1.1 0 2.08-.24 2.95-.62" stroke-linecap="round"/></svg></span>'
@@ -257,7 +271,21 @@
         return;
       }
 
-      window.location.href = 'search.html';
+      window.location.href = getLandingPage(result.user);
+    });
+
+    document.getElementById('google-login-btn').addEventListener('click', async function () {
+      clearErrors();
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="google-mark" aria-hidden="true">G</span>Opening Google...';
+
+      const result = await Auth.signInWithGoogle({ redirectTo: Auth.getOAuthRedirectUrl() });
+      if (result.error) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="google-mark" aria-hidden="true">G</span>Continue with Google';
+        showError('login-error', result.error);
+      }
     });
 
     document.getElementById('forgot-password-form').addEventListener('submit', async function (e) {
@@ -357,7 +385,7 @@
       setTimeout(() => {
         if (!recoveryMode) {
           Auth.getUser().then(user => {
-            if (user) window.location.href = 'search.html';
+            if (user) window.location.href = getLandingPage(user);
           });
         }
       }, 500);

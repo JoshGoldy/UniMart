@@ -32,7 +32,29 @@ const Auth = (() => {
   async function signIn({ email, password }) {
     const { data, error } = await _sb.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
-    return { success: true, user: _buildUser(data.user) };
+    const profile = await _ensureProfile(data.user);
+    return { success: true, user: profile || _buildUser(data.user) };
+  }
+
+  async function signInWithGoogle({ redirectTo } = {}) {
+    const { error } = await _sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectTo || getOAuthRedirectUrl(),
+      },
+    });
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function handleOAuthCallback() {
+    const { data: { session }, error } = await _sb.auth.getSession();
+    if (error) return { error: error.message };
+    if (!session?.user) return { error: 'We could not complete Google sign-in. Please try again.' };
+
+    const profile = await _ensureProfile(session.user);
+    if (!profile) return { error: 'We could not load your UniMart profile. Please try again.' };
+    return { success: true, user: profile };
   }
  
   /* ---------- OTP verification (sign-up email confirmation) ---------- */
@@ -68,13 +90,13 @@ const Auth = (() => {
       window.location.href = 'login.html';
       return null;
     }
-    return _getProfile(session.user);
+    return _ensureProfile(session.user);
   }
  
   async function getUser() {
     const { data: { session } } = await _sb.auth.getSession();
     if (!session) return null;
-    return _getProfile(session.user);
+    return _ensureProfile(session.user);
   }
  
   /* ---------- profile update ---------- */
@@ -1073,6 +1095,68 @@ const Auth = (() => {
       studentNumber: meta.student_number || '',
     };
   }
+
+  async function _ensureProfile(authUser) {
+    if (!authUser) return null;
+    const existing = await _getProfile(authUser);
+    const { data } = await _sb.from('users').select('id').eq('id', authUser.id).maybeSingle();
+    if (data?.id) return existing;
+
+    const meta = authUser.user_metadata || {};
+    const pending = _getPendingOAuthProfile();
+    const cleanRole = ['student', 'staff'].includes(pending.userRole) ? pending.userRole : (['student', 'staff', 'admin'].includes(meta.user_role) ? meta.user_role : 'student');
+    const cleanAccountType = cleanRole === 'student' && ['buyer', 'seller', 'seller_buyer'].includes(pending.accountType || meta.account_type)
+      ? (pending.accountType || meta.account_type)
+      : 'buyer';
+    const fullName = meta.full_name || meta.name || [meta.given_name, meta.family_name].filter(Boolean).join(' ') || authUser.email;
+
+    const { error } = await _sb.from('users').upsert({
+      id: authUser.id,
+      full_name: fullName,
+      email: authUser.email,
+      account_type: cleanAccountType,
+      user_role: cleanRole,
+      university: pending.university || meta.university || null,
+      uni_campus: pending.campus || meta.campus || null,
+      student_number: pending.studentNumber || meta.student_number || null,
+    });
+
+    _clearPendingOAuthProfile();
+    if (error) return null;
+    return _getProfile(authUser);
+  }
+
+  function getOAuthRedirectUrl(path = 'auth-callback.html') {
+    if (typeof window === 'undefined') return path;
+    const basePath = window.location.pathname.replace(/[^/]*$/, '');
+    return `${window.location.origin}${basePath}${path}`;
+  }
+
+  function setPendingOAuthProfile(profile) {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    window.localStorage.setItem('unimart_oauth_signup_profile', JSON.stringify({
+      userRole: profile.userRole || 'student',
+      accountType: profile.accountType || 'buyer',
+      university: profile.university || '',
+      campus: profile.campus || '',
+      studentNumber: profile.studentNumber || '',
+    }));
+  }
+
+  function _getPendingOAuthProfile() {
+    if (typeof window === 'undefined' || !window.localStorage) return {};
+    try {
+      return JSON.parse(window.localStorage.getItem('unimart_oauth_signup_profile') || '{}') || {};
+    } catch (err) {
+      return {};
+    }
+  }
+
+  function _clearPendingOAuthProfile() {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem('unimart_oauth_signup_profile');
+    }
+  }
  
   function _buildUser(authUser) {
     if (!authUser) return null;
@@ -1149,7 +1233,7 @@ const Auth = (() => {
     return slots;
   }
 
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityNotifications, markFacilityNotificationsRead, getRolePermissions, getFacilityAvailability, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole, updateFacilityConfig, updateRolePermission, updateContentReport, removeListingAsAdmin, removeReviewAsAdmin };
+  return { signUp, signIn, signInWithGoogle, handleOAuthCallback, getOAuthRedirectUrl, setPendingOAuthProfile, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityNotifications, markFacilityNotificationsRead, getRolePermissions, getFacilityAvailability, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole, updateFacilityConfig, updateRolePermission, updateContentReport, removeListingAsAdmin, removeReviewAsAdmin };
 })();
 
 if (typeof module !== 'undefined') {

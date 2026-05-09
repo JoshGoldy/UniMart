@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing in - UniMart</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card auth-status-card">
+    <div class="auth-logo">
+      <img src="unimart-logo.png" alt="UniMart Logo" class="logo-img" />
+    </div>
+    <div class="auth-header">
+      <h1>Signing you in</h1>
+      <p id="callback-message">Please wait while UniMart finishes your Google sign-in.</p>
+    </div>
+    <div class="auth-spinner" aria-hidden="true"></div>
+    <div class="form-error" id="callback-error" style="text-align:center; margin-top:16px;"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    function getLandingPage(user) {
+      if (user?.userRole === 'admin') return 'admin.html';
+      if (user?.userRole === 'staff') return 'facility.html';
+      if (user?.accountType === 'seller' || user?.accountType === 'seller_buyer') return 'dashboard.html';
+      return 'search.html';
+    }
+
+    (async function finishGoogleSignIn() {
+      const result = await Auth.handleOAuthCallback();
+      if (result.error) {
+        document.getElementById('callback-message').textContent = 'Google sign-in could not be completed.';
+        document.getElementById('callback-error').textContent = result.error;
+        setTimeout(() => { window.location.href = 'login.html'; }, 2500);
+        return;
+      }
+
+      window.location.href = getLandingPage(result.user);
+    })();
+  </script>
+</body>
+</html>
