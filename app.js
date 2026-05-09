@@ -13,6 +13,241 @@ function iconMarkup(name) {
   return `<span class="ui-icon">${icons[name] || icons.info}</span>`;
 }
 
+function isSellerAccount(user) {
+  return ['seller', 'seller_buyer'].includes(user?.accountType);
+}
+
+function isBuyerAccount(user) {
+  return ['buyer', 'seller_buyer'].includes(user?.accountType || 'buyer');
+}
+
+function getUserRole(user) {
+  return user?.userRole || 'student';
+}
+
+const ROLE_PERMISSIONS = {
+  student: {
+    landingPage: 'search.html',
+    pages: ['search.html', 'profile.html', 'messages.html', 'access-denied.html'],
+    features: ['marketplace', 'messages', 'offers'],
+  },
+  staff: {
+    landingPage: 'facility.html',
+    pages: ['facility.html', 'profile.html', 'access-denied.html'],
+    features: ['trade-facility'],
+  },
+  admin: {
+    landingPage: 'admin.html',
+    pages: ['admin.html', 'profile.html', 'access-denied.html'],
+    features: ['admin-config'],
+  },
+};
+
+const FEATURE_TO_PERMISSION = {
+  marketplace: 'marketplace_browsing',
+  offers: 'marketplace_browsing',
+  messages: 'messaging',
+  'listing-management': 'listing_management',
+  'trade-facility': 'trade_facility_workflow',
+  'admin-config': 'admin_configuration',
+  moderation: 'moderation',
+};
+
+let runtimePermissionMap = null;
+
+function getCurrentPage() {
+  return window.location.pathname.split('/').pop() || 'search.html';
+}
+
+function getAllowedPages(user) {
+  const role = getUserRole(user);
+  const config = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student;
+  const pages = ['profile.html', 'access-denied.html'];
+  if (role === 'staff' && hasFeature(user, 'trade-facility')) pages.push('facility.html');
+  if (role === 'admin' && hasFeature(user, 'admin-config')) pages.push('admin.html');
+  if (role === 'student' && hasFeature(user, 'marketplace') && isBuyerAccount(user)) pages.push('search.html');
+  if (role === 'student' && hasFeature(user, 'messages')) pages.push('messages.html');
+  if (role === 'student' && hasFeature(user, 'listing-management') && isSellerAccount(user)) pages.push('dashboard.html', 'listings.html');
+  if (!pages.length && config.pages?.length) pages.push(...config.pages);
+  return pages;
+}
+
+function canAccessPage(user, page = getCurrentPage()) {
+  return getAllowedPages(user).includes(page);
+}
+
+function getRoleLandingPage(user) {
+  const role = getUserRole(user);
+  if (role === 'student') {
+    if (isBuyerAccount(user) && hasFeature(user, 'marketplace')) return 'search.html';
+    if (isSellerAccount(user) && hasFeature(user, 'listing-management')) return 'dashboard.html';
+  }
+  return (ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).landingPage;
+}
+
+function hasFeature(user, feature) {
+  const role = getUserRole(user);
+  const defaultAllowed = Boolean((ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).features.includes(feature))
+    || (role === 'student' && feature === 'listing-management' && isSellerAccount(user));
+  const permission = FEATURE_TO_PERMISSION[feature];
+  if (!permission || !runtimePermissionMap) return defaultAllowed;
+  const key = `${role}:${permission}`;
+  return Object.prototype.hasOwnProperty.call(runtimePermissionMap, key)
+    ? runtimePermissionMap[key]
+    : defaultAllowed;
+}
+
+function formatStatusLabel(value) {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function navIcon(name) {
+  const icons = {
+    search: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/></svg>',
+    dashboard: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.5"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.5"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.5"/></svg>',
+    listings: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h12M4 10h8M4 14h5" stroke-linecap="round"/></svg>',
+    messages: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg>',
+    facility: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.5 8.5 10 3l6.5 5.5"/><path d="M5 8v8h10V8"/><path d="M8 16v-5h4v5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    admin: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2.5 16 5v4.5c0 3.55-2.42 6.78-6 7.9-3.58-1.12-6-4.35-6-7.9V5l6-2.5Z"/><path d="M7.5 10.2 9.2 12l3.3-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    profile: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="7" r="3.5"/><path d="M3.5 16c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" stroke-linecap="round"/></svg>',
+  };
+  return icons[name] || icons.search;
+}
+
+function renderNavItem(item) {
+  return `
+      <a href="${item.href}" class="nav-item" data-page="${item.href}">
+        ${navIcon(item.icon)}
+        ${item.label}
+        ${item.badgeId ? `<span class="nav-badge" id="${item.badgeId}" style="display:none">0</span>` : ''}
+      </a>`;
+}
+
+function buildDynamicNavigation(user) {
+  const role = getUserRole(user);
+  let mainItems = [];
+  let manageItems = [{ href: 'profile.html', label: 'My Profile', icon: 'profile' }];
+
+  if (role === 'staff' && hasFeature(user, 'trade-facility')) {
+    mainItems = [{ href: 'facility.html', label: 'Trade Facility', icon: 'facility' }];
+  } else if (role === 'admin' && hasFeature(user, 'admin-config')) {
+    mainItems = [{ href: 'admin.html', label: 'Admin Dashboard', icon: 'admin' }];
+  } else {
+    if (hasFeature(user, 'marketplace') && isBuyerAccount(user)) mainItems = [{ href: 'search.html', label: 'Search Listings', icon: 'search' }];
+    if (hasFeature(user, 'messages')) manageItems.unshift({ href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' });
+  }
+
+  if (role === 'student' && isSellerAccount(user) && hasFeature(user, 'listing-management')) {
+    mainItems.push({ href: 'dashboard.html', label: 'Seller Dashboard', icon: 'dashboard' });
+    manageItems.unshift({ href: 'listings.html', label: 'Listing Management', icon: 'listings' });
+  }
+
+  document.querySelectorAll('.sidebar-nav').forEach(nav => {
+    nav.innerHTML = `
+      <div class="sidebar-section-label">Main</div>
+      ${mainItems.map(renderNavItem).join('')}
+      <div class="sidebar-section-label">Manage</div>
+      ${manageItems.map(renderNavItem).join('')}
+    `;
+  });
+}
+
+function setUnreadMessageBadge(count) {
+  document.querySelectorAll('#nav-message-count').forEach(badge => {
+    const safeCount = Number(count) || 0;
+    badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+    badge.style.display = safeCount > 0 ? 'inline-flex' : 'none';
+  });
+}
+
+async function refreshUnreadMessageCount(user) {
+  if (!Auth.getUnreadMessageCount || !user?.id) return;
+  const result = await Auth.getUnreadMessageCount(user.id);
+  if (!result.error) setUnreadMessageBadge(result.count);
+}
+
+async function refreshNotificationMenu(user) {
+  const badge = document.getElementById('topbar-notification-count');
+  const list = document.getElementById('topbar-notification-list');
+  if (!badge || !list) return;
+
+  let unread = 0;
+  const items = [];
+  if (hasFeature(user, 'messages') && Auth.getUnreadMessageCount) {
+    const result = await Auth.getUnreadMessageCount(user.id);
+    if (!result.error) {
+      const count = Number(result.count) || 0;
+      unread += count;
+      if (count > 0) items.push(`<a class="notification-item" href="messages.html"><strong>${count} unread message${count === 1 ? '' : 's'}</strong><span>Open your inbox to reply.</span></a>`);
+    }
+  }
+
+  if (Auth.getFacilityNotifications) {
+    const result = await Auth.getFacilityNotifications(user.id);
+    if (!result.error) {
+      unread += result.unreadCount || 0;
+      items.push(...(result.notifications || []).slice(0, 4).map(item => `
+        <div class="notification-item">
+          <strong>${item.readAt ? 'Facility update' : 'New facility update'}</strong>
+          <span>${escapeHtml(item.message)}</span>
+        </div>
+      `));
+    }
+  }
+
+  badge.textContent = unread > 99 ? '99+' : String(unread);
+  badge.style.display = unread > 0 ? 'inline-flex' : 'none';
+  list.innerHTML = items.length ? items.join('') : '<div class="notification-item"><strong>No new notifications</strong><span>You are all caught up.</span></div>';
+}
+
+function initNotifications(user) {
+  document.querySelectorAll('.topbar-actions').forEach(actions => {
+    if (!actions.querySelector('[data-notification-trigger]')) {
+      actions.insertAdjacentHTML('afterbegin', `
+        <div class="notification-wrap">
+          <button class="topbar-icon-btn" type="button" title="Notifications" data-notification-trigger>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M10 2a6 6 0 0 1 6 6v3.5l1.5 2.5H2.5L4 11.5V8a6 6 0 0 1 6-6z"/>
+              <path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"/>
+            </svg>
+            <span class="notification-dot" id="topbar-notification-count">0</span>
+          </button>
+          <div class="dropdown-menu notification-menu" id="topbar-notification-menu">
+            <div class="notification-header">Notifications</div>
+            <div id="topbar-notification-list"></div>
+          </div>
+        </div>
+      `);
+    } else if (!document.getElementById('topbar-notification-menu')) {
+      actions.querySelector('[data-notification-trigger]')?.insertAdjacentHTML('afterend', `
+        <span class="notification-dot" id="topbar-notification-count">0</span>
+        <div class="dropdown-menu notification-menu" id="topbar-notification-menu">
+          <div class="notification-header">Notifications</div>
+          <div id="topbar-notification-list"></div>
+        </div>
+      `);
+      actions.querySelector('[data-notification-trigger]')?.parentElement?.classList.add('notification-wrap');
+    }
+  });
+
+  document.querySelectorAll('[data-notification-trigger]').forEach(button => {
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      document.getElementById('topbar-notification-menu')?.classList.toggle('open');
+      refreshNotificationMenu(user);
+      Auth.markFacilityNotificationsRead?.(user.id).then(() => refreshNotificationMenu(user));
+    });
+  });
+
+  refreshNotificationMenu(user);
+}
+
 /* ---- Toast notifications ---- */
 function showToast(message, type = 'default', duration = 3500) {
   let container = document.getElementById('toast-container');
@@ -42,7 +277,9 @@ function populateUserShell(user) {
   const roleEls = document.querySelectorAll('[data-user-role]');
   const initEls = document.querySelectorAll('[data-user-initials]');
   const initials = Auth.getUserInitials(user.fullName);
-  const roleLabel = user.accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+  const roleNames = { student: user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student', staff: 'Trade Facility Staff', admin: 'Admin' };
+  if (getUserRole(user) === 'student' && user.accountType === 'seller') roleNames.student = 'Student Seller';
+  const roleLabel = roleNames[getUserRole(user)] || 'Student';
 
   nameEls.forEach(el => el.textContent = user.fullName);
   roleEls.forEach(el => el.textContent = roleLabel);
@@ -100,10 +337,31 @@ async function initPage() {
   const user = await Auth.requireAuth();
   if (!user) return;
 
+  if (Auth.getRolePermissions) {
+    const permissions = await Auth.getRolePermissions();
+    if (!permissions.error) {
+      runtimePermissionMap = permissions.permissions.reduce((map, item) => {
+        map[`${item.role}:${item.permission}`] = item.enabled;
+        return map;
+      }, {});
+    }
+  }
+
+  if (!canAccessPage(user)) {
+    const target = getCurrentPage() === 'index.html'
+      ? getRoleLandingPage(user)
+      : `access-denied.html?from=${encodeURIComponent(getCurrentPage())}`;
+    window.location.href = target;
+    return null;
+  }
+
   populateUserShell(user);
+  buildDynamicNavigation(user);
   initDropdowns();
+  initNotifications(user);
   setActiveNav();
   initMobileSidebar();
+  if (hasFeature(user, 'messages')) refreshUnreadMessageCount(user);
 
   document.querySelectorAll('[data-action="signout"]').forEach(btn => {
     btn.addEventListener('click', () => Auth.signOut());
@@ -114,5 +372,5 @@ async function initPage() {
 
 /* ---- Node.js exports for testing ---- */
 if (typeof module !== 'undefined') {
-  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, initPage };
+  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, getRoleLandingPage, hasFeature, setUnreadMessageBadge, refreshUnreadMessageCount, refreshNotificationMenu, initNotifications, formatStatusLabel, initPage };
 }
