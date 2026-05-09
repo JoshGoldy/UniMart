@@ -355,7 +355,7 @@
             </div>
             <div class="profile-nav-item" data-section="section-campus">
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2l1.5 4.5H16l-3.6 2.6 1.4 4.4L10 11l-3.8 2.5 1.4-4.4L4 6.5h4.5z"/></svg>
-              Campus Info
+              University Info
             </div>
             <div class="profile-nav-item" data-section="section-notifications">
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2a5 5 0 0 1 5 5v1.5l1.5 2.5h-13L5 8.5V7a5 5 0 0 1 5-5z"/><path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"/></svg>
@@ -395,6 +395,15 @@
                 </div>
               </div>
               <div class="form-group">
+                <label class="form-label" for="edit-username">Username</label>
+                <input class="form-input" id="edit-username" type="text" placeholder="jane_smith" autocomplete="username" />
+                <span class="form-error" id="username-error"></span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">System role</label>
+                <input class="form-input" id="profile-system-role" type="text" value="Student" disabled />
+              </div>
+              <div class="form-group" id="account-type-group">
                 <label class="form-label">Account type</label>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                   <label class="account-type-option" id="opt-buyer" style="flex:1; min-width:180px;">
@@ -403,6 +412,14 @@
                     <div class="account-type-info">
                       <strong>Buyer Only</strong>
                       <span>Browse and purchase items</span>
+                    </div>
+                  </label>
+                  <label class="account-type-option" id="opt-seller" style="flex:1; min-width:180px;">
+                    <input type="radio" name="edit-account-type" value="seller" />
+                    <div class="account-type-radio"></div>
+                    <div class="account-type-info">
+                      <strong>Seller Only</strong>
+                      <span>List items and manage buyer messages</span>
                     </div>
                   </label>
                   <label class="account-type-option" id="opt-seller-buyer" style="flex:1; min-width:180px;">
@@ -463,25 +480,19 @@
             </div>
           </div>
  
-          <!-- Campus Info -->
+          <!-- University Info -->
           <div class="section-card" id="section-campus">
             <div class="section-header">
               <div>
-                <div class="section-title">Campus Info</div>
-                <div class="section-subtitle">Your university and campus details</div>
+                <div class="section-title">University Info</div>
+                <div class="section-subtitle">Your university details</div>
               </div>
             </div>
             <div class="section-body">
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="edit-university">University</label>
-                  <input class="form-input" id="edit-university" type="text" placeholder="e.g. University of Cape Town" />
-                  <span class="form-error" id="university-error"></span>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="edit-campus">Campus</label>
-                  <input class="form-input" id="edit-campus" type="text" placeholder="e.g. Upper Campus" />
-                </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-university">University</label>
+                <select class="form-select" id="edit-university"></select>
+                <span class="form-error" id="university-error"></span>
               </div>
               <div class="form-group">
                 <label class="form-label" for="edit-student-number">Student number</label>
@@ -563,7 +574,7 @@
                 <div style="display:flex; align-items:center; justify-content:space-between;">
                   <div>
                     <div style="font-size:.875rem; font-weight:600; color:var(--ink);">Show profile to all students</div>
-                    <div style="font-size:.8rem; color:var(--muted);">Anyone on your campus can view your profile</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Students at your university can view your profile</div>
                   </div>
                   <div style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></div>
                 </div>
@@ -630,6 +641,23 @@
   }
  
   let currentUser = null;
+  const southAfricanUniversities = [
+    'University of Cape Town',
+    'University of the Witwatersrand',
+    'Stellenbosch University',
+    'University of Pretoria',
+    'University of KwaZulu-Natal',
+    'University of Johannesburg',
+    'University of the Western Cape',
+    'Rhodes University',
+    'North-West University',
+    'University of South Africa',
+    'University of the Free State',
+    'Nelson Mandela University',
+    'Cape Peninsula University of Technology',
+    'Tshwane University of Technology',
+    'Durban University of Technology',
+  ];
  
   initPage().then(user => {
     if (!user) return;
@@ -640,15 +668,17 @@
     document.getElementById('profile-name-display').textContent = user.fullName;
     document.getElementById('profile-email-display').textContent = user.email;
     document.getElementById('profile-role-badge').textContent =
-      user.accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+      getProfileRoleLabel(user);
+    document.getElementById('profile-system-role').value = getProfileRoleLabel(user);
+    document.getElementById('account-type-group').style.display = user.userRole === 'student' ? 'flex' : 'none';
  
     /* ---- Pre-fill personal details form ---- */
     document.getElementById('edit-fullname').value = user.fullName;
     document.getElementById('edit-email').value = user.email;
+    document.getElementById('edit-username').value = user.username || '';
  
-    /* ---- Pre-fill campus fields ---- */
-    document.getElementById('edit-university').value = user.university || '';
-    document.getElementById('edit-campus').value = user.campus || '';
+    /* ---- Pre-fill university fields ---- */
+    populateUniversitySelect('edit-university', user.university || '');
     document.getElementById('edit-student-number').value = user.studentNumber || '';
  
     const typeRadios = document.querySelectorAll('input[name="edit-account-type"]');
@@ -688,31 +718,38 @@
     clearErrors();
     const fullName    = document.getElementById('edit-fullname').value.trim();
     const email       = document.getElementById('edit-email').value.trim();
-    const accountType = document.querySelector('input[name="edit-account-type"]:checked')?.value;
+    const username    = document.getElementById('edit-username').value.trim().replace(/^@+/, '').toLowerCase();
+    const accountType = currentUser.userRole === 'student'
+      ? document.querySelector('input[name="edit-account-type"]:checked')?.value
+      : currentUser.accountType;
     let valid = true;
  
     if (!fullName) { showError('name-error', 'Name is required.'); valid = false; }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError('email-error', 'Enter a valid email.'); valid = false; }
-    if (!accountType) { showError('type-error', 'Select an account type.'); valid = false; }
+    if (username && !/^[a-z0-9_]{3,24}$/.test(username)) { showError('username-error', 'Use 3-24 lowercase letters, numbers, or underscores.'); valid = false; }
+    if (currentUser.userRole === 'student' && !accountType) { showError('type-error', 'Select an account type.'); valid = false; }
     if (!valid) return;
  
     this.textContent = 'Saving…';
     this.disabled = true;
  
-    const result = await Auth.updateProfile({ id: currentUser.id, fullName, email, accountType });
+    const result = await Auth.updateProfile({ id: currentUser.id, fullName, email, accountType, username });
  
     this.textContent = 'Save changes';
     this.disabled = false;
  
     if (result.error) { showToast(result.error, 'error'); return; }
  
-    currentUser = { ...currentUser, fullName, email, accountType };
+    currentUser = { ...currentUser, fullName, email, accountType, username, displayName: username ? `@${username}` : formatProfileDisplayName(fullName, email) };
  
     document.getElementById('profile-name-display').textContent = fullName;
     document.getElementById('profile-email-display').textContent = email;
-    document.getElementById('profile-role-badge').textContent =
-      accountType === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer';
+    document.getElementById('profile-role-badge').textContent = getProfileRoleLabel(currentUser);
+    document.getElementById('profile-system-role').value = getProfileRoleLabel(currentUser);
     document.getElementById('profile-avatar-large').textContent = Auth.getUserInitials(fullName);
+    populateUserShell(currentUser);
+    buildDynamicNavigation(currentUser);
+    setActiveNav();
  
     showToast('Profile updated successfully', 'success');
   });
@@ -748,11 +785,11 @@
     showToast('Password updated successfully', 'success');
   });
  
-  /* ---- Save campus info ---- */
+  /* ---- Save university info ---- */
   document.getElementById('save-campus-btn').addEventListener('click', async function () {
     if (!currentUser) return;
-    const university    = document.getElementById('edit-university').value.trim();
-    const campus        = document.getElementById('edit-campus').value.trim();
+    const university    = document.getElementById('edit-university').value;
+    const campus        = '';
     const studentNumber = document.getElementById('edit-student-number').value.trim();
  
     this.textContent = 'Saving…';
@@ -766,7 +803,7 @@
     if (result.error) { showToast(result.error, 'error'); return; }
  
     currentUser = { ...currentUser, university, campus, studentNumber };
-    showToast('Campus info updated successfully', 'success');
+    showToast('University info updated successfully', 'success');
   });
  
   /* ---- Helpers ---- */
@@ -779,6 +816,37 @@
   function showError(id, msg) {
     const el = document.getElementById(id);
     if (el) { el.textContent = msg; el.classList.add('visible'); }
+  }
+
+  function formatProfileDisplayName(fullName, email) {
+    const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+    if (parts.length === 1) return parts[0];
+    return String(email || '').split('@')[0] || 'User';
+  }
+
+  function getProfileRoleLabel(user) {
+    if (user.userRole === 'admin') return 'Admin';
+    if (user.userRole === 'staff') return 'Trade Facility Staff';
+    if (user.accountType === 'seller') return 'Student Seller';
+    return user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student Buyer';
+  }
+
+  function populateUniversitySelect(id, selectedValue = '') {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.innerHTML = [
+      '<option value="">Select your university</option>',
+      ...southAfricanUniversities.map(name => `<option value="${escapeAttribute(name)}" ${name === selectedValue ? 'selected' : ''}>${escapeHtml(name)}</option>`),
+    ].join('');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
   }
  
   /* ---- Profile nav: click to scroll + scroll-spy ---- */
