@@ -15,7 +15,7 @@
         if (user) {
           const role = user.userRole || 'student';
           const landingPages = {
-            student: 'search.html',
+            student: user.accountType === 'seller' ? 'dashboard.html' : 'search.html',
             staff: 'facility.html',
             admin: 'admin.html',
           };

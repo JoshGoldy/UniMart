@@ -414,6 +414,14 @@
                       <span>Browse and purchase items</span>
                     </div>
                   </label>
+                  <label class="account-type-option" id="opt-seller" style="flex:1; min-width:180px;">
+                    <input type="radio" name="edit-account-type" value="seller" />
+                    <div class="account-type-radio"></div>
+                    <div class="account-type-info">
+                      <strong>Seller Only</strong>
+                      <span>List items and manage buyer messages</span>
+                    </div>
+                  </label>
                   <label class="account-type-option" id="opt-seller-buyer" style="flex:1; min-width:180px;">
                     <input type="radio" name="edit-account-type" value="seller_buyer" />
                     <div class="account-type-radio"></div>
@@ -820,7 +828,8 @@
   function getProfileRoleLabel(user) {
     if (user.userRole === 'admin') return 'Admin';
     if (user.userRole === 'staff') return 'Trade Facility Staff';
-    return user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student';
+    if (user.accountType === 'seller') return 'Student Seller';
+    return user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student Buyer';
   }
 
   function populateUniversitySelect(id, selectedValue = '') {

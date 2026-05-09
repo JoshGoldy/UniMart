@@ -241,6 +241,25 @@
       font-size: 0.8rem;
       line-height: 1.45;
     }
+    .slot-preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .slot-preview-item {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 10px;
+      background: var(--sand);
+      color: var(--ink);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .slot-preview-item strong {
+      display: block;
+      font-size: 0.82rem;
+    }
     .empty-row {
       color: var(--muted);
       text-align: center;
@@ -347,6 +366,7 @@
                 </fieldset>
               </div>
               <div class="admin-note" id="facility-availability-note"></div>
+              <div class="slot-preview" id="facility-slot-preview"></div>
               <div class="admin-actions">
                 <button type="submit" class="btn btn-primary">Save schedule</button>
               </div>
@@ -503,6 +523,7 @@
     document.getElementById('slot-capacity').value = config.slotCapacity;
     renderWeekdays(config.operatingDays || []);
     updateFacilityNote();
+    renderFacilityAvailability();
   }
 
   function renderWeekdays(selectedDays) {
@@ -523,6 +544,23 @@
     const slotsPerDay = Math.max(0, Math.floor(minutesBetween(opensAt, closesAt) / slotMinutes));
     document.getElementById('facility-availability-note').textContent =
       `${slotsPerDay} slots per operating day, up to ${slotsPerDay * slotCapacity} bookings daily.`;
+  }
+
+  async function renderFacilityAvailability() {
+    const wrap = document.getElementById('facility-slot-preview');
+    if (!Auth.getFacilityAvailability) return;
+    const result = await Auth.getFacilityAvailability();
+    if (result.error) {
+      wrap.innerHTML = `<div class="slot-preview-item">Availability preview unavailable.</div>`;
+      return;
+    }
+    const slots = (result.slots || []).filter(slot => slot.available > 0).slice(0, 8);
+    wrap.innerHTML = slots.length ? slots.map(slot => `
+      <div class="slot-preview-item">
+        <strong>${formatSlotDate(slot.startsAt)}</strong>
+        ${slot.available} of ${slot.capacity} places available
+      </div>
+    `).join('') : '<div class="slot-preview-item">No available slots in the next 14 days.</div>';
   }
 
   async function saveFacilityConfig(event) {
@@ -601,6 +639,7 @@
           role: this.dataset.role,
           permission: this.dataset.permission,
           enabled: this.checked,
+          adminId: adminState.user.id,
         });
         if (result.error) {
           showToast(result.error, 'error');
@@ -646,6 +685,7 @@
             <option value="dismissed" ${report.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
           </select>
           ${report.listingId ? `<button class="btn-secondary" style="margin-top:8px;width:100%" data-remove-listing="${escapeAttribute(report.listingId)}">Remove listing</button>` : ''}
+          ${report.targetType === 'review' && report.targetId ? `<button class="btn-secondary" style="margin-top:8px;width:100%" data-remove-review="${escapeAttribute(report.targetId)}">Remove review</button>` : ''}
         </td>
       </tr>
     `).join('') : '<tr><td colspan="3" class="empty-row">No flagged content yet.</td></tr>';
@@ -681,6 +721,23 @@
           return;
         }
         showToast('Listing removed', 'success');
+        loadAdminOverview();
+      });
+    });
+
+    body.querySelectorAll('[data-remove-review]').forEach(button => {
+      button.addEventListener('click', async function () {
+        if (!window.confirm('Remove this review?')) return;
+        const result = await Auth.removeReviewAsAdmin({
+          reviewId: this.dataset.removeReview,
+          adminId: adminState.user.id,
+          note: 'Removed from flagged content review',
+        });
+        if (result.error) {
+          showToast(result.error, 'error');
+          return;
+        }
+        showToast('Review removed', 'success');
         loadAdminOverview();
       });
     });
@@ -763,7 +820,13 @@
     return new Intl.DateTimeFormat('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
   }
 
+  function formatSlotDate(value) {
+    if (!value) return 'No date';
+    return new Intl.DateTimeFormat('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  }
+
   function formatAccountType(value) {
+    if (value === 'seller') return 'Seller Only';
     return value === 'seller_buyer' ? 'Seller / Buyer' : 'Buyer Only';
   }
 
@@ -776,6 +839,10 @@
       admin_configuration: 'Manage platform settings',
       moderation: 'Review reported content',
       removed_listing: 'Removed listing',
+      removed_review: 'Removed review',
+      updated_facility_schedule: 'Updated facility schedule',
+      updated_role_permission: 'Updated access rule',
+      updated_report_status: 'Updated report status',
     };
     return labels[value] || String(value || '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
   }

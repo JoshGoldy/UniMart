@@ -14,7 +14,7 @@ const Auth = (() => {
   /* ---------- sign-up ---------- */
   async function signUp({ fullName, email, password, accountType, userRole = 'student', university, campus, studentNumber }) {
     const cleanRole = ['student', 'staff'].includes(userRole) ? userRole : 'student';
-    const cleanAccountType = cleanRole === 'student' && ['buyer', 'seller_buyer'].includes(accountType)
+    const cleanAccountType = cleanRole === 'student' && ['buyer', 'seller', 'seller_buyer'].includes(accountType)
       ? accountType
       : 'buyer';
     const { error } = await _sb.auth.signUp({
@@ -80,14 +80,15 @@ const Auth = (() => {
   /* ---------- profile update ---------- */
   async function updateProfile({ id, fullName, email, accountType, username }) {
     const cleanUsername = _normalizeUsername(username);
+    const cleanAccountType = ['buyer', 'seller', 'seller_buyer'].includes(accountType) ? accountType : 'buyer';
     const [{ error: dbErr }, { error: authErr }] = await Promise.all([
       _sb.from('users').update({
         full_name: fullName,
         email: email.toLowerCase(),
-        account_type: accountType,
+        account_type: cleanAccountType,
         username: cleanUsername || null,
       }).eq('id', id),
-      _sb.auth.updateUser({ data: { full_name: fullName, account_type: accountType, username: cleanUsername || null } }),
+      _sb.auth.updateUser({ data: { full_name: fullName, account_type: cleanAccountType, username: cleanUsername || null } }),
     ]);
     if (dbErr || authErr) return { error: (dbErr || authErr).message };
     return { success: true };
@@ -510,6 +511,80 @@ const Auth = (() => {
     return { success: true, count };
   }
 
+  async function getFacilityNotifications(userId) {
+    if (!userId) return { success: true, notifications: [], unreadCount: 0 };
+    const { data, error } = await _sb
+      .from('facility_notifications')
+      .select('notification_id, message, read_at, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) return { error: error.message };
+    const notifications = (data || []).map(item => ({
+      id: item.notification_id,
+      message: item.message || 'Facility update',
+      readAt: item.read_at,
+      createdAt: item.created_at,
+    }));
+    return {
+      success: true,
+      notifications,
+      unreadCount: notifications.filter(item => !item.readAt).length,
+    };
+  }
+
+  async function markFacilityNotificationsRead(userId) {
+    if (!userId) return { success: true };
+    const { error } = await _sb
+      .from('facility_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('read_at', null);
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function getRolePermissions() {
+    const { data, error } = await _sb
+      .from('role_permissions')
+      .select('role, permission, enabled');
+    if (error) return { error: error.message };
+    return {
+      success: true,
+      permissions: (data || []).map(item => ({
+        role: item.role,
+        permission: item.permission,
+        enabled: Boolean(item.enabled),
+      })),
+    };
+  }
+
+  async function getFacilityAvailability() {
+    const { data: config, error: configError } = await _sb
+      .from('facility_config')
+      .select('operating_days, opens_at, closes_at, slot_minutes, slot_capacity')
+      .eq('config_id', 'default')
+      .maybeSingle();
+    if (configError) return { error: configError.message };
+
+    const { data: bookings, error: bookingsError } = await _sb
+      .from('facility_bookings')
+      .select('dropoff_scheduled_at, collection_scheduled_at, status')
+      .in('status', ['booked', 'dropoff_scheduled', 'received', 'ready_for_collection']);
+    if (bookingsError) return { error: bookingsError.message };
+
+    const settings = {
+      operatingDays: config?.operating_days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      opensAt: String(config?.opens_at || '09:00').slice(0, 5),
+      closesAt: String(config?.closes_at || '17:00').slice(0, 5),
+      slotMinutes: Number(config?.slot_minutes) || 30,
+      slotCapacity: Number(config?.slot_capacity) || 4,
+    };
+    const slots = _buildFacilitySlots(settings, bookings || []);
+    return { success: true, settings, slots };
+  }
+
   async function getFacilityOverview() {
     const { data, error } = await _sb
       .from('facility_bookings')
@@ -752,10 +827,11 @@ const Auth = (() => {
       }, { onConflict: 'config_id' });
 
     if (error) return { error: error.message };
+    await _logAdminAction({ adminId, targetType: 'facility_config', targetId: null, action: 'updated_facility_schedule', note: `Hours ${opensAt}-${closesAt}, capacity ${Number(slotCapacity) || 1}` });
     return { success: true };
   }
 
-  async function updateRolePermission({ role, permission, enabled }) {
+  async function updateRolePermission({ role, permission, enabled, adminId }) {
     if (!['student', 'staff', 'admin'].includes(role)) return { error: 'Choose a valid role.' };
     if (!permission) return { error: 'Missing permission.' };
 
@@ -764,6 +840,7 @@ const Auth = (() => {
       .upsert({ role, permission, enabled: Boolean(enabled), updated_at: new Date().toISOString() }, { onConflict: 'role,permission' });
 
     if (error) return { error: error.message };
+    await _logAdminAction({ adminId, targetType: 'role_permission', targetId: null, action: 'updated_role_permission', note: `${role} ${permission}: ${Boolean(enabled) ? 'enabled' : 'disabled'}` });
     return { success: true };
   }
 
@@ -783,6 +860,7 @@ const Auth = (() => {
       .eq('report_id', reportId);
 
     if (error) return { error: error.message };
+    await _logAdminAction({ adminId, targetType: 'report', targetId: reportId, action: 'updated_report_status', note: `${status}: ${note || ''}` });
     return { success: true };
   }
 
@@ -805,6 +883,38 @@ const Auth = (() => {
 
     if (error) return { error: error.message };
     return { success: true };
+  }
+
+  async function removeReviewAsAdmin({ reviewId, adminId, note }) {
+    if (!reviewId || !adminId) return { error: 'Missing moderation details.' };
+
+    const { error: logError } = await _sb.from('moderation_actions').insert({
+      admin_id: adminId,
+      target_type: 'review',
+      target_id: reviewId,
+      action: 'removed_review',
+      note: note || 'Review removed by admin',
+    });
+    if (logError) return { error: logError.message };
+
+    const { error } = await _sb
+      .from('reviews')
+      .delete()
+      .eq('review_id', reviewId);
+
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  async function _logAdminAction({ adminId, targetType, targetId, action, note }) {
+    if (!adminId) return;
+    await _sb.from('moderation_actions').insert({
+      admin_id: adminId,
+      target_type: targetType,
+      target_id: targetId,
+      action,
+      note: note || null,
+    });
   }
  
   /* ---------- helpers ---------- */
@@ -1003,7 +1113,43 @@ const Auth = (() => {
     };
   }
  
-  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole, updateFacilityConfig, updateRolePermission, updateContentReport, removeListingAsAdmin };
+  function _buildFacilitySlots(settings, bookings) {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const bookedBySlot = (bookings || []).reduce((map, booking) => {
+      [booking.dropoff_scheduled_at, booking.collection_scheduled_at].filter(Boolean).forEach(value => {
+        const key = new Date(value).toISOString().slice(0, 16);
+        map[key] = (map[key] || 0) + 1;
+      });
+      return map;
+    }, {});
+    const slots = [];
+    const today = new Date();
+    for (let dayOffset = 0; dayOffset < 14; dayOffset += 1) {
+      const day = new Date(today);
+      day.setDate(today.getDate() + dayOffset);
+      if (!settings.operatingDays.includes(dayNames[day.getDay()])) continue;
+      const [openHours, openMinutes] = settings.opensAt.split(':').map(Number);
+      const [closeHours, closeMinutes] = settings.closesAt.split(':').map(Number);
+      const cursor = new Date(day);
+      cursor.setHours(openHours, openMinutes, 0, 0);
+      const close = new Date(day);
+      close.setHours(closeHours, closeMinutes, 0, 0);
+      while (cursor < close) {
+        const key = cursor.toISOString().slice(0, 16);
+        const booked = bookedBySlot[key] || 0;
+        slots.push({
+          startsAt: cursor.toISOString(),
+          booked,
+          capacity: settings.slotCapacity,
+          available: Math.max(settings.slotCapacity - booked, 0),
+        });
+        cursor.setMinutes(cursor.getMinutes() + settings.slotMinutes);
+      }
+    }
+    return slots;
+  }
+
+  return { signUp, signIn, verifyOTP, signOut, requireAuth, getUser, getUserInitials, updateProfile, updateCampusInfo, updatePassword, requestPasswordReset, completePasswordRecovery, getListingDashboard, getMarketplaceListings, getMyListings, createListing, updateListing, deleteListing, uploadListingImage, startConversation, getConversations, getConversationMessages, sendMessage, markConversationRead, getUnreadMessageCount, getFacilityNotifications, markFacilityNotificationsRead, getRolePermissions, getFacilityAvailability, getFacilityOverview, updateFacilityBooking, getAdminOverview, updateUserRole, updateFacilityConfig, updateRolePermission, updateContentReport, removeListingAsAdmin, removeReviewAsAdmin };
 })();
 
 if (typeof module !== 'undefined') {

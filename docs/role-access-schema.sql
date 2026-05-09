@@ -5,6 +5,11 @@ alter table public.users
 add column if not exists user_role text not null default 'student'
 check (user_role in ('student', 'staff', 'admin'));
 
+alter table public.users drop constraint if exists users_account_type_check;
+alter table public.users
+add constraint users_account_type_check
+check (account_type in ('buyer', 'seller', 'seller_buyer'));
+
 create or replace function public.current_user_role()
 returns text
 language sql
@@ -46,6 +51,39 @@ stable
 set search_path = public
 as $$
   select public.current_user_role() = 'student';
+$$;
+
+create or replace function public.current_account_type()
+returns text
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select coalesce(
+    (select users.account_type from public.users where users.id = auth.uid()),
+    'buyer'
+  );
+$$;
+
+create or replace function public.is_buyer_account()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select public.current_account_type() in ('buyer', 'seller_buyer');
+$$;
+
+create or replace function public.is_seller_account()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select public.current_account_type() in ('seller', 'seller_buyer');
 $$;
 
 create or replace function public.prevent_non_admin_role_change()
@@ -95,27 +133,30 @@ for select
 using (
   public.is_admin()
   or public.is_staff()
-  or (public.is_student() and (status = 'active' or seller_id = auth.uid()))
+  or (public.is_student() and (
+    (public.is_buyer_account() and status = 'active')
+    or (public.is_seller_account() and seller_id = auth.uid())
+  ))
 );
 
 drop policy if exists "Student sellers can create listings" on public.listings;
 create policy "Student sellers can create listings"
 on public.listings
 for insert
-with check (public.is_student() and seller_id = auth.uid());
+with check (public.is_student() and public.is_seller_account() and seller_id = auth.uid());
 
 drop policy if exists "Student sellers can update own listings" on public.listings;
 create policy "Student sellers can update own listings"
 on public.listings
 for update
-using ((public.is_student() and seller_id = auth.uid()) or public.is_admin())
-with check ((public.is_student() and seller_id = auth.uid()) or public.is_admin());
+using ((public.is_student() and public.is_seller_account() and seller_id = auth.uid()) or public.is_admin())
+with check ((public.is_student() and public.is_seller_account() and seller_id = auth.uid()) or public.is_admin());
 
 drop policy if exists "Student sellers can delete own listings" on public.listings;
 create policy "Student sellers can delete own listings"
 on public.listings
 for delete
-using ((public.is_student() and seller_id = auth.uid()) or public.is_admin());
+using ((public.is_student() and public.is_seller_account() and seller_id = auth.uid()) or public.is_admin());
 
 -- Conversations/messages remain participant-only; students can use marketplace messaging.
 -- Staff/admin do not automatically get private thread access unless they are participants.
@@ -131,6 +172,7 @@ on public.conversations
 for insert
 with check (
   public.is_student()
+  and public.is_buyer_account()
   and auth.uid() = buyer_id
   and buyer_id <> seller_id
   and exists (

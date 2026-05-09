@@ -486,6 +486,7 @@
         <div class="advanced-filter-actions">
           <button class="btn btn-outline" id="clear-filters-btn" type="button">Clear filters</button>
         </div>
+        <span class="form-error" id="price-filter-error" style="grid-column:1 / -1;"></span>
       </div>
 
       <div class="market-toolbar">
@@ -660,6 +661,7 @@
   }
 
   function renderListings() {
+    const priceError = validatePriceFilters();
     const filtered = state.listings.filter(listing => {
       const matchesCategory = state.category === 'all' || normalizeCategory(listing.category) === normalizeCategory(state.category);
       const matchesCondition = state.condition === 'all' || normalizeCondition(listing.condition) === normalizeCondition(state.condition);
@@ -678,7 +680,7 @@
         String(listing.price),
       ].join(' ').toLowerCase();
       const matchesQuery = !state.query || haystack.includes(state.query);
-      return matchesCategory && matchesCondition && matchesTradeable && matchesMinPrice && matchesMaxPrice && matchesQuery;
+      return !priceError && matchesCategory && matchesCondition && matchesTradeable && matchesMinPrice && matchesMaxPrice && matchesQuery;
     });
 
     const grid = document.getElementById('listings-grid');
@@ -869,7 +871,7 @@
 
   function shouldShowBuyerActions(listing) {
     if (!state.user) return false;
-    return listing.sellerId !== state.user.id;
+    return isBuyerAccount(state.user) && listing.sellerId !== state.user.id;
   }
 
   function normalizeCategory(value) {
@@ -884,6 +886,21 @@
     if (value === '' || value === null || value === undefined) return null;
     const price = Number(value);
     return Number.isFinite(price) && price >= 0 ? price : null;
+  }
+
+  function validatePriceFilters() {
+    const error = document.getElementById('price-filter-error');
+    const minPrice = parsePriceFilter(state.minPrice);
+    const maxPrice = parsePriceFilter(state.maxPrice);
+    let message = '';
+    if (state.minPrice && minPrice === null) message = 'Enter a valid minimum price.';
+    if (state.maxPrice && maxPrice === null) message = 'Enter a valid maximum price.';
+    if (!message && minPrice !== null && maxPrice !== null && minPrice > maxPrice) {
+      message = 'Minimum price cannot be higher than maximum price.';
+    }
+    error.textContent = message;
+    error.classList.toggle('visible', Boolean(message));
+    return message;
   }
 
   function hasActiveFilters() {

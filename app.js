@@ -14,7 +14,11 @@ function iconMarkup(name) {
 }
 
 function isSellerAccount(user) {
-  return user?.accountType === 'seller_buyer';
+  return ['seller', 'seller_buyer'].includes(user?.accountType);
+}
+
+function isBuyerAccount(user) {
+  return ['buyer', 'seller_buyer'].includes(user?.accountType || 'buyer');
 }
 
 function getUserRole(user) {
@@ -39,6 +43,18 @@ const ROLE_PERMISSIONS = {
   },
 };
 
+const FEATURE_TO_PERMISSION = {
+  marketplace: 'marketplace_browsing',
+  offers: 'marketplace_browsing',
+  messages: 'messaging',
+  'listing-management': 'listing_management',
+  'trade-facility': 'trade_facility_workflow',
+  'admin-config': 'admin_configuration',
+  moderation: 'moderation',
+};
+
+let runtimePermissionMap = null;
+
 function getCurrentPage() {
   return window.location.pathname.split('/').pop() || 'search.html';
 }
@@ -46,8 +62,13 @@ function getCurrentPage() {
 function getAllowedPages(user) {
   const role = getUserRole(user);
   const config = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student;
-  const pages = [...config.pages];
-  if (role === 'student' && isSellerAccount(user)) pages.push('dashboard.html', 'listings.html');
+  const pages = ['profile.html', 'access-denied.html'];
+  if (role === 'staff' && hasFeature(user, 'trade-facility')) pages.push('facility.html');
+  if (role === 'admin' && hasFeature(user, 'admin-config')) pages.push('admin.html');
+  if (role === 'student' && hasFeature(user, 'marketplace') && isBuyerAccount(user)) pages.push('search.html');
+  if (role === 'student' && hasFeature(user, 'messages')) pages.push('messages.html');
+  if (role === 'student' && hasFeature(user, 'listing-management') && isSellerAccount(user)) pages.push('dashboard.html', 'listings.html');
+  if (!pages.length && config.pages?.length) pages.push(...config.pages);
   return pages;
 }
 
@@ -57,18 +78,33 @@ function canAccessPage(user, page = getCurrentPage()) {
 
 function getRoleLandingPage(user) {
   const role = getUserRole(user);
+  if (role === 'student') {
+    if (isBuyerAccount(user) && hasFeature(user, 'marketplace')) return 'search.html';
+    if (isSellerAccount(user) && hasFeature(user, 'listing-management')) return 'dashboard.html';
+  }
   return (ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).landingPage;
 }
 
 function hasFeature(user, feature) {
   const role = getUserRole(user);
-  return Boolean((ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).features.includes(feature));
+  const defaultAllowed = Boolean((ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).features.includes(feature))
+    || (role === 'student' && feature === 'listing-management' && isSellerAccount(user));
+  const permission = FEATURE_TO_PERMISSION[feature];
+  if (!permission || !runtimePermissionMap) return defaultAllowed;
+  const key = `${role}:${permission}`;
+  return Object.prototype.hasOwnProperty.call(runtimePermissionMap, key)
+    ? runtimePermissionMap[key]
+    : defaultAllowed;
 }
 
 function formatStatusLabel(value) {
   return String(value || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function navIcon(name) {
@@ -98,16 +134,16 @@ function buildDynamicNavigation(user) {
   let mainItems = [];
   let manageItems = [{ href: 'profile.html', label: 'My Profile', icon: 'profile' }];
 
-  if (role === 'staff') {
+  if (role === 'staff' && hasFeature(user, 'trade-facility')) {
     mainItems = [{ href: 'facility.html', label: 'Trade Facility', icon: 'facility' }];
-  } else if (role === 'admin') {
+  } else if (role === 'admin' && hasFeature(user, 'admin-config')) {
     mainItems = [{ href: 'admin.html', label: 'Admin Dashboard', icon: 'admin' }];
   } else {
-    mainItems = [{ href: 'search.html', label: 'Search Listings', icon: 'search' }];
-    manageItems.unshift({ href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' });
+    if (hasFeature(user, 'marketplace') && isBuyerAccount(user)) mainItems = [{ href: 'search.html', label: 'Search Listings', icon: 'search' }];
+    if (hasFeature(user, 'messages')) manageItems.unshift({ href: 'messages.html', label: isSellerAccount(user) ? 'Seller Messages' : 'Messages', icon: 'messages', badgeId: 'nav-message-count' });
   }
 
-  if (role === 'student' && isSellerAccount(user)) {
+  if (role === 'student' && isSellerAccount(user) && hasFeature(user, 'listing-management')) {
     mainItems.push({ href: 'dashboard.html', label: 'Seller Dashboard', icon: 'dashboard' });
     manageItems.unshift({ href: 'listings.html', label: 'Listing Management', icon: 'listings' });
   }
@@ -142,16 +178,32 @@ async function refreshNotificationMenu(user) {
   if (!badge || !list) return;
 
   let unread = 0;
+  const items = [];
   if (hasFeature(user, 'messages') && Auth.getUnreadMessageCount) {
     const result = await Auth.getUnreadMessageCount(user.id);
-    if (!result.error) unread = Number(result.count) || 0;
+    if (!result.error) {
+      const count = Number(result.count) || 0;
+      unread += count;
+      if (count > 0) items.push(`<a class="notification-item" href="messages.html"><strong>${count} unread message${count === 1 ? '' : 's'}</strong><span>Open your inbox to reply.</span></a>`);
+    }
+  }
+
+  if (Auth.getFacilityNotifications) {
+    const result = await Auth.getFacilityNotifications(user.id);
+    if (!result.error) {
+      unread += result.unreadCount || 0;
+      items.push(...(result.notifications || []).slice(0, 4).map(item => `
+        <div class="notification-item">
+          <strong>${item.readAt ? 'Facility update' : 'New facility update'}</strong>
+          <span>${escapeHtml(item.message)}</span>
+        </div>
+      `));
+    }
   }
 
   badge.textContent = unread > 99 ? '99+' : String(unread);
   badge.style.display = unread > 0 ? 'inline-flex' : 'none';
-  list.innerHTML = unread > 0
-    ? `<a class="notification-item" href="messages.html"><strong>${unread} unread message${unread === 1 ? '' : 's'}</strong><span>Open your inbox to reply.</span></a>`
-    : '<div class="notification-item"><strong>No new notifications</strong><span>You are all caught up.</span></div>';
+  list.innerHTML = items.length ? items.join('') : '<div class="notification-item"><strong>No new notifications</strong><span>You are all caught up.</span></div>';
 }
 
 function initNotifications(user) {
@@ -189,6 +241,7 @@ function initNotifications(user) {
       event.stopPropagation();
       document.getElementById('topbar-notification-menu')?.classList.toggle('open');
       refreshNotificationMenu(user);
+      Auth.markFacilityNotificationsRead?.(user.id).then(() => refreshNotificationMenu(user));
     });
   });
 
@@ -225,6 +278,7 @@ function populateUserShell(user) {
   const initEls = document.querySelectorAll('[data-user-initials]');
   const initials = Auth.getUserInitials(user.fullName);
   const roleNames = { student: user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student', staff: 'Trade Facility Staff', admin: 'Admin' };
+  if (getUserRole(user) === 'student' && user.accountType === 'seller') roleNames.student = 'Student Seller';
   const roleLabel = roleNames[getUserRole(user)] || 'Student';
 
   nameEls.forEach(el => el.textContent = user.fullName);
@@ -282,6 +336,16 @@ function initMobileSidebar() {
 async function initPage() {
   const user = await Auth.requireAuth();
   if (!user) return;
+
+  if (Auth.getRolePermissions) {
+    const permissions = await Auth.getRolePermissions();
+    if (!permissions.error) {
+      runtimePermissionMap = permissions.permissions.reduce((map, item) => {
+        map[`${item.role}:${item.permission}`] = item.enabled;
+        return map;
+      }, {});
+    }
+  }
 
   if (!canAccessPage(user)) {
     const target = getCurrentPage() === 'index.html'
