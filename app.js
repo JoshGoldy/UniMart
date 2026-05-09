@@ -65,6 +65,12 @@ function hasFeature(user, feature) {
   return Boolean((ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.student).features.includes(feature));
 }
 
+function formatStatusLabel(value) {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
 function navIcon(name) {
   const icons = {
     search: '<svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8.5" r="5.25"/><path d="m13.75 13.75 3 3" stroke-linecap="round"/></svg>',
@@ -128,6 +134,65 @@ async function refreshUnreadMessageCount(user) {
   if (!Auth.getUnreadMessageCount || !user?.id) return;
   const result = await Auth.getUnreadMessageCount(user.id);
   if (!result.error) setUnreadMessageBadge(result.count);
+}
+
+async function refreshNotificationMenu(user) {
+  const badge = document.getElementById('topbar-notification-count');
+  const list = document.getElementById('topbar-notification-list');
+  if (!badge || !list) return;
+
+  let unread = 0;
+  if (hasFeature(user, 'messages') && Auth.getUnreadMessageCount) {
+    const result = await Auth.getUnreadMessageCount(user.id);
+    if (!result.error) unread = Number(result.count) || 0;
+  }
+
+  badge.textContent = unread > 99 ? '99+' : String(unread);
+  badge.style.display = unread > 0 ? 'inline-flex' : 'none';
+  list.innerHTML = unread > 0
+    ? `<a class="notification-item" href="messages.html"><strong>${unread} unread message${unread === 1 ? '' : 's'}</strong><span>Open your inbox to reply.</span></a>`
+    : '<div class="notification-item"><strong>No new notifications</strong><span>You are all caught up.</span></div>';
+}
+
+function initNotifications(user) {
+  document.querySelectorAll('.topbar-actions').forEach(actions => {
+    if (!actions.querySelector('[data-notification-trigger]')) {
+      actions.insertAdjacentHTML('afterbegin', `
+        <div class="notification-wrap">
+          <button class="topbar-icon-btn" type="button" title="Notifications" data-notification-trigger>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M10 2a6 6 0 0 1 6 6v3.5l1.5 2.5H2.5L4 11.5V8a6 6 0 0 1 6-6z"/>
+              <path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"/>
+            </svg>
+            <span class="notification-dot" id="topbar-notification-count">0</span>
+          </button>
+          <div class="dropdown-menu notification-menu" id="topbar-notification-menu">
+            <div class="notification-header">Notifications</div>
+            <div id="topbar-notification-list"></div>
+          </div>
+        </div>
+      `);
+    } else if (!document.getElementById('topbar-notification-menu')) {
+      actions.querySelector('[data-notification-trigger]')?.insertAdjacentHTML('afterend', `
+        <span class="notification-dot" id="topbar-notification-count">0</span>
+        <div class="dropdown-menu notification-menu" id="topbar-notification-menu">
+          <div class="notification-header">Notifications</div>
+          <div id="topbar-notification-list"></div>
+        </div>
+      `);
+      actions.querySelector('[data-notification-trigger]')?.parentElement?.classList.add('notification-wrap');
+    }
+  });
+
+  document.querySelectorAll('[data-notification-trigger]').forEach(button => {
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      document.getElementById('topbar-notification-menu')?.classList.toggle('open');
+      refreshNotificationMenu(user);
+    });
+  });
+
+  refreshNotificationMenu(user);
 }
 
 /* ---- Toast notifications ---- */
@@ -229,6 +294,7 @@ async function initPage() {
   populateUserShell(user);
   buildDynamicNavigation(user);
   initDropdowns();
+  initNotifications(user);
   setActiveNav();
   initMobileSidebar();
   if (hasFeature(user, 'messages')) refreshUnreadMessageCount(user);
@@ -242,5 +308,5 @@ async function initPage() {
 
 /* ---- Node.js exports for testing ---- */
 if (typeof module !== 'undefined') {
-  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, getRoleLandingPage, hasFeature, setUnreadMessageBadge, refreshUnreadMessageCount, initPage };
+  module.exports = { iconMarkup, showToast, populateUserShell, initDropdowns, setActiveNav, initMobileSidebar, buildDynamicNavigation, canAccessPage, getAllowedPages, getRoleLandingPage, hasFeature, setUnreadMessageBadge, refreshUnreadMessageCount, refreshNotificationMenu, initNotifications, formatStatusLabel, initPage };
 }

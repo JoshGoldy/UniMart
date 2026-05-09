@@ -146,7 +146,8 @@ p {
   font-weight: 600;
 }
 
-.form-input {
+.form-input,
+.form-select {
   width: 100%;
   padding: 12px 14px;
   border: 1.5px solid var(--border);
@@ -162,7 +163,8 @@ p {
   opacity: 0.7;
 }
 
-.form-input:focus {
+.form-input:focus,
+.form-select:focus {
   border-color: var(--sage);
   box-shadow: 0 0 0 3px rgba(58, 102, 69, 0.12);
 }
@@ -603,6 +605,60 @@ p {
 .topbar-icon-btn:hover {
   background: var(--sand);
   color: var(--ink);
+}
+
+.notification-wrap {
+  position: relative;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-menu {
+  min-width: 280px;
+  padding: 0;
+}
+
+.notification-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.notification-item {
+  display: block;
+  padding: 12px 14px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.notification-item:hover {
+  background: var(--sand);
+}
+
+.notification-item span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 /* ===== PAGE CONTENT ===== */

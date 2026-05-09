@@ -340,7 +340,7 @@
   }
 
   function formatStatus(value) {
-    return String(value || '').replace(/_/g, ' ');
+    return formatStatusLabel(value);
   }
 
   function formatCurrency(value) {

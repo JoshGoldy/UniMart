@@ -117,19 +117,13 @@
         </div>
  
         <div class="form-group">
-          <label class="form-label">University <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
-          <input class="form-input" id="signup-university" type="text" placeholder="e.g. University of Cape Town" />
+          <label class="form-label" for="signup-university">University <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
+          <select class="form-select" id="signup-university"></select>
         </div>
- 
-        <div class="auth-form-grid">
-          <div class="form-group">
-            <label class="form-label">Campus <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
-            <input class="form-input" id="signup-campus" type="text" placeholder="e.g. Upper Campus" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Student number <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
-            <input class="form-input" id="signup-student-number" type="text" placeholder="e.g. SMTJSH001" />
-          </div>
+
+        <div class="form-group">
+          <label class="form-label">Student number <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
+          <input class="form-input" id="signup-student-number" type="text" placeholder="e.g. SMTJSH001" />
         </div>
  
         <div class="form-error" id="signup-error" style="text-align:center; font-size:.85rem;"></div>
@@ -203,6 +197,25 @@
     Auth.getUser().then(user => { if (user) window.location.href = 'search.html'; });
  
     let pendingEmail = '';
+    const southAfricanUniversities = [
+      'University of Cape Town',
+      'University of the Witwatersrand',
+      'Stellenbosch University',
+      'University of Pretoria',
+      'University of KwaZulu-Natal',
+      'University of Johannesburg',
+      'University of the Western Cape',
+      'Rhodes University',
+      'North-West University',
+      'University of South Africa',
+      'University of the Free State',
+      'Nelson Mandela University',
+      'Cape Peninsula University of Technology',
+      'Tshwane University of Technology',
+      'Durban University of Technology',
+    ];
+
+    populateUniversitySelect('signup-university');
  
     /* ---- Role and account type selection ---- */
     document.querySelectorAll('#role-type-group .account-type-option').forEach(opt => {
@@ -278,8 +291,8 @@
       const accountType   = userRole === 'student'
         ? document.querySelector('input[name="account-type"]:checked')?.value
         : 'buyer';
-      const university    = document.getElementById('signup-university').value.trim();
-      const campus        = document.getElementById('signup-campus').value.trim();
+      const university    = document.getElementById('signup-university').value;
+      const campus        = '';
       const studentNumber = document.getElementById('signup-student-number').value.trim();
       let valid = true;
  
@@ -386,6 +399,23 @@
       t.textContent = msg;
       document.body.appendChild(t);
       setTimeout(() => t.remove(), 3500);
+    }
+
+    function populateUniversitySelect(id, selectedValue = '') {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.innerHTML = [
+        '<option value="">Select your university</option>',
+        ...southAfricanUniversities.map(name => `<option value="${escapeAttribute(name)}" ${name === selectedValue ? 'selected' : ''}>${escapeHtml(name)}</option>`),
+      ].join('');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value);
     }
   </script>
 </body>

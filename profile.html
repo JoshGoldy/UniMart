@@ -355,7 +355,7 @@
             </div>
             <div class="profile-nav-item" data-section="section-campus">
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2l1.5 4.5H16l-3.6 2.6 1.4 4.4L10 11l-3.8 2.5 1.4-4.4L4 6.5h4.5z"/></svg>
-              Campus Info
+              University Info
             </div>
             <div class="profile-nav-item" data-section="section-notifications">
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2a5 5 0 0 1 5 5v1.5l1.5 2.5h-13L5 8.5V7a5 5 0 0 1 5-5z"/><path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"/></svg>
@@ -472,25 +472,19 @@
             </div>
           </div>
  
-          <!-- Campus Info -->
+          <!-- University Info -->
           <div class="section-card" id="section-campus">
             <div class="section-header">
               <div>
-                <div class="section-title">Campus Info</div>
-                <div class="section-subtitle">Your university and campus details</div>
+                <div class="section-title">University Info</div>
+                <div class="section-subtitle">Your university details</div>
               </div>
             </div>
             <div class="section-body">
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="edit-university">University</label>
-                  <input class="form-input" id="edit-university" type="text" placeholder="e.g. University of Cape Town" />
-                  <span class="form-error" id="university-error"></span>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="edit-campus">Campus</label>
-                  <input class="form-input" id="edit-campus" type="text" placeholder="e.g. Upper Campus" />
-                </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-university">University</label>
+                <select class="form-select" id="edit-university"></select>
+                <span class="form-error" id="university-error"></span>
               </div>
               <div class="form-group">
                 <label class="form-label" for="edit-student-number">Student number</label>
@@ -572,7 +566,7 @@
                 <div style="display:flex; align-items:center; justify-content:space-between;">
                   <div>
                     <div style="font-size:.875rem; font-weight:600; color:var(--ink);">Show profile to all students</div>
-                    <div style="font-size:.8rem; color:var(--muted);">Anyone on your campus can view your profile</div>
+                    <div style="font-size:.8rem; color:var(--muted);">Students at your university can view your profile</div>
                   </div>
                   <div style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></div>
                 </div>
@@ -639,6 +633,23 @@
   }
  
   let currentUser = null;
+  const southAfricanUniversities = [
+    'University of Cape Town',
+    'University of the Witwatersrand',
+    'Stellenbosch University',
+    'University of Pretoria',
+    'University of KwaZulu-Natal',
+    'University of Johannesburg',
+    'University of the Western Cape',
+    'Rhodes University',
+    'North-West University',
+    'University of South Africa',
+    'University of the Free State',
+    'Nelson Mandela University',
+    'Cape Peninsula University of Technology',
+    'Tshwane University of Technology',
+    'Durban University of Technology',
+  ];
  
   initPage().then(user => {
     if (!user) return;
@@ -658,9 +669,8 @@
     document.getElementById('edit-email').value = user.email;
     document.getElementById('edit-username').value = user.username || '';
  
-    /* ---- Pre-fill campus fields ---- */
-    document.getElementById('edit-university').value = user.university || '';
-    document.getElementById('edit-campus').value = user.campus || '';
+    /* ---- Pre-fill university fields ---- */
+    populateUniversitySelect('edit-university', user.university || '');
     document.getElementById('edit-student-number').value = user.studentNumber || '';
  
     const typeRadios = document.querySelectorAll('input[name="edit-account-type"]');
@@ -767,11 +777,11 @@
     showToast('Password updated successfully', 'success');
   });
  
-  /* ---- Save campus info ---- */
+  /* ---- Save university info ---- */
   document.getElementById('save-campus-btn').addEventListener('click', async function () {
     if (!currentUser) return;
-    const university    = document.getElementById('edit-university').value.trim();
-    const campus        = document.getElementById('edit-campus').value.trim();
+    const university    = document.getElementById('edit-university').value;
+    const campus        = '';
     const studentNumber = document.getElementById('edit-student-number').value.trim();
  
     this.textContent = 'Saving…';
@@ -785,7 +795,7 @@
     if (result.error) { showToast(result.error, 'error'); return; }
  
     currentUser = { ...currentUser, university, campus, studentNumber };
-    showToast('Campus info updated successfully', 'success');
+    showToast('University info updated successfully', 'success');
   });
  
   /* ---- Helpers ---- */
@@ -811,6 +821,23 @@
     if (user.userRole === 'admin') return 'Admin';
     if (user.userRole === 'staff') return 'Trade Facility Staff';
     return user.accountType === 'seller_buyer' ? 'Student Seller / Buyer' : 'Student';
+  }
+
+  function populateUniversitySelect(id, selectedValue = '') {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.innerHTML = [
+      '<option value="">Select your university</option>',
+      ...southAfricanUniversities.map(name => `<option value="${escapeAttribute(name)}" ${name === selectedValue ? 'selected' : ''}>${escapeHtml(name)}</option>`),
+    ].join('');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeAttribute(value) {
+    return escapeHtml(value);
   }
  
   /* ---- Profile nav: click to scroll + scroll-spy ---- */

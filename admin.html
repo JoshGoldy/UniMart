@@ -637,7 +637,7 @@
           <strong>${escapeHtml(formatPermission(report.targetType))}</strong><br />
           <span class="muted">${escapeHtml(report.reason)}</span>
         </td>
-        <td><span class="status-pill ${escapeAttribute(report.status)}">${escapeHtml(report.status)}</span></td>
+        <td><span class="status-pill ${escapeAttribute(report.status)}">${escapeHtml(formatStatusLabel(report.status))}</span></td>
         <td>
           <select class="admin-select" data-report-status="${escapeAttribute(report.id)}">
             <option value="open" ${report.status === 'open' ? 'selected' : ''}>Open</option>
@@ -691,7 +691,7 @@
     body.innerHTML = adminState.listings.length ? adminState.listings.map(listing => `
       <tr>
         <td>${escapeHtml(listing.title)}<br /><span class="muted">${escapeHtml(listing.category)}</span></td>
-        <td><span class="status-pill">${escapeHtml(listing.status)}</span></td>
+        <td><span class="status-pill">${escapeHtml(formatStatusLabel(listing.status))}</span></td>
         <td>${formatCurrency(listing.price)}</td>
         <td><button class="btn-secondary" data-remove-listing="${escapeAttribute(listing.id)}">Remove</button></td>
       </tr>

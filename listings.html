@@ -668,7 +668,7 @@
           <div class="listing-item-copy">${escapeHtml(listing.description || 'No description added yet.')}</div>
         </div>
         <div class="listing-item-tags">
-          <span class="listing-pill ${escapeHtml((listing.status || 'active').toLowerCase())}">${escapeHtml(listing.status)}</span>
+          <span class="listing-pill ${escapeHtml((listing.status || 'active').toLowerCase())}">${escapeHtml(formatStatusLabel(listing.status))}</span>
           <span class="listing-pill">${escapeHtml(listing.condition)}</span>
           ${listing.isTradeable ? '<span class="listing-pill trade">Tradeable</span>' : ''}
         </div>
@@ -717,7 +717,7 @@
         return;
       }
 
-      showToast(`Listing marked as ${nextStatus}`, 'success');
+      showToast(`Listing marked as ${formatStatusLabel(nextStatus)}`, 'success');
       loadMyListings();
       return;
     }
