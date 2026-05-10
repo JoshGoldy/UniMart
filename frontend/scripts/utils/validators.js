@@ -21,7 +21,8 @@ export function validatePrice(price) {
 }
 
 export function validateStudentNumber(number) {
-  return number && /^\d{6,10}$/.test(number);
+  if (!number) return false;  // ← Fixed: handle empty/null/undefined
+  return /^\d{6,10}$/.test(number);
 }
 
 export default {
