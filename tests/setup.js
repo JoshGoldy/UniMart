@@ -31,19 +31,6 @@ global.supabase = {
   })
 };
 
-// Mock window.location
-delete window.location;
-window.location = {
-  href: '',
-  origin: 'http://localhost',
-  pathname: '/frontend/pages/search.html',
-  search: '',
-  hash: '',
-  replace: () => {},
-  assign: () => {},
-  reload: () => {}
-};
-
 // Mock localStorage
 const localStorageMock = (() => {
   let store = {};
@@ -62,7 +49,8 @@ const localStorageMock = (() => {
 })();
 
 Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
+  value: localStorageMock,
+  writable: true
 });
 
 // Mock sessionStorage
@@ -83,16 +71,9 @@ const sessionStorageMock = (() => {
 })();
 
 Object.defineProperty(window, 'sessionStorage', {
-  value: sessionStorageMock
+  value: sessionStorageMock,
+  writable: true
 });
-
-// Mock console methods to reduce noise in tests
-global.console = {
-  ...console,
-  error: () => {},
-  warn: () => {},
-  log: () => {}
-};
 
 // Clean up after each test
 afterEach(() => {
