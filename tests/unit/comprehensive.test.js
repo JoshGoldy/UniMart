@@ -7,14 +7,14 @@ import '@testing-library/jest-dom';
 
 describe('Login Page', () => {
   beforeEach(() => {
-    document.body.innerHTML = \`
+    document.body.innerHTML = `
       <form id="loginForm">
         <input type="email" id="email" required />
         <input type="password" id="password" required />
         <button type="submit">Login</button>
       </form>
       <div id="errorMessage" style="display:none;"></div>
-    \`;
+    `;
   });
 
   test('should have login form', () => {
@@ -37,7 +37,7 @@ describe('Login Page', () => {
 
 describe('Signup Page', () => {
   beforeEach(() => {
-    document.body.innerHTML = \`
+    document.body.innerHTML = `
       <form id="signupForm">
         <input type="text" id="fullName" required />
         <input type="email" id="email" required />
@@ -48,7 +48,7 @@ describe('Signup Page', () => {
         </select>
         <button type="submit">Sign Up</button>
       </form>
-    \`;
+    `;
   });
 
   test('should have signup form', () => {
@@ -69,7 +69,7 @@ describe('Signup Page', () => {
 
 describe('Search Page', () => {
   beforeEach(() => {
-    document.body.innerHTML = \`
+    document.body.innerHTML = `
       <form id="searchForm">
         <input type="search" id="searchInput" />
         <button type="submit">Search</button>
@@ -79,7 +79,7 @@ describe('Search Page', () => {
         <option value="electronics">Electronics</option>
       </select>
       <div id="listingsGrid"></div>
-    \`;
+    `;
   });
 
   test('should have search form', () => {
@@ -99,7 +99,7 @@ describe('Search Page', () => {
 
 describe('Profile Page', () => {
   beforeEach(() => {
-    document.body.innerHTML = \`
+    document.body.innerHTML = `
       <form id="profileForm">
         <input type="text" id="fullName" required />
         <input type="email" id="email" required />
@@ -110,7 +110,7 @@ describe('Profile Page', () => {
         <input type="password" id="newPassword" required minlength="8" />
         <button type="submit">Change Password</button>
       </form>
-    \`;
+    `;
   });
 
   test('should have profile form', () => {
