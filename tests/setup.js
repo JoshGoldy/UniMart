@@ -1,52 +1,102 @@
 /**
  * Jest test setup
+ * Configures the testing environment for DOM testing
  */
+
 import '@testing-library/jest-dom';
 
+// Mock Supabase
 global.supabase = {
-  createClient: jest.fn(() => ({
+  createClient: () => ({
     auth: {
-      signUp: jest.fn(),
-      signInWithPassword: jest.fn(),
-      signInWithOAuth: jest.fn(),
-      signOut: jest.fn(),
-      getSession: jest.fn(),
-      updateUser: jest.fn(),
-      verifyOtp: jest.fn(),
-      resetPasswordForEmail: jest.fn()
+      signUp: () => Promise.resolve({ data: null, error: null }),
+      signInWithPassword: () => Promise.resolve({ data: null, error: null }),
+      signInWithOAuth: () => Promise.resolve({ error: null }),
+      signOut: () => Promise.resolve({ error: null }),
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      updateUser: () => Promise.resolve({ error: null }),
+      verifyOtp: () => Promise.resolve({ error: null }),
+      resetPasswordForEmail: () => Promise.resolve({ error: null })
     },
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn(),
-      single: jest.fn(),
-      upsert: jest.fn()
-    }))
-  }))
+    from: () => ({
+      select: function() { return this; },
+      insert: function() { return this; },
+      update: function() { return this; },
+      delete: function() { return this; },
+      eq: function() { return this; },
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => Promise.resolve({ data: null, error: null }),
+      upsert: () => Promise.resolve({ error: null })
+    })
+  })
 };
 
+// Mock window.location
 delete window.location;
-window.location = { href: '', origin: 'http://localhost', pathname: '/frontend/pages/search.html', replace: jest.fn() };
+window.location = {
+  href: '',
+  origin: 'http://localhost',
+  pathname: '/frontend/pages/search.html',
+  search: '',
+  hash: '',
+  replace: () => {},
+  assign: () => {},
+  reload: () => {}
+};
 
+// Mock localStorage
 const localStorageMock = (() => {
   let store = {};
   return {
-    getItem: jest.fn((key) => store[key] || null),
-    setItem: jest.fn((key, value) => { store[key] = value.toString(); }),
-    removeItem: jest.fn((key) => { delete store[key]; }),
-    clear: jest.fn(() => { store = {}; })
+    getItem: (key) => store[key] || null,
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    }
   };
 })();
 
-Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock
+});
 
-global.console = { ...console, error: jest.fn(), warn: jest.fn(), log: jest.fn() };
+// Mock sessionStorage
+const sessionStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: (key) => store[key] || null,
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    }
+  };
+})();
 
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock
+});
+
+// Mock console methods to reduce noise in tests
+global.console = {
+  ...console,
+  error: () => {},
+  warn: () => {},
+  log: () => {}
+};
+
+// Clean up after each test
 afterEach(() => {
-  jest.clearAllMocks();
   document.body.innerHTML = '';
   localStorageMock.clear();
+  sessionStorageMock.clear();
 });
