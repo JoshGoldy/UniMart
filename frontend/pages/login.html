@@ -128,8 +128,15 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="../scripts/auth.js"></script>
-  <script>
+  <script type="module">
+    // Import Auth module
+    import { Auth, initializeSupabase, getSupabaseClient } from '../scripts/auth.js';
+    
+    // Initialize Supabase
+    const _sb = initializeSupabase(window.supabase);
+    window._sb = _sb; // Make it globally available for inline scripts
+    window.Auth = Auth; // Make Auth globally available
+    
     const stepIds = ['step-login', 'step-forgot-password', 'step-reset-password'];
     const recoveryHashPattern = /type=recovery/;
     let recoveryMode = false;
@@ -180,7 +187,10 @@
     }
 
     function getRecoveryRedirectUrl() {
-      return 'https://unimart-app-e2gaadawhwf6bng3.southafricanorth-01.azurewebsites.net/login.html';
+      // Get current origin dynamically
+      const origin = window.location.origin;
+      const pathname = window.location.pathname.replace(/\/[^\/]*$/, '/login.html');
+      return origin + pathname;
     }
 
     function getLandingPage(user) {
