@@ -736,10 +736,185 @@ export async function removeListingAsAdmin({ listingId }) { return deleteListing
 export async function removeReviewAsAdmin() { return { success: true }; }
 export async function updateContentReport() { return { success: true }; }
 
+
 export async function getFacilityAvailability() { return { slots: [] }; }
-export async function getFacilityOverview() { return { metrics: { pendingReceipts: 0, readyForCollection: 0, releasedToday: 0 }, bookings: [] }; }
+
+const FACILITY_BOOKING_TABLES = [
+  'facility_bookings',
+  'trade_facility_bookings',
+  'trade_bookings',
+  'bookings',
+  'handover_bookings'
+];
+
+function _firstValue(row = {}, keys = []) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+  }
+  return null;
+}
+
+async function _loadFacilityBookingRows() {
+  let lastError = null;
+  for (const table of FACILITY_BOOKING_TABLES) {
+    const { data, error } = await _sb.from(table).select('*');
+    if (!error) return { table, rows: data || [] };
+    lastError = error;
+  }
+  return { table: null, rows: [], error: lastError?.message || 'Facility booking table could not be found.' };
+}
+
+async function _loadUsersByIds(ids = []) {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+  const { data, error } = await _sb.from('users').select('*').in('id', uniqueIds);
+  if (error) return new Map();
+  return new Map((data || []).map(row => [row.id, toUser(row)]));
+}
+
+async function _loadListingsByIds(ids = []) {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (!uniqueIds.length) return new Map();
+
+  let { data, error } = await _sb.from('listings').select('*').in('listing_id', uniqueIds);
+  if (error) ({ data, error } = await _sb.from('listings').select('*').in('id', uniqueIds));
+  if (error) return new Map();
+
+  return new Map((data || []).map(row => [row.listing_id || row.id, toListing(row)]));
+}
+
+function _normaliseFacilityStatus(status) {
+  const value = String(status || '').toLowerCase();
+  if (['pending', 'pending_dropoff', 'dropoff_due', 'drop_off_due', 'scheduled', 'dropoff_scheduled', 'awaiting_dropoff'].includes(value)) return 'pending_dropoff';
+  if (['received', 'dropped_off', 'dropoff_confirmed', 'at_facility'].includes(value)) return 'received';
+  if (['ready', 'ready_for_collection', 'collection_ready'].includes(value)) return 'ready_for_collection';
+  if (['released', 'completed', 'collected', 'closed'].includes(value)) return 'released';
+  return value || 'pending_dropoff';
+}
+
+function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new Map()) {
+  const listingId = _firstValue(row, ['listing_id', 'listingId', 'item_id', 'itemId']);
+  const listing = listingsById.get(listingId) || {};
+  const sellerId = _firstValue(row, ['seller_id', 'sellerId']) || listing.sellerId;
+  const buyerId = _firstValue(row, ['buyer_id', 'buyerId', 'collector_id', 'collectorId']);
+  const seller = usersById.get(sellerId) || {};
+  const buyer = usersById.get(buyerId) || {};
+  const status = _normaliseFacilityStatus(_firstValue(row, ['status', 'booking_status', 'workflow_status', 'handover_status']));
+
+  return {
+    id: _firstValue(row, ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id']),
+    listingId,
+    sellerId,
+    buyerId,
+    title: _firstValue(row, ['listing_title', 'title', 'item_title']) || listing.title || 'Listing',
+    category: _firstValue(row, ['category', 'listing_category']) || listing.category || 'Other',
+    condition: _firstValue(row, ['condition', 'listing_condition']) || listing.condition || 'Used',
+    price: Number(_firstValue(row, ['price', 'listing_price']) ?? listing.price ?? 0),
+    imageUrl: _firstValue(row, ['image_url', 'imageUrl', 'listing_image_url']) || listing.imageUrl || '',
+    sellerName: seller.fullName || seller.username || seller.email || _firstValue(row, ['seller_name', 'seller_email']) || 'Seller',
+    buyerName: buyer.fullName || buyer.username || buyer.email || _firstValue(row, ['buyer_name', 'buyer_email', 'collector_name']) || 'Buyer',
+    dropoffScheduledAt: _firstValue(row, ['dropoff_scheduled_at', 'drop_off_scheduled_at', 'scheduled_dropoff_at', 'dropoff_at', 'drop_off_at', 'created_at']),
+    collectionScheduledAt: _firstValue(row, ['collection_scheduled_at', 'scheduled_collection_at', 'pickup_scheduled_at', 'collection_at', 'pickup_at', 'updated_at']),
+    status,
+    raw: row,
+  };
+}
+
+export async function getFacilityOverview() {
+  const loaded = await _loadFacilityBookingRows();
+  if (loaded.error) {
+    console.warn('Facility overview load failed:', loaded.error);
+    return {
+      error: loaded.error,
+      metrics: { dropoffs: 0, collections: 0, ready: 0, completed: 0 },
+      dropoffs: [],
+      collections: [],
+    };
+  }
+
+  const rows = loaded.rows || [];
+  const listingIds = rows.map(row => _firstValue(row, ['listing_id', 'listingId', 'item_id', 'itemId']));
+  const rawSellerIds = rows.map(row => _firstValue(row, ['seller_id', 'sellerId']));
+  const buyerIds = rows.map(row => _firstValue(row, ['buyer_id', 'buyerId', 'collector_id', 'collectorId']));
+
+  const listingsById = await _loadListingsByIds(listingIds);
+  const sellerIds = [
+    ...rawSellerIds,
+    ...[...listingsById.values()].map(listing => listing.sellerId),
+  ];
+  const usersById = await _loadUsersByIds([...sellerIds, ...buyerIds]);
+  const bookings = rows.map(row => _toFacilityBooking(row, listingsById, usersById));
+
+  const activeDropoffStatuses = ['pending_dropoff'];
+  const activeCollectionStatuses = ['received', 'ready_for_collection'];
+  const dropoffs = bookings.filter(item => activeDropoffStatuses.includes(item.status));
+  const collections = bookings.filter(item => activeCollectionStatuses.includes(item.status));
+
+  return {
+    metrics: {
+      dropoffs: dropoffs.length,
+      collections: collections.length,
+      ready: bookings.filter(item => item.status === 'ready_for_collection').length,
+      completed: bookings.filter(item => item.status === 'released').length,
+    },
+    dropoffs,
+    collections,
+    bookings,
+    table: loaded.table,
+  };
+}
+
 export async function updateFacilityConfig() { return { success: true }; }
-export async function updateFacilityBooking() { return { success: true }; }
+
+async function _updateFacilityRow(table, bookingId, values) {
+  const idColumns = ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'];
+  let lastError = null;
+
+  for (const idColumn of idColumns) {
+    let { error } = await _sb.from(table).update(values).eq(idColumn, bookingId);
+    if (!error) return { success: true };
+    lastError = error;
+  }
+
+  if (values.updated_at !== undefined) {
+    const minimal = { status: values.status };
+    for (const idColumn of idColumns) {
+      let { error } = await _sb.from(table).update(minimal).eq(idColumn, bookingId);
+      if (!error) return { success: true };
+      lastError = error;
+    }
+  }
+
+  return { error: lastError?.message || 'Unable to update facility booking.' };
+}
+
+export async function updateFacilityBooking({ bookingId, staffId, action, releaseToUserId } = {}) {
+  if (!bookingId) return { error: 'Missing booking ID.' };
+  const loaded = await _loadFacilityBookingRows();
+  if (loaded.error || !loaded.table) return { error: loaded.error || 'Facility booking table could not be found.' };
+
+  const now = new Date().toISOString();
+  const values = { updated_at: now };
+
+  if (action === 'confirm_receipt') {
+    values.status = 'received';
+    values.received_at = now;
+    values.received_by = staffId || null;
+  } else if (action === 'mark_ready') {
+    values.status = 'ready_for_collection';
+    values.ready_at = now;
+    values.marked_ready_by = staffId || null;
+  } else if (action === 'release_item') {
+    values.status = 'released';
+    values.released_at = now;
+    values.released_by = staffId || null;
+    if (releaseToUserId) values.released_to = releaseToUserId;
+  } else {
+    return { error: 'Unknown facility workflow action.' };
+  }
+
+  return _updateFacilityRow(loaded.table, bookingId, values);
+}
 
 // Export as default Auth object for backwards compatibility
 export const Auth = {
