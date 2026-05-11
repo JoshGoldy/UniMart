@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0; url=./frontend/pages/home.html">
     <title>UniMart Campus Marketplace</title>
     <style>
         body {
@@ -50,8 +49,20 @@
         <p>Redirecting to app...</p>
     </div>
     <script>
-        // Immediate redirect as backup
-        window.location.href = './frontend/pages/home.html';
+        // Get the base path and construct proper redirect URL
+        const basePath = window.location.pathname.replace(/\/$/, '');
+        const homePath = basePath + '/frontend/pages/home.html';
+        
+        // Try to redirect
+        window.location.href = homePath;
+        
+        // Fallback: if home.html doesn't exist, try different paths
+        setTimeout(function() {
+            // If still on this page after 2 seconds, try alternative path
+            if (window.location.pathname === basePath + '/' || window.location.pathname === basePath + '/index.html') {
+                window.location.href = './frontend/pages/home.html';
+            }
+        }, 2000);
     </script>
 </body>
 </html>
