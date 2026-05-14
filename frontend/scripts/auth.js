@@ -1240,9 +1240,9 @@ async function _loadListingsByIds(ids = []) {
 
 function _normaliseFacilityStatus(status) {
   const value = String(status || '').toLowerCase();
-  if (['pending', 'pending_dropoff', 'dropoff_due', 'drop_off_due', 'scheduled', 'dropoff_scheduled', 'awaiting_dropoff'].includes(value)) return 'pending_dropoff';
+  if (['pending', 'pending_dropoff', 'booked', 'confirmed', 'dropoff_due', 'drop_off_due', 'scheduled', 'dropoff_scheduled', 'awaiting_dropoff'].includes(value)) return 'pending_dropoff';
   if (['received', 'dropped_off', 'dropoff_confirmed', 'at_facility'].includes(value)) return 'received';
-  if (['ready', 'ready_for_collection', 'collection_ready'].includes(value)) return 'ready_for_collection';
+  if (['ready', 'ready_for_collection', 'collection_ready', 'ready_for_pickup', 'pickup_ready'].includes(value)) return 'ready_for_collection';
   if (['released', 'completed', 'collected', 'closed'].includes(value)) return 'released';
   return value || 'pending_dropoff';
 }
@@ -1402,13 +1402,12 @@ export async function createFacilityBooking({ transactionId, listingId, buyerId,
   if (!Number.isFinite(dropoff.getTime()) || !Number.isFinite(collection.getTime())) return { error: 'Choose valid facility slots.' };
   if (collection <= dropoff) return { error: 'Collection must be after drop-off.' };
 
-  const { data: existing } = await _sb
+  const { data: existingRows } = await _sb
     .from('facility_bookings')
     .select('booking_id,status')
     .eq('listing_id', mappedListing.id)
-    .eq('buyer_id', buyerId)
-    .in('status', ['pending_dropoff', 'received', 'ready_for_collection'])
-    .maybeSingle();
+    .eq('buyer_id', buyerId);
+  const existing = (existingRows || []).find(row => ['pending_dropoff', 'received', 'ready_for_collection'].includes(_normaliseFacilityStatus(row.status)));
   if (existing) return { error: 'You already have an active facility booking for this listing.' };
 
   const { data, error } = await _sb
@@ -1433,20 +1432,29 @@ export async function createFacilityBooking({ transactionId, listingId, buyerId,
   return { success: true, booking: _toFacilityBooking(data, new Map([[mappedListing.id, mappedListing]])) };
 }
 
-async function _updateFacilityRow(table, bookingId, values) {
+function _columnCompatiblePayload(values, row) {
+  if (!row) return values;
+  return Object.fromEntries(
+    Object.entries(values).filter(([key]) => key === 'status' || Object.prototype.hasOwnProperty.call(row, key))
+  );
+}
+
+async function _updateFacilityRow(table, bookingId, values, statusCandidates = []) {
   const idColumns = ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'];
+  const rowsResult = await _sb.from(table).select('*');
+  const rows = rowsResult.error ? [] : (rowsResult.data || []);
+  const targetRow = rows.find(row => idColumns.some(column => String(row[column] || '') === String(bookingId)));
+  const availableIdColumns = targetRow
+    ? idColumns.filter(column => Object.prototype.hasOwnProperty.call(targetRow, column) && String(targetRow[column] || '') === String(bookingId))
+    : idColumns;
+  const statuses = statusCandidates.length ? statusCandidates : [values.status];
+  const basePayload = _columnCompatiblePayload(values, targetRow);
   let lastError = null;
 
-  for (const idColumn of idColumns) {
-    let { error } = await _sb.from(table).update(values).eq(idColumn, bookingId);
-    if (!error) return { success: true };
-    lastError = error;
-  }
-
-  if (values.updated_at !== undefined) {
-    const minimal = { status: values.status };
-    for (const idColumn of idColumns) {
-      let { error } = await _sb.from(table).update(minimal).eq(idColumn, bookingId);
+  for (const status of statuses) {
+    const payload = { ...basePayload, status };
+    for (const idColumn of availableIdColumns) {
+      let { error } = await _sb.from(table).update(payload).eq(idColumn, bookingId);
       if (!error) return { success: true };
       lastError = error;
     }
@@ -1480,7 +1488,13 @@ export async function updateFacilityBooking({ bookingId, staffId, action, releas
     return { error: 'Unknown facility workflow action.' };
   }
 
-  return _updateFacilityRow(loaded.table, bookingId, values);
+  const statusFallbacks = {
+    confirm_receipt: ['received', 'dropoff_confirmed', 'at_facility'],
+    mark_ready: ['ready_for_collection', 'ready', 'collection_ready'],
+    release_item: ['released', 'completed', 'collected', 'closed'],
+  };
+
+  return _updateFacilityRow(loaded.table, bookingId, values, statusFallbacks[action] || []);
 }
 
 // Export as default Auth object for backwards compatibility
