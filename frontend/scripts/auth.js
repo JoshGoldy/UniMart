@@ -734,11 +734,52 @@ export async function updateUserRole({ userId, role }) {
   return { success: true };
 }
 
+const DEFAULT_FACILITY_CONFIG = {
+  opensAt: '09:00',
+  closesAt: '17:00',
+  slotMinutes: 30,
+  slotCapacity: 1,
+  operatingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+};
+
+function _normaliseOperatingDays(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return value.split(',').map(item => item.trim()).filter(Boolean);
+  }
+  return DEFAULT_FACILITY_CONFIG.operatingDays;
+}
+
+function _toFacilityConfig(row = {}) {
+  return {
+    opensAt: row.opens_at || row.opensAt || DEFAULT_FACILITY_CONFIG.opensAt,
+    closesAt: row.closes_at || row.closesAt || DEFAULT_FACILITY_CONFIG.closesAt,
+    slotMinutes: Number(row.slot_minutes || row.slotMinutes || DEFAULT_FACILITY_CONFIG.slotMinutes),
+    slotCapacity: Number(row.slot_capacity || row.slotCapacity || DEFAULT_FACILITY_CONFIG.slotCapacity),
+    operatingDays: _normaliseOperatingDays(row.operating_days || row.operatingDays),
+  };
+}
+
+async function _loadFacilityConfig() {
+  const { data, error } = await _sb
+    .from('facility_config')
+    .select('*')
+    .eq('config_id', 'default')
+    .maybeSingle();
+  if (error) return { config: DEFAULT_FACILITY_CONFIG, error };
+  return { config: _toFacilityConfig(data || {}) };
+}
+
 export async function getAdminOverview() {
-  const [usersRes, listingsRes, permsRes] = await Promise.all([
+  const [usersRes, listingsRes, permsRes, facilityConfigRes] = await Promise.all([
     _sb.from('users').select('*').order('full_name'),
     _sb.from('listings').select('*').order('created_at', { ascending: false }).limit(20),
     _sb.from('role_permissions').select('*'),
+    _loadFacilityConfig(),
   ]);
   if (usersRes.error) return { error: usersRes.error.message };
   const users = (usersRes.data || []).map(toUser);
@@ -755,7 +796,7 @@ export async function getAdminOverview() {
     reports: [],
     moderationActions: [],
     rolePermissions: permsRes.data || [],
-    facilityConfig: { opensAt: '09:00', closesAt: '17:00', slotMinutes: 30, slotCapacity: 1, operatingDays: ['1','2','3','4','5'] },
+    facilityConfig: facilityConfigRes.config || DEFAULT_FACILITY_CONFIG,
   };
 }
 
@@ -763,8 +804,6 @@ export async function removeListingAsAdmin({ listingId }) { return deleteListing
 export async function removeReviewAsAdmin() { return { success: true }; }
 export async function updateContentReport() { return { success: true }; }
 
-
-export async function getFacilityAvailability() { return { slots: [] }; }
 
 const FACILITY_BOOKING_TABLES = [
   'facility_bookings',
@@ -789,6 +828,35 @@ async function _loadFacilityBookingRows() {
     lastError = error;
   }
   return { table: null, rows: [], error: lastError?.message || 'Facility booking table could not be found.' };
+}
+
+function _dateKey(value) {
+  return new Date(value).toISOString();
+}
+
+function _weekdayName(date) {
+  return date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+}
+
+function _combineDateAndTime(date, time) {
+  const [hours, minutes] = String(time || '09:00').split(':').map(Number);
+  const next = new Date(date);
+  next.setHours(hours || 0, minutes || 0, 0, 0);
+  return next;
+}
+
+function _addMinutes(date, minutes) {
+  return new Date(date.getTime() + (minutes * 60 * 1000));
+}
+
+function _countSlots(rows = [], column) {
+  return rows.reduce((map, row) => {
+    const value = row[column];
+    if (!value) return map;
+    const key = _dateKey(value);
+    map.set(key, (map.get(key) || 0) + 1);
+    return map;
+  }, new Map());
 }
 
 async function _loadUsersByIds(ids = []) {
@@ -817,6 +885,53 @@ function _normaliseFacilityStatus(status) {
   if (['ready', 'ready_for_collection', 'collection_ready'].includes(value)) return 'ready_for_collection';
   if (['released', 'completed', 'collected', 'closed'].includes(value)) return 'released';
   return value || 'pending_dropoff';
+}
+
+function _buildFacilitySlots(config, rows = [], column, days = 14) {
+  const now = new Date();
+  const operatingDays = new Set(_normaliseOperatingDays(config.operatingDays).map(day => String(day).toLowerCase()));
+  const capacity = Math.max(1, Number(config.slotCapacity) || 1);
+  const slotMinutes = Math.max(10, Number(config.slotMinutes) || 30);
+  const counts = _countSlots(rows.filter(row => _normaliseFacilityStatus(row.status) !== 'released'), column);
+  const slots = [];
+
+  for (let dayOffset = 0; dayOffset < days; dayOffset += 1) {
+    const day = new Date(now);
+    day.setDate(now.getDate() + dayOffset);
+    if (!operatingDays.has(_weekdayName(day))) continue;
+
+    let cursor = _combineDateAndTime(day, config.opensAt);
+    const closesAt = _combineDateAndTime(day, config.closesAt);
+    while (_addMinutes(cursor, slotMinutes) <= closesAt) {
+      if (cursor > now) {
+        const key = _dateKey(cursor);
+        const booked = counts.get(key) || 0;
+        slots.push({
+          startsAt: key,
+          available: Math.max(0, capacity - booked),
+          capacity,
+        });
+      }
+      cursor = _addMinutes(cursor, slotMinutes);
+    }
+  }
+
+  return slots;
+}
+
+export async function getFacilityAvailability() {
+  const { config } = await _loadFacilityConfig();
+  const loaded = await _loadFacilityBookingRows();
+  if (loaded.error) return { error: loaded.error, config, slots: [], dropoffSlots: [], collectionSlots: [] };
+  const rows = loaded.rows || [];
+  const dropoffSlots = _buildFacilitySlots(config, rows, 'dropoff_scheduled_at');
+  const collectionSlots = _buildFacilitySlots(config, rows, 'collection_scheduled_at');
+  return {
+    config,
+    slots: dropoffSlots,
+    dropoffSlots,
+    collectionSlots,
+  };
 }
 
 function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new Map()) {
@@ -891,7 +1006,66 @@ export async function getFacilityOverview() {
   };
 }
 
-export async function updateFacilityConfig() { return { success: true }; }
+export async function updateFacilityConfig({ opensAt, closesAt, slotMinutes, slotCapacity, operatingDays } = {}) {
+  const values = {
+    config_id: 'default',
+    opens_at: opensAt || DEFAULT_FACILITY_CONFIG.opensAt,
+    closes_at: closesAt || DEFAULT_FACILITY_CONFIG.closesAt,
+    slot_minutes: Math.max(10, Number(slotMinutes) || DEFAULT_FACILITY_CONFIG.slotMinutes),
+    slot_capacity: Math.max(1, Number(slotCapacity) || DEFAULT_FACILITY_CONFIG.slotCapacity),
+    operating_days: Array.isArray(operatingDays) && operatingDays.length ? operatingDays : DEFAULT_FACILITY_CONFIG.operatingDays,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await _sb.from('facility_config').upsert(values, { onConflict: 'config_id' });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function createFacilityBooking({ listingId, buyerId, dropoffScheduledAt, collectionScheduledAt, note } = {}) {
+  if (!listingId || !buyerId) return { error: 'Missing listing or buyer details.' };
+  if (!dropoffScheduledAt || !collectionScheduledAt) return { error: 'Choose both a drop-off and collection slot.' };
+
+  const listingsResult = await _sb.from('listings').select('*').eq('listing_id', listingId).maybeSingle();
+  let listing = listingsResult.data;
+  if (listingsResult.error || !listing) {
+    const fallback = await _sb.from('listings').select('*').eq('id', listingId).maybeSingle();
+    listing = fallback.data;
+    if (fallback.error || !listing) return { error: (fallback.error || listingsResult.error)?.message || 'Listing not found.' };
+  }
+
+  const mappedListing = toListing(listing);
+  if (!mappedListing.sellerId || mappedListing.sellerId === buyerId) return { error: 'You cannot book a facility handover for your own listing.' };
+
+  const dropoff = new Date(dropoffScheduledAt);
+  const collection = new Date(collectionScheduledAt);
+  if (!Number.isFinite(dropoff.getTime()) || !Number.isFinite(collection.getTime())) return { error: 'Choose valid facility slots.' };
+  if (collection <= dropoff) return { error: 'Collection must be after drop-off.' };
+
+  const { data: existing } = await _sb
+    .from('facility_bookings')
+    .select('booking_id,status')
+    .eq('listing_id', mappedListing.id)
+    .eq('buyer_id', buyerId)
+    .in('status', ['pending_dropoff', 'received', 'ready_for_collection'])
+    .maybeSingle();
+  if (existing) return { error: 'You already have an active facility booking for this listing.' };
+
+  const { data, error } = await _sb
+    .from('facility_bookings')
+    .insert({
+      listing_id: mappedListing.id,
+      seller_id: mappedListing.sellerId,
+      buyer_id: buyerId,
+      dropoff_scheduled_at: dropoff.toISOString(),
+      collection_scheduled_at: collection.toISOString(),
+      status: 'pending_dropoff',
+      note: note || null,
+    })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { success: true, booking: _toFacilityBooking(data, new Map([[mappedListing.id, mappedListing]])) };
+}
 
 async function _updateFacilityRow(table, bookingId, values) {
   const idColumns = ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'];
@@ -984,6 +1158,7 @@ export const Auth = {
   removeReviewAsAdmin,
   updateContentReport,
   getFacilityAvailability,
+  createFacilityBooking,
   getFacilityOverview,
   updateFacilityConfig,
   updateFacilityBooking

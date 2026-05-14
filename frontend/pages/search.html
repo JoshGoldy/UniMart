@@ -276,6 +276,36 @@
       gap: 10px;
     }
 
+    .facility-booking {
+      display: none;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--linen);
+    }
+
+    .facility-booking.show {
+      display: grid;
+    }
+
+    .facility-booking-title {
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .facility-booking-copy {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .facility-slot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
     .details-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -326,6 +356,10 @@
       .listing-card-footer {
         flex-direction: column;
         align-items: flex-start;
+      }
+
+      .facility-slot-grid {
+        grid-template-columns: 1fr;
       }
 
       .details-body,
@@ -537,6 +571,24 @@
             <button class="btn btn-secondary" type="button" data-buyer-action="offer">Make offer</button>
           </div>
         </div>
+        <div class="facility-booking" id="facility-booking-panel">
+          <div>
+            <div class="facility-booking-title">Book trade facility handover</div>
+            <div class="facility-booking-copy">Choose when the seller should drop off the item and when you plan to collect it.</div>
+          </div>
+          <div class="facility-slot-grid">
+            <div class="form-group">
+              <label class="form-label" for="dropoff-slot-select">Drop-off slot</label>
+              <select class="form-input" id="dropoff-slot-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="collection-slot-select">Collection slot</label>
+              <select class="form-input" id="collection-slot-select"></select>
+            </div>
+          </div>
+          <span class="form-error" id="facility-booking-error"></span>
+          <button class="btn btn-primary" id="book-facility-btn" type="button">Book handover</button>
+        </div>
         <div class="details-grid">
           <div class="details-meta-card">
             <strong>Condition</strong>
@@ -588,6 +640,7 @@
     maxPrice: '',
     user: null,
     selectedListing: null,
+    facilityAvailability: null,
   };
   const modal = document.getElementById('listing-modal');
 
@@ -790,6 +843,7 @@
     buyerActions.style.display = shouldShowBuyerActions(listing) ? 'flex' : 'none';
     document.getElementById('buyer-message-input').value = '';
     document.getElementById('buyer-message-error').textContent = '';
+    renderFacilityBookingPanel(listing);
 
     const imageWrap = document.getElementById('modal-image-wrap');
     const image = document.getElementById('modal-image');
@@ -853,6 +907,99 @@
       window.location.href = `messages.html?conversation=${encodeURIComponent(result.conversation.id)}`;
     });
   });
+
+  document.getElementById('dropoff-slot-select').addEventListener('change', renderCollectionSlots);
+  document.getElementById('book-facility-btn').addEventListener('click', bookFacilityHandover);
+
+  async function renderFacilityBookingPanel(listing) {
+    const panel = document.getElementById('facility-booking-panel');
+    const error = document.getElementById('facility-booking-error');
+    const button = document.getElementById('book-facility-btn');
+    error.textContent = '';
+    panel.classList.toggle('show', shouldShowBuyerActions(listing) && listing.status === 'active');
+
+    if (!panel.classList.contains('show')) return;
+
+    button.disabled = true;
+    button.textContent = 'Loading slots...';
+    const result = await Auth.getFacilityAvailability();
+    if (result.error) {
+      error.textContent = result.error;
+      populateSlotSelect(document.getElementById('dropoff-slot-select'), [], 'No drop-off slots available');
+      populateSlotSelect(document.getElementById('collection-slot-select'), [], 'No collection slots available');
+      button.textContent = 'Book handover';
+      return;
+    }
+
+    state.facilityAvailability = result;
+    populateSlotSelect(document.getElementById('dropoff-slot-select'), result.dropoffSlots || [], 'No drop-off slots available');
+    renderCollectionSlots();
+    button.disabled = !(result.dropoffSlots || []).some(slot => slot.available > 0) || !(result.collectionSlots || []).some(slot => slot.available > 0);
+    button.textContent = 'Book handover';
+  }
+
+  function renderCollectionSlots() {
+    const availability = state.facilityAvailability || {};
+    const dropoffValue = document.getElementById('dropoff-slot-select').value;
+    const dropoffTime = dropoffValue ? new Date(dropoffValue).getTime() : 0;
+    const collectionSlots = (availability.collectionSlots || []).filter(slot => {
+      return slot.available > 0 && (!dropoffTime || new Date(slot.startsAt).getTime() > dropoffTime);
+    });
+    populateSlotSelect(document.getElementById('collection-slot-select'), collectionSlots, 'No later collection slots available');
+    document.getElementById('book-facility-btn').disabled = !dropoffValue || !collectionSlots.length;
+  }
+
+  function populateSlotSelect(select, slots, emptyLabel) {
+    const availableSlots = (slots || []).filter(slot => slot.available > 0);
+    select.innerHTML = availableSlots.length
+      ? availableSlots.slice(0, 30).map(slot => `<option value="${escapeAttribute(slot.startsAt)}">${escapeHtml(formatSlot(slot.startsAt))} (${slot.available} open)</option>`).join('')
+      : `<option value="">${escapeHtml(emptyLabel)}</option>`;
+    select.disabled = !availableSlots.length;
+  }
+
+  async function bookFacilityHandover() {
+    const error = document.getElementById('facility-booking-error');
+    const button = document.getElementById('book-facility-btn');
+    const dropoffScheduledAt = document.getElementById('dropoff-slot-select').value;
+    const collectionScheduledAt = document.getElementById('collection-slot-select').value;
+    error.textContent = '';
+
+    if (!state.selectedListing) return;
+    if (!dropoffScheduledAt || !collectionScheduledAt) {
+      error.textContent = 'Choose both a drop-off and collection slot.';
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Booking...';
+    const result = await Auth.createFacilityBooking({
+      listingId: state.selectedListing.id,
+      buyerId: state.user.id,
+      dropoffScheduledAt,
+      collectionScheduledAt,
+      note: `Booked from listing modal for ${state.selectedListing.title}`,
+    });
+    button.textContent = 'Book handover';
+
+    if (result.error) {
+      button.disabled = false;
+      error.textContent = result.error;
+      return;
+    }
+
+    showToast('Facility handover booked', 'success');
+    await renderFacilityBookingPanel(state.selectedListing);
+  }
+
+  function formatSlot(value) {
+    return new Intl.DateTimeFormat('en-ZA', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
+  }
 
   function formatCurrency(value) {
     return new Intl.NumberFormat('en-ZA', {
