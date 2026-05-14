@@ -486,7 +486,7 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
   if (!conversation) {
     const inserted = await _sb
       .from('conversations')
-      .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId, status: 'active', last_message_at: new Date().toISOString() })
+      .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId, status: 'open', last_message_at: new Date().toISOString() })
       .select()
       .single();
     if (inserted.error) return { error: inserted.error.message };
@@ -582,7 +582,7 @@ function toConversation(row = {}, currentUserId) {
     otherUserId: isBuyer ? row.seller_id : row.buyer_id,
     otherDisplayName: other.full_name || other.username || other.email || null,
     role: isBuyer ? 'buyer' : 'seller',
-    status: row.status || 'active',
+    status: row.status || 'open',
     lastMessageAt: row.last_message_at || row.created_at,
     unreadCount: Number(row.unread_count || 0),
   };
