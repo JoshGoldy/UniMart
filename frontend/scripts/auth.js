@@ -304,6 +304,9 @@ function toUser(row = {}) {
 
 function toListing(row = {}) {
   const seller = row.users || row.seller || row.user || {};
+  const listingType = ['sale', 'trade', 'both'].includes(row.listing_type || row.listingType)
+    ? (row.listing_type || row.listingType)
+    : (row.is_tradeable ?? row.isTradeable ? 'both' : 'sale');
   return {
     id: row.listing_id || row.id,
     sellerId: row.seller_id || row.sellerId,
@@ -312,7 +315,8 @@ function toListing(row = {}) {
     price: Number(row.price) || 0,
     category: row.category || 'Other',
     condition: row.condition || 'Used',
-    isTradeable: Boolean(row.is_tradeable ?? row.isTradeable),
+    listingType,
+    isTradeable: listingType === 'trade' || listingType === 'both',
     status: row.status || 'active',
     imageUrl: row.image_url || row.imageUrl || '',
     createdAt: row.created_at || row.createdAt,
@@ -322,6 +326,9 @@ function toListing(row = {}) {
 }
 
 function listingPayload(payload = {}) {
+  const listingType = ['sale', 'trade', 'both'].includes(payload.listingType)
+    ? payload.listingType
+    : (payload.isTradeable ? 'both' : 'sale');
   return {
     seller_id: payload.sellerId,
     title: payload.title,
@@ -329,10 +336,20 @@ function listingPayload(payload = {}) {
     price: Number(payload.price) || 0,
     category: payload.category || 'Other',
     condition: payload.condition || 'Used',
-    is_tradeable: Boolean(payload.isTradeable),
+    listing_type: listingType,
+    is_tradeable: listingType === 'trade' || listingType === 'both',
     status: payload.status || 'active',
     image_url: payload.imageUrl || null,
   };
+}
+
+function legacyListingPayload(payload = {}) {
+  const { listing_type, ...values } = listingPayload(payload);
+  return values;
+}
+
+function isMissingListingTypeError(error) {
+  return /listing_type/i.test(error?.message || '');
 }
 
 async function tryListingSelect(baseSelect) {
@@ -388,17 +405,27 @@ export async function getMyListings(sellerId) {
 }
 
 export async function createListing(payload) {
-  const { data, error } = await _sb
+  let { data, error } = await _sb
     .from('listings')
     .insert(listingPayload(payload))
     .select()
     .single();
+  if (isMissingListingTypeError(error)) {
+    ({ data, error } = await _sb
+      .from('listings')
+      .insert(legacyListingPayload(payload))
+      .select()
+      .single());
+  }
   if (error) return { error: error.message };
   return { success: true, listing: toListing(data) };
 }
 
 export async function updateListing(payload) {
-  const { data, error } = await updateListingById(payload.listingId, listingPayload(payload), payload.sellerId);
+  let { data, error } = await updateListingById(payload.listingId, listingPayload(payload), payload.sellerId);
+  if (isMissingListingTypeError(error)) {
+    ({ data, error } = await updateListingById(payload.listingId, legacyListingPayload(payload), payload.sellerId));
+  }
   if (error) return { error: error.message };
   return { success: true, listing: toListing(data) };
 }

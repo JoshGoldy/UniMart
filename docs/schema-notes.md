@@ -34,7 +34,8 @@
 
 **is\_tradeable boolean default false**
 
+**listing\_type text default "sale" -- "sale" | "trade" | "both"**
+
 **status text default "active"**
 
 **created\_at timestamptz default now()**
-

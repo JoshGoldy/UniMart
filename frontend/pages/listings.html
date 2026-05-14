@@ -500,13 +500,14 @@
               </div>
             </div>
 
-            <label class="switch-row">
-              <div class="switch-copy">
-                <strong>Open to trades</strong>
-                <span>Turn this on if you are willing to swap instead of only selling.</span>
-              </div>
-              <input id="listing-tradeable" type="checkbox" />
-            </label>
+            <div class="form-group">
+              <label class="form-label" for="listing-type">Listing type</label>
+              <select class="form-select" id="listing-type">
+                <option value="sale">Sale only</option>
+                <option value="trade">Trade only</option>
+                <option value="both">Sale or trade</option>
+              </select>
+            </div>
 
             <div class="form-error" id="listing-form-error" style="text-align:center;"></div>
 
@@ -579,7 +580,7 @@
       price: document.getElementById('listing-price').value,
       category: document.getElementById('listing-category').value,
       condition: document.getElementById('listing-condition').value,
-      isTradeable: document.getElementById('listing-tradeable').checked,
+      listingType: document.getElementById('listing-type').value,
       status: document.getElementById('listing-status').value,
     };
 
@@ -680,7 +681,7 @@
         <div class="listing-item-tags">
           <span class="listing-pill ${escapeHtml((listing.status || 'active').toLowerCase())}">${escapeHtml(formatStatusLabel(listing.status))}</span>
           <span class="listing-pill">${escapeHtml(listing.condition)}</span>
-          ${listing.isTradeable ? '<span class="listing-pill trade">Tradeable</span>' : ''}
+          <span class="listing-pill trade">${escapeHtml(formatListingType(listing.listingType))}</span>
         </div>
         <div class="listing-item-actions">
           <button class="btn btn-secondary" type="button" data-action="edit" data-id="${listing.id}">Edit</button>
@@ -718,7 +719,7 @@
         price: listing.price,
         category: listing.category,
         condition: listing.condition,
-        isTradeable: listing.isTradeable,
+        listingType: listing.listingType,
         status: nextStatus,
       });
 
@@ -758,7 +759,7 @@
     document.getElementById('listing-price').value = listing.price;
     document.getElementById('listing-category').value = listing.category;
     document.getElementById('listing-condition').value = listing.condition;
-    document.getElementById('listing-tradeable').checked = listing.isTradeable;
+    document.getElementById('listing-type').value = listing.listingType || (listing.isTradeable ? 'both' : 'sale');
     document.getElementById('listing-status').value = listing.status;
     document.getElementById('save-listing-btn').textContent = 'Save changes';
     document.getElementById('cancel-edit-btn').style.display = 'inline-flex';
@@ -775,6 +776,7 @@
     document.getElementById('listing-status').value = 'active';
     document.getElementById('listing-category').value = 'Textbooks';
     document.getElementById('listing-condition').value = 'New';
+    document.getElementById('listing-type').value = 'sale';
     document.getElementById('save-listing-btn').textContent = 'Create listing';
     document.getElementById('cancel-edit-btn').style.display = 'none';
     updateImagePreview();
@@ -804,6 +806,15 @@
       month: 'short',
       year: 'numeric',
     }).format(new Date(value));
+  }
+
+  function formatListingType(value) {
+    const labels = {
+      sale: 'Sale only',
+      trade: 'Trade only',
+      both: 'Sale or trade',
+    };
+    return labels[value] || 'Sale only';
   }
 
   function clearErrors() {

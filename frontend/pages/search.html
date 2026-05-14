@@ -468,11 +468,12 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label" for="tradeable-filter">Tradeable</label>
-          <select class="form-input" id="tradeable-filter">
-            <option value="all">Any trade status</option>
-            <option value="yes">Tradeable only</option>
-            <option value="no">Not tradeable</option>
+          <label class="form-label" for="listing-type-filter">Listing type</label>
+          <select class="form-input" id="listing-type-filter">
+            <option value="all">Any listing type</option>
+            <option value="sale">Sale only</option>
+            <option value="trade">Trade only</option>
+            <option value="both">Sale or trade</option>
           </select>
         </div>
         <div class="form-group">
@@ -582,7 +583,7 @@
     query: '',
     category: 'all',
     condition: 'all',
-    tradeable: 'all',
+    listingType: 'all',
     minPrice: '',
     maxPrice: '',
     user: null,
@@ -610,7 +611,7 @@
   });
 
   const conditionFilter = document.getElementById('condition-filter');
-  const tradeableFilter = document.getElementById('tradeable-filter');
+  const listingTypeFilter = document.getElementById('listing-type-filter');
   const minPriceFilter = document.getElementById('min-price-filter');
   const maxPriceFilter = document.getElementById('max-price-filter');
   const clearFiltersBtn = document.getElementById('clear-filters-btn');
@@ -620,8 +621,8 @@
     renderListings();
   });
 
-  tradeableFilter.addEventListener('change', function () {
-    state.tradeable = this.value || 'all';
+  listingTypeFilter.addEventListener('change', function () {
+    state.listingType = this.value || 'all';
     renderListings();
   });
 
@@ -675,7 +676,7 @@
     const filtered = state.listings.filter(listing => {
       const matchesCategory = state.category === 'all' || normalizeCategory(listing.category) === normalizeCategory(state.category);
       const matchesCondition = state.condition === 'all' || normalizeCondition(listing.condition) === normalizeCondition(state.condition);
-      const matchesTradeable = state.tradeable === 'all' || (state.tradeable === 'yes' && listing.isTradeable) || (state.tradeable === 'no' && !listing.isTradeable);
+      const matchesListingType = state.listingType === 'all' || getListingType(listing) === state.listingType;
       const listingPrice = Number(listing.price) || 0;
       const minPrice = parsePriceFilter(state.minPrice);
       const maxPrice = parsePriceFilter(state.maxPrice);
@@ -686,11 +687,11 @@
         listing.description,
         listing.category,
         listing.condition,
-        listing.isTradeable ? 'tradeable trade swap' : 'not tradeable',
+        formatListingType(getListingType(listing)),
         String(listing.price),
       ].join(' ').toLowerCase();
       const matchesQuery = !state.query || haystack.includes(state.query);
-      return !priceError && matchesCategory && matchesCondition && matchesTradeable && matchesMinPrice && matchesMaxPrice && matchesQuery;
+      return !priceError && matchesCategory && matchesCondition && matchesListingType && matchesMinPrice && matchesMaxPrice && matchesQuery;
     });
 
     const grid = document.getElementById('listings-grid');
@@ -712,7 +713,7 @@
     if (!filtered.length) {
       document.getElementById('empty-title').textContent = 'No matching listings';
       document.getElementById('empty-copy').textContent = hasActiveFilters()
-        ? 'No listings match the current keyword, category, condition, tradeable, and price filters. Clear filters or adjust the filters to see more results.'
+        ? 'No listings match the current keyword, category, condition, listing type, and price filters. Clear filters or adjust the filters to see more results.'
         : 'Try a different search term or switch to another category.';
       empty.style.display = 'flex';
       grid.style.display = 'none';
@@ -755,7 +756,7 @@
         <div class="listing-description">${description}</div>
         <div class="listing-tags">
           <span class="listing-tag">${escapeHtml(listing.condition)}</span>
-          ${listing.isTradeable ? '<span class="listing-tag trade">Tradeable</span>' : ''}
+          <span class="listing-tag trade">${escapeHtml(formatListingType(getListingType(listing)))}</span>
           <span class="listing-tag">${escapeHtml(formatStatusLabel(listing.status))}</span>
         </div>
         <div class="listing-card-footer">
@@ -781,7 +782,7 @@
     document.getElementById('modal-date').textContent = formatDate(listing.createdAt);
     document.getElementById('modal-tags').innerHTML = `
       <span class="listing-tag">${escapeHtml(listing.condition)}</span>
-      ${listing.isTradeable ? '<span class="listing-tag trade">Tradeable</span>' : ''}
+      <span class="listing-tag trade">${escapeHtml(formatListingType(getListingType(listing)))}</span>
       <span class="listing-tag">${escapeHtml(formatStatusLabel(listing.status))}</span>
     `;
 
@@ -892,6 +893,20 @@
     return String(value || '').trim().toLowerCase();
   }
 
+  function getListingType(listing = {}) {
+    if (['sale', 'trade', 'both'].includes(listing.listingType)) return listing.listingType;
+    return listing.isTradeable ? 'both' : 'sale';
+  }
+
+  function formatListingType(value) {
+    const labels = {
+      sale: 'Sale only',
+      trade: 'Trade only',
+      both: 'Sale or trade',
+    };
+    return labels[value] || 'Sale only';
+  }
+
   function parsePriceFilter(value) {
     if (value === '' || value === null || value === undefined) return null;
     const price = Number(value);
@@ -918,7 +933,7 @@
       state.query ||
       state.category !== 'all' ||
       state.condition !== 'all' ||
-      state.tradeable !== 'all' ||
+      state.listingType !== 'all' ||
       parsePriceFilter(state.minPrice) !== null ||
       parsePriceFilter(state.maxPrice) !== null
     );
@@ -933,13 +948,13 @@
     state.query = '';
     state.category = 'all';
     state.condition = 'all';
-    state.tradeable = 'all';
+    state.listingType = 'all';
     state.minPrice = '';
     state.maxPrice = '';
 
     searchInput.value = '';
     conditionFilter.value = 'all';
-    tradeableFilter.value = 'all';
+    listingTypeFilter.value = 'all';
     minPriceFilter.value = '';
     maxPriceFilter.value = '';
     document.querySelectorAll('.filter-chip').forEach(chip => {
