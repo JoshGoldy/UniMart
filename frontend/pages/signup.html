@@ -417,7 +417,12 @@
     /* ---- Resend ---- */
     document.getElementById('resend-btn').addEventListener('click', async () => {
       if (!pendingEmail) return;
-      await Auth.signUp({ fullName: '', email: pendingEmail, password: '', accountType: '' });
+      clearErrors();
+      const result = await Auth.resendSignupOTP(pendingEmail);
+      if (result.error) {
+        showError('otp-error', result.error);
+        return;
+      }
       showToastMini('A new code has been sent to your email.');
     });
  

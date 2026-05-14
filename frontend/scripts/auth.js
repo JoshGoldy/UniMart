@@ -125,6 +125,7 @@ export async function signUp({ fullName, email, password, accountType, userRole 
     email,
     password,
     options: {
+      emailRedirectTo: getPageUrl('login.html'),
       data: { 
         full_name: fullName, 
         account_type: cleanAccountType, 
@@ -134,6 +135,18 @@ export async function signUp({ fullName, email, password, accountType, userRole 
         student_number: studentNumber || null 
       }
     }
+  });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function resendSignupOTP(email) {
+  const { error } = await _sb.auth.resend({
+    type: 'signup',
+    email,
+    options: {
+      emailRedirectTo: getPageUrl('login.html'),
+    },
   });
   if (error) return { error: error.message };
   return { success: true };
@@ -252,7 +265,34 @@ export async function requestPasswordReset({ email, redirectTo }) {
   return { success: true };
 }
 
+export async function handlePasswordRecoverySession() {
+  const { data: sessionData } = await _sb.auth.getSession();
+  if (sessionData?.session) return { success: true };
+
+  const params = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  const accessToken = hash.get('access_token') || params.get('access_token');
+  const refreshToken = hash.get('refresh_token') || params.get('refresh_token');
+  const code = params.get('code') || hash.get('code');
+
+  if (accessToken && refreshToken) {
+    const { error } = await _sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  if (code && _sb.auth.exchangeCodeForSession) {
+    const { error } = await _sb.auth.exchangeCodeForSession(code);
+    if (error) return { error: error.message };
+    return { success: true };
+  }
+
+  return { error: 'Open the password reset link from your email again so we can verify the recovery session.' };
+}
+
 export async function completePasswordRecovery({ newPassword }) {
+  const recovered = await handlePasswordRecoverySession();
+  if (recovered.error) return recovered;
   const { error } = await _sb.auth.updateUser({ password: newPassword });
   if (error) return { error: error.message };
   return { success: true };
@@ -1274,6 +1314,7 @@ export async function updateFacilityBooking({ bookingId, staffId, action, releas
 // Export as default Auth object for backwards compatibility
 export const Auth = {
   signUp,
+  resendSignupOTP,
   signIn,
   signInWithGoogle,
   handleOAuthCallback,
@@ -1285,6 +1326,7 @@ export const Auth = {
   updateCampusInfo,
   updatePassword,
   requestPasswordReset,
+  handlePasswordRecoverySession,
   completePasswordRecovery,
   initializeSupabase,
   getSupabaseClient,

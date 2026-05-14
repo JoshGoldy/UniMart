@@ -140,7 +140,7 @@
     // Page code
     
     const stepIds = ['step-login', 'step-forgot-password', 'step-reset-password'];
-    const recoveryHashPattern = /type=recovery/;
+    const recoveryHashPattern = /type=recovery|access_token=|refresh_token=|code=/;
     let recoveryMode = false;
 
     function showStep(stepId) {
@@ -189,7 +189,7 @@
     }
 
     function getRecoveryRedirectUrl() {
-      return 'https://unimart-app-e2gaadawhwf6bng3.southafricanorth-01.azurewebsites.net/login.html';
+      return Auth.getPageUrl('login.html');
     }
 
     function getLandingPage(user) {
@@ -390,6 +390,9 @@
     recoveryMode = recoveryHashPattern.test(window.location.hash || '') || recoveryHashPattern.test(window.location.search || '');
     if (recoveryMode) {
       showStep('step-reset-password');
+      Auth.handlePasswordRecoverySession().then(result => {
+        if (result.error) showError('reset-password-error', result.error);
+      });
     } else {
       setTimeout(() => {
         if (!recoveryMode) {
