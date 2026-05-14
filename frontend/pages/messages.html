@@ -178,6 +178,78 @@
       justify-content: flex-end;
     }
 
+    .thread-offers {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .thread-offers:empty {
+      display: none;
+    }
+
+    .offer-card,
+    .booking-card-inline {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: var(--linen);
+      display: grid;
+      gap: 10px;
+    }
+
+    .offer-card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .offer-title {
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .offer-meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .offer-status {
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: var(--sand);
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: capitalize;
+      white-space: nowrap;
+    }
+
+    .offer-status.accepted {
+      background: var(--mint);
+      color: var(--sage);
+    }
+
+    .offer-status.declined {
+      background: #f5dddd;
+      color: #9b2f2f;
+    }
+
+    .offer-actions,
+    .booking-slot-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .booking-slot-grid > .form-group {
+      flex: 1 1 180px;
+    }
+
     @media (max-width: 900px) {
       .messages-layout {
         grid-template-columns: 1fr;
@@ -256,6 +328,7 @@
             <h2 id="thread-title">Select a conversation</h2>
             <p class="thread-subtitle" id="thread-subtitle">Messages appear in chronological order.</p>
           </div>
+          <div class="thread-offers" id="thread-offers"></div>
           <div class="message-stack" id="message-stack">
             <div class="empty-state">
               <div class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"/><path d="M7 8.5h6M7 11h4" stroke-linecap="round"/></svg></span></div>
@@ -301,6 +374,9 @@
     conversations: [],
     activeConversationId: getInitialConversationId(),
     messages: [],
+    offers: [],
+    transactions: [],
+    facilityAvailability: null,
     messageSignature: '',
     conversationSignature: '',
     refreshTimer: null,
@@ -416,7 +492,11 @@
     }
 
     const messages = result.messages || [];
-    const nextSignature = messages.map(message => `${message.id}:${message.createdAt}:${message.readAt || ''}`).join('|');
+    const offers = result.offers || [];
+    const transactions = result.transactions || [];
+    const offerSignature = offers.map(offer => `${offer.id}:${offer.status}:${offer.updatedAt || ''}`).join('|');
+    const transactionSignature = transactions.map(transaction => `${transaction.id}:${transaction.status}:${transaction.facilityBookingId || ''}`).join('|');
+    const nextSignature = `${messages.map(message => `${message.id}:${message.createdAt}:${message.readAt || ''}`).join('|')}::${offerSignature}::${transactionSignature}`;
     document.getElementById('thread-title').textContent = result.conversation.listingTitle;
     document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${result.conversation.otherDisplayName || shortId(result.conversation.otherUserId)}`;
 
@@ -424,7 +504,10 @@
 
     const nearBottom = stack.scrollHeight - stack.scrollTop - stack.clientHeight < 80;
     state.messages = messages;
+    state.offers = offers;
+    state.transactions = transactions;
     state.messageSignature = nextSignature;
+    renderOfferPanel(result.conversation);
 
     if (!state.messages.length) {
       stack.innerHTML = renderEmptyPanel('No messages in this thread yet.');
@@ -433,6 +516,88 @@
 
     stack.innerHTML = state.messages.map(renderMessage).join('');
     if (nearBottom || forceRender) stack.scrollTop = stack.scrollHeight;
+  }
+
+  function renderOfferPanel(conversation) {
+    const wrap = document.getElementById('thread-offers');
+    const latestOffer = state.offers[0];
+    const acceptedTransaction = state.transactions.find(item => item.status === 'accepted' || item.status === 'facility_booked');
+
+    if (!latestOffer && !acceptedTransaction) {
+      wrap.innerHTML = '';
+      return;
+    }
+
+    const offerHtml = latestOffer ? renderOfferCard(latestOffer, conversation) : '';
+    const bookingHtml = acceptedTransaction && conversation.role === 'buyer'
+      ? renderBookingCard(acceptedTransaction)
+      : '';
+    wrap.innerHTML = `${offerHtml}${bookingHtml}`;
+
+    wrap.querySelectorAll('[data-offer-action]').forEach(button => {
+      button.addEventListener('click', () => respondToOffer(button));
+    });
+    const dropoff = document.getElementById('handover-dropoff-slot');
+    if (dropoff) dropoff.addEventListener('change', renderAcceptedCollectionSlots);
+    const bookingButton = document.getElementById('book-accepted-handover-btn');
+    if (bookingButton) {
+      bookingButton.addEventListener('click', bookAcceptedHandover);
+      loadAcceptedHandoverSlots();
+    }
+  }
+
+  function renderOfferCard(offer, conversation) {
+    const canRespond = conversation.role === 'seller' && offer.status === 'pending';
+    const amount = offer.amount === null ? 'Trade offer' : formatCurrency(offer.amount);
+    return `
+      <div class="offer-card">
+        <div class="offer-card-header">
+          <div>
+            <div class="offer-title">${escapeHtml(amount)}</div>
+            <div class="offer-meta">${escapeHtml(offer.note || 'No offer note added.')}</div>
+          </div>
+          <span class="offer-status ${escapeAttribute(offer.status)}">${escapeHtml(offer.status)}</span>
+        </div>
+        ${canRespond ? `
+          <div class="offer-actions">
+            <button class="btn btn-primary" type="button" data-offer-action="accepted" data-offer-id="${escapeAttribute(offer.id)}">Accept offer</button>
+            <button class="btn btn-secondary" type="button" data-offer-action="declined" data-offer-id="${escapeAttribute(offer.id)}">Decline</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function renderBookingCard(transaction) {
+    if (transaction.facilityBookingId) {
+      return `
+        <div class="booking-card-inline">
+          <div class="offer-title">Trade facility handover booked</div>
+          <div class="offer-meta">Staff can now manage this handover from the facility dashboard.</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="booking-card-inline">
+        <div>
+          <div class="offer-title">Book trade facility handover</div>
+          <div class="offer-meta">The seller accepted this offer. Choose the drop-off and collection slots.</div>
+        </div>
+        <div class="booking-slot-grid">
+          <div class="form-group">
+            <label class="form-label" for="handover-dropoff-slot">Drop-off slot</label>
+            <select class="form-input" id="handover-dropoff-slot"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="handover-collection-slot">Collection slot</label>
+            <select class="form-input" id="handover-collection-slot"></select>
+          </div>
+        </div>
+        <span class="form-error" id="handover-booking-error"></span>
+        <button class="btn btn-primary" id="book-accepted-handover-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">Book handover</button>
+      </div>
+    `;
   }
 
   async function submitMessage() {
@@ -473,6 +638,104 @@
     await loadConversations({ forceRender: true });
   }
 
+  async function respondToOffer(button) {
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Saving...';
+    const result = await Auth.updateOfferStatus({
+      offerId: button.dataset.offerId,
+      userId: state.user.id,
+      status: button.dataset.offerAction,
+    });
+    button.disabled = false;
+    button.textContent = originalText;
+
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+
+    showToast(button.dataset.offerAction === 'accepted' ? 'Offer accepted' : 'Offer declined', 'success');
+    await loadMessages(state.activeConversationId, false, { forceRender: true });
+    await loadConversations({ forceRender: true });
+  }
+
+  async function loadAcceptedHandoverSlots() {
+    const button = document.getElementById('book-accepted-handover-btn');
+    const error = document.getElementById('handover-booking-error');
+    if (!button) return;
+    button.disabled = true;
+    button.textContent = 'Loading slots...';
+    const result = await Auth.getFacilityAvailability();
+    if (result.error) {
+      error.textContent = result.error;
+      populateSlotSelect(document.getElementById('handover-dropoff-slot'), [], 'No drop-off slots available');
+      populateSlotSelect(document.getElementById('handover-collection-slot'), [], 'No collection slots available');
+      button.textContent = 'Book handover';
+      return;
+    }
+    state.facilityAvailability = result;
+    populateSlotSelect(document.getElementById('handover-dropoff-slot'), result.dropoffSlots || [], 'No drop-off slots available');
+    renderAcceptedCollectionSlots();
+    button.textContent = 'Book handover';
+  }
+
+  function renderAcceptedCollectionSlots() {
+    const availability = state.facilityAvailability || {};
+    const dropoffValue = document.getElementById('handover-dropoff-slot')?.value;
+    const dropoffTime = dropoffValue ? new Date(dropoffValue).getTime() : 0;
+    const collectionSlots = (availability.collectionSlots || []).filter(slot => {
+      return slot.available > 0 && (!dropoffTime || new Date(slot.startsAt).getTime() > dropoffTime);
+    });
+    populateSlotSelect(document.getElementById('handover-collection-slot'), collectionSlots, 'No later collection slots available');
+    const button = document.getElementById('book-accepted-handover-btn');
+    if (button) button.disabled = !dropoffValue || !collectionSlots.length;
+  }
+
+  function populateSlotSelect(select, slots, emptyLabel) {
+    if (!select) return;
+    const availableSlots = (slots || []).filter(slot => slot.available > 0);
+    select.innerHTML = availableSlots.length
+      ? availableSlots.slice(0, 30).map(slot => `<option value="${escapeAttribute(slot.startsAt)}">${escapeHtml(formatSlot(slot.startsAt))} (${slot.available} open)</option>`).join('')
+      : `<option value="">${escapeHtml(emptyLabel)}</option>`;
+    select.disabled = !availableSlots.length;
+  }
+
+  async function bookAcceptedHandover() {
+    const transaction = state.transactions.find(item => item.status === 'accepted' && !item.facilityBookingId);
+    const error = document.getElementById('handover-booking-error');
+    const button = document.getElementById('book-accepted-handover-btn');
+    const dropoffScheduledAt = document.getElementById('handover-dropoff-slot')?.value;
+    const collectionScheduledAt = document.getElementById('handover-collection-slot')?.value;
+    error.textContent = '';
+
+    if (!transaction || !dropoffScheduledAt || !collectionScheduledAt) {
+      error.textContent = 'Choose both a drop-off and collection slot.';
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Booking...';
+    const result = await Auth.createFacilityBooking({
+      transactionId: transaction.id,
+      listingId: transaction.listingId,
+      buyerId: state.user.id,
+      dropoffScheduledAt,
+      collectionScheduledAt,
+      note: `Booked from accepted offer ${transaction.offerId}`,
+    });
+    button.textContent = 'Book handover';
+
+    if (result.error) {
+      button.disabled = false;
+      error.textContent = result.error;
+      return;
+    }
+
+    showToast('Facility handover booked', 'success');
+    await loadMessages(state.activeConversationId, false, { forceRender: true });
+  }
+
   async function refreshActiveThread() {
     if (!state.user || !state.activeConversationId) return;
     await loadMessages(state.activeConversationId, true);
@@ -506,6 +769,24 @@
   function formatDateTime(value) {
     if (!value) return 'No activity yet';
     return new Intl.DateTimeFormat('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      maximumFractionDigits: 0,
+    }).format(value || 0);
+  }
+
+  function formatSlot(value) {
+    return new Intl.DateTimeFormat('en-ZA', {
+      weekday: 'short',
       day: 'numeric',
       month: 'short',
       hour: '2-digit',

@@ -835,11 +835,17 @@
       document.querySelectorAll('[data-buyer-action]').forEach(btn => btn.disabled = true);
       this.textContent = 'Sending...';
 
-      const result = await Auth.startConversation({
-        listingId: state.selectedListing.id,
-        buyerId: state.user.id,
-        initialMessage: action === 'offer' ? `Offer: ${text}` : text,
-      });
+      const result = action === 'offer'
+        ? await Auth.startOffer({
+            listingId: state.selectedListing.id,
+            buyerId: state.user.id,
+            offerText: text,
+          })
+        : await Auth.startConversation({
+            listingId: state.selectedListing.id,
+            buyerId: state.user.id,
+            initialMessage: text,
+          });
 
       document.querySelectorAll('[data-buyer-action]').forEach(btn => btn.disabled = false);
       this.textContent = originalText;
@@ -849,7 +855,7 @@
         return;
       }
 
-      showToast('Conversation started', 'success');
+      showToast(action === 'offer' ? 'Offer sent' : 'Conversation started', 'success');
       window.location.href = `messages.html?conversation=${encodeURIComponent(result.conversation.id)}`;
     });
   });

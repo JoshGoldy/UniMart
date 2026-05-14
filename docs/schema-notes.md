@@ -58,6 +58,8 @@
 
 **booking\_id uuid PK default gen\_random\_uuid()**
 
+**transaction\_id uuid FK -> transactions.transaction\_id**
+
 **listing\_id uuid FK -> listings.listing\_id**
 
 **seller\_id uuid FK -> auth.users.id**
@@ -69,3 +71,43 @@
 **collection\_scheduled\_at timestamptz**
 
 **status text default "pending_dropoff" -- "pending_dropoff" | "received" | "ready_for_collection" | "released" | "cancelled"**
+
+**## offers**
+
+**offer\_id uuid PK default gen\_random\_uuid()**
+
+**conversation\_id uuid FK -> conversations.conversation\_id**
+
+**listing\_id uuid FK -> listings.listing\_id**
+
+**buyer\_id uuid FK -> auth.users.id**
+
+**seller\_id uuid FK -> auth.users.id**
+
+**offer\_type text -- "purchase" | "trade"**
+
+**amount numeric nullable**
+
+**note text**
+
+**status text default "pending" -- "pending" | "accepted" | "declined" | "cancelled"**
+
+**## transactions**
+
+**transaction\_id uuid PK default gen\_random\_uuid()**
+
+**offer\_id uuid FK -> offers.offer\_id**
+
+**conversation\_id uuid FK -> conversations.conversation\_id**
+
+**listing\_id uuid FK -> listings.listing\_id**
+
+**buyer\_id uuid FK -> auth.users.id**
+
+**seller\_id uuid FK -> auth.users.id**
+
+**amount numeric nullable**
+
+**status text default "accepted" -- "accepted" | "facility_booked" | "completed" | "cancelled"**
+
+**facility\_booking\_id uuid FK -> facility\_bookings.booking\_id**

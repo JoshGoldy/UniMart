@@ -525,6 +525,93 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
   return { success: true, conversation: { ...conversation, id: _conversationId(conversation) } };
 }
 
+function _parseOfferAmount(text = '') {
+  const match = String(text).replace(/,/g, '').match(/(?:r|zar)?\s*(\d+(?:\.\d{1,2})?)/i);
+  return match ? Number(match[1]) : null;
+}
+
+function toOffer(row = {}) {
+  return {
+    id: row.offer_id || row.id,
+    conversationId: row.conversation_id,
+    listingId: row.listing_id,
+    buyerId: row.buyer_id,
+    sellerId: row.seller_id,
+    offerType: row.offer_type || 'purchase',
+    amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
+    note: row.note || '',
+    status: row.status || 'pending',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toTransaction(row = {}) {
+  return {
+    id: row.transaction_id || row.id,
+    offerId: row.offer_id,
+    conversationId: row.conversation_id,
+    listingId: row.listing_id,
+    buyerId: row.buyer_id,
+    sellerId: row.seller_id,
+    amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
+    status: row.status || 'accepted',
+    facilityBookingId: row.facility_booking_id || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function _getConversationById(conversationId) {
+  let result = await _sb
+    .from('conversations')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .maybeSingle();
+
+  if (result.error && /conversation_id/i.test(result.error.message || '')) {
+    result = await _sb
+      .from('conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .maybeSingle();
+  }
+
+  return result;
+}
+
+export async function startOffer({ listingId, buyerId, offerText }) {
+  const conversationResult = await startConversation({
+    listingId,
+    buyerId,
+    initialMessage: `Offer: ${offerText}`,
+  });
+  if (conversationResult.error) return conversationResult;
+
+  const conversation = conversationResult.conversation;
+  const conversationId = _conversationId(conversation);
+  const amount = _parseOfferAmount(offerText);
+  const offerType = amount === null ? 'trade' : 'purchase';
+
+  const { data, error } = await _sb
+    .from('offers')
+    .insert({
+      conversation_id: conversationId,
+      listing_id: conversation.listing_id,
+      buyer_id: conversation.buyer_id,
+      seller_id: conversation.seller_id,
+      offer_type: offerType,
+      amount,
+      note: offerText,
+      status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { success: true, conversation: { ...conversation, id: conversationId }, offer: toOffer(data) };
+}
+
 function _uniqueValues(values = []) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -653,19 +740,7 @@ export async function getConversations(userId) {
 }
 
 export async function getConversationMessages({ conversationId, userId, markRead = false }) {
-  let convResult = await _sb
-    .from('conversations')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .maybeSingle();
-
-  if (convResult.error && /conversation_id/i.test(convResult.error.message || '')) {
-    convResult = await _sb
-      .from('conversations')
-      .select('*')
-      .eq('id', conversationId)
-      .maybeSingle();
-  }
+  let convResult = await _getConversationById(conversationId);
 
   if (convResult.error) return { error: convResult.error.message };
   const conversationRow = convResult.data;
@@ -690,9 +765,23 @@ export async function getConversationMessages({ conversationId, userId, markRead
 
   if (error) return { error: error.message };
 
+  const offersResult = await _sb
+    .from('offers')
+    .select('*')
+    .eq('conversation_id', resolvedConversationId)
+    .order('created_at', { ascending: false });
+
+  const transactionsResult = await _sb
+    .from('transactions')
+    .select('*')
+    .eq('conversation_id', resolvedConversationId)
+    .order('created_at', { ascending: false });
+
   const [conversation] = await _hydrateConversations([conversationRow], userId);
   return {
     conversation,
+    offers: offersResult.error ? [] : (offersResult.data || []).map(toOffer),
+    transactions: transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction),
     messages: (data || []).map(message => ({
       id: message.message_id || message.id,
       conversationId: message.conversation_id,
@@ -702,6 +791,63 @@ export async function getConversationMessages({ conversationId, userId, markRead
       readAt: message.read_at,
     })),
   };
+}
+
+export async function updateOfferStatus({ offerId, userId, status }) {
+  if (!['accepted', 'declined'].includes(status)) return { error: 'Unknown offer action.' };
+
+  const { data: offerRow, error: offerError } = await _sb
+    .from('offers')
+    .select('*')
+    .eq('offer_id', offerId)
+    .maybeSingle();
+  if (offerError) return { error: offerError.message };
+  if (!offerRow) return { error: 'Offer not found.' };
+  if (offerRow.seller_id !== userId) return { error: 'Only the seller can respond to this offer.' };
+  if (offerRow.status !== 'pending') return { error: 'This offer has already been handled.' };
+
+  const now = new Date().toISOString();
+  const { data: updatedOffer, error: updateError } = await _sb
+    .from('offers')
+    .update({ status, responded_at: now, updated_at: now })
+    .eq('offer_id', offerId)
+    .select()
+    .single();
+  if (updateError) return { error: updateError.message };
+
+  let transaction = null;
+  if (status === 'accepted') {
+    await _sb
+      .from('offers')
+      .update({ status: 'declined', updated_at: now })
+      .eq('conversation_id', offerRow.conversation_id)
+      .neq('offer_id', offerId)
+      .eq('status', 'pending');
+
+    const inserted = await _sb
+      .from('transactions')
+      .insert({
+        offer_id: offerRow.offer_id,
+        conversation_id: offerRow.conversation_id,
+        listing_id: offerRow.listing_id,
+        buyer_id: offerRow.buyer_id,
+        seller_id: offerRow.seller_id,
+        amount: offerRow.amount,
+        status: 'accepted',
+      })
+      .select()
+      .single();
+    if (inserted.error) return { error: inserted.error.message };
+    transaction = toTransaction(inserted.data);
+  }
+
+  await sendMessage({
+    conversationId: offerRow.conversation_id,
+    senderId: userId,
+    body: status === 'accepted' ? 'Offer accepted. You can now book the trade facility handover.' : 'Offer declined.',
+  });
+
+  return { success: true, offer: toOffer(updatedOffer), transaction };
 }
 
 export async function sendMessage({ conversationId, senderId, body }) {
@@ -1021,7 +1167,8 @@ export async function updateFacilityConfig({ opensAt, closesAt, slotMinutes, slo
   return { success: true };
 }
 
-export async function createFacilityBooking({ listingId, buyerId, dropoffScheduledAt, collectionScheduledAt, note } = {}) {
+export async function createFacilityBooking({ transactionId, listingId, buyerId, dropoffScheduledAt, collectionScheduledAt, note } = {}) {
+  if (!transactionId) return { error: 'An accepted offer is required before booking the trade facility.' };
   if (!listingId || !buyerId) return { error: 'Missing listing or buyer details.' };
   if (!dropoffScheduledAt || !collectionScheduledAt) return { error: 'Choose both a drop-off and collection slot.' };
 
@@ -1053,6 +1200,7 @@ export async function createFacilityBooking({ listingId, buyerId, dropoffSchedul
   const { data, error } = await _sb
     .from('facility_bookings')
     .insert({
+      transaction_id: transactionId,
       listing_id: mappedListing.id,
       seller_id: mappedListing.sellerId,
       buyer_id: buyerId,
@@ -1064,6 +1212,12 @@ export async function createFacilityBooking({ listingId, buyerId, dropoffSchedul
     .select()
     .single();
   if (error) return { error: error.message };
+  if (transactionId) {
+    await _sb
+      .from('transactions')
+      .update({ facility_booking_id: data.booking_id || data.id, status: 'facility_booked', updated_at: new Date().toISOString() })
+      .eq('transaction_id', transactionId);
+  }
   return { success: true, booking: _toFacilityBooking(data, new Map([[mappedListing.id, mappedListing]])) };
 }
 
@@ -1147,9 +1301,11 @@ export const Auth = {
   uploadListingImage,
   getListingDashboard,
   startConversation,
+  startOffer,
   getConversations,
   getConversationMessages,
   sendMessage,
+  updateOfferStatus,
   getRolePermissions,
   updateRolePermission,
   updateUserRole,
