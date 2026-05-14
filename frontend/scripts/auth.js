@@ -1420,7 +1420,6 @@ export async function createFacilityBooking({ transactionId, listingId, buyerId,
       buyer_id: buyerId,
       dropoff_scheduled_at: dropoff.toISOString(),
       collection_scheduled_at: collection.toISOString(),
-      status: 'pending_dropoff',
     })
     .select()
     .single();

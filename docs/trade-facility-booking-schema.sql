@@ -39,9 +39,16 @@ create table if not exists public.facility_bookings (
   constraint facility_bookings_schedule_check check (collection_scheduled_at > dropoff_scheduled_at)
 );
 
+alter table public.facility_bookings
+drop constraint if exists facility_bookings_status_check;
+
+alter table public.facility_bookings
+add constraint facility_bookings_status_check
+check (status in ('pending_dropoff', 'pending', 'scheduled', 'received', 'ready_for_collection', 'released', 'completed', 'cancelled'));
+
 create unique index if not exists facility_bookings_one_active_per_buyer_listing
 on public.facility_bookings (listing_id, buyer_id)
-where status in ('pending_dropoff', 'received', 'ready_for_collection');
+where status in ('pending_dropoff', 'pending', 'scheduled', 'received', 'ready_for_collection');
 
 create index if not exists facility_bookings_dropoff_idx on public.facility_bookings(dropoff_scheduled_at);
 create index if not exists facility_bookings_collection_idx on public.facility_bookings(collection_scheduled_at);
