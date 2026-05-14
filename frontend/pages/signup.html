@@ -172,8 +172,6 @@
             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
           </div>
  
           <div class="form-error" id="otp-error" style="text-align:center; font-size:.85rem; margin-top:4px;"></div>
@@ -341,6 +339,11 @@
       btn.disabled = false;
  
       if (result.error) { showError('signup-error', result.error); return; }
+
+      if (!result.requiresEmailVerification) {
+        showStep('success');
+        return;
+      }
  
       pendingEmail = email;
       document.getElementById('verify-email-display').textContent = email;
@@ -387,9 +390,9 @@
       });
       input.addEventListener('paste', function (e) {
         e.preventDefault();
-        const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8);
+        const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
         text.split('').forEach((ch, j) => { if (otpInputs[j]) otpInputs[j].value = ch; });
-        const next = otpInputs[Math.min(text.length, 7)];
+        const next = otpInputs[Math.min(text.length, 5)];
         if (next) next.focus();
       });
     });
@@ -398,7 +401,7 @@
     document.getElementById('verify-form').addEventListener('submit', async function (e) {
       e.preventDefault();
       const code = Array.from(otpInputs).map(i => i.value).join('');
-      if (code.length < 8) { showError('otp-error', 'Please enter all 8 digits.'); return; }
+      if (code.length < 6) { showError('otp-error', 'Please enter all 6 digits.'); return; }
  
       const btn = document.getElementById('verify-btn');
       btn.textContent = 'Verifying…';

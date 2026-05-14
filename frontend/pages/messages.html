@@ -240,7 +240,8 @@
     }
 
     .offer-actions,
-    .booking-slot-grid {
+    .booking-slot-grid,
+    .review-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -248,6 +249,27 @@
 
     .booking-slot-grid > .form-group {
       flex: 1 1 180px;
+    }
+
+    .review-card-inline {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: #fff;
+      display: grid;
+      gap: 10px;
+    }
+
+    .review-rating-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.35fr) minmax(0, 0.65fr);
+      gap: 10px;
+    }
+
+    .review-stars {
+      color: #b27b1a;
+      font-weight: 800;
+      letter-spacing: 1px;
     }
 
     @media (max-width: 900px) {
@@ -376,6 +398,7 @@
     messages: [],
     offers: [],
     transactions: [],
+    reviews: [],
     facilityAvailability: null,
     messageSignature: '',
     conversationSignature: '',
@@ -494,9 +517,11 @@
     const messages = result.messages || [];
     const offers = result.offers || [];
     const transactions = result.transactions || [];
+    const reviews = result.reviews || [];
     const offerSignature = offers.map(offer => `${offer.id}:${offer.status}:${offer.updatedAt || ''}`).join('|');
     const transactionSignature = transactions.map(transaction => `${transaction.id}:${transaction.status}:${transaction.facilityBookingId || ''}`).join('|');
-    const nextSignature = `${messages.map(message => `${message.id}:${message.createdAt}:${message.readAt || ''}`).join('|')}::${offerSignature}::${transactionSignature}`;
+    const reviewSignature = reviews.map(review => `${review.id}:${review.rating}:${review.status}:${review.createdAt || ''}`).join('|');
+    const nextSignature = `${messages.map(message => `${message.id}:${message.createdAt}:${message.readAt || ''}`).join('|')}::${offerSignature}::${transactionSignature}::${reviewSignature}`;
     document.getElementById('thread-title').textContent = result.conversation.listingTitle;
     document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${result.conversation.otherDisplayName || shortId(result.conversation.otherUserId)}`;
 
@@ -506,6 +531,7 @@
     state.messages = messages;
     state.offers = offers;
     state.transactions = transactions;
+    state.reviews = reviews;
     state.messageSignature = nextSignature;
     renderOfferPanel(result.conversation);
 
@@ -521,7 +547,7 @@
   function renderOfferPanel(conversation) {
     const wrap = document.getElementById('thread-offers');
     const latestOffer = state.offers[0];
-    const acceptedTransaction = state.transactions.find(item => item.status === 'accepted' || item.status === 'facility_booked');
+    const acceptedTransaction = state.transactions.find(item => ['accepted', 'facility_booked', 'completed'].includes(item.status));
 
     if (!latestOffer && !acceptedTransaction) {
       wrap.innerHTML = '';
@@ -532,7 +558,10 @@
     const bookingHtml = acceptedTransaction && conversation.role === 'buyer'
       ? renderBookingCard(acceptedTransaction)
       : '';
-    wrap.innerHTML = `${offerHtml}${bookingHtml}`;
+    const reviewHtml = acceptedTransaction && ['facility_booked', 'completed'].includes(acceptedTransaction.status)
+      ? renderReviewCard(acceptedTransaction, conversation)
+      : '';
+    wrap.innerHTML = `${offerHtml}${bookingHtml}${reviewHtml}`;
 
     wrap.querySelectorAll('[data-offer-action]').forEach(button => {
       button.addEventListener('click', () => respondToOffer(button));
@@ -544,6 +573,11 @@
       bookingButton.addEventListener('click', bookAcceptedHandover);
       loadAcceptedHandoverSlots();
     }
+    const reviewButton = document.getElementById('submit-review-btn');
+    if (reviewButton) reviewButton.addEventListener('click', submitReview);
+    wrap.querySelectorAll('[data-report-review]').forEach(button => {
+      button.addEventListener('click', () => reportReview(button.dataset.reportReview));
+    });
   }
 
   function renderOfferCard(offer, conversation) {
@@ -596,6 +630,55 @@
         </div>
         <span class="form-error" id="handover-booking-error"></span>
         <button class="btn btn-primary" id="book-accepted-handover-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">Book handover</button>
+      </div>
+    `;
+  }
+
+  function renderReviewCard(transaction, conversation) {
+    const revieweeId = state.user.id === transaction.buyerId ? transaction.sellerId : transaction.buyerId;
+    const existingReview = state.reviews.find(review => review.transactionId === transaction.id && review.reviewerId === state.user.id);
+    const receivedReview = state.reviews.find(review => review.transactionId === transaction.id && review.revieweeId === state.user.id && review.status === 'visible');
+
+    return `
+      <div class="review-card-inline">
+        <div>
+          <div class="offer-title">Rate this handover</div>
+          <div class="offer-meta">Reviews help students know who they can trust for future trades.</div>
+        </div>
+        ${existingReview ? `
+          <div class="offer-meta">
+            Your review: <span class="review-stars">${escapeHtml(formatRating(existingReview.rating))}</span>
+            ${existingReview.body ? ` - ${escapeHtml(existingReview.body)}` : ''}
+          </div>
+        ` : `
+          <div class="review-rating-row">
+            <div class="form-group">
+              <label class="form-label" for="review-rating">Rating</label>
+              <select class="form-input" id="review-rating">
+                <option value="5">5 stars</option>
+                <option value="4">4 stars</option>
+                <option value="3">3 stars</option>
+                <option value="2">2 stars</option>
+                <option value="1">1 star</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="review-body">Review</label>
+              <textarea class="form-input" id="review-body" rows="2" placeholder="How did the handover go?"></textarea>
+            </div>
+          </div>
+          <span class="form-error" id="review-error"></span>
+          <div class="review-actions">
+            <button class="btn btn-primary" id="submit-review-btn" data-transaction-id="${escapeAttribute(transaction.id)}" data-reviewee-id="${escapeAttribute(revieweeId)}" type="button">Submit review</button>
+          </div>
+        `}
+        ${receivedReview ? `
+          <div class="offer-meta">
+            Review received: <span class="review-stars">${escapeHtml(formatRating(receivedReview.rating))}</span>
+            ${receivedReview.body ? ` - ${escapeHtml(receivedReview.body)}` : ''}
+            <button class="btn btn-secondary" type="button" data-report-review="${escapeAttribute(receivedReview.id)}">Report review</button>
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -736,6 +819,55 @@
     await loadMessages(state.activeConversationId, false, { forceRender: true });
   }
 
+  async function submitReview() {
+    const button = document.getElementById('submit-review-btn');
+    const error = document.getElementById('review-error');
+    const transaction = state.transactions.find(item => item.id === button?.dataset.transactionId);
+    if (!button || !transaction) return;
+
+    error.textContent = '';
+    button.disabled = true;
+    button.textContent = 'Submitting...';
+
+    const result = await Auth.createReview({
+      transactionId: transaction.id,
+      reviewerId: state.user.id,
+      revieweeId: button.dataset.revieweeId,
+      listingId: transaction.listingId,
+      rating: document.getElementById('review-rating')?.value,
+      body: document.getElementById('review-body')?.value.trim(),
+    });
+
+    button.disabled = false;
+    button.textContent = 'Submit review';
+
+    if (result.error) {
+      error.textContent = result.error;
+      return;
+    }
+
+    showToast('Review submitted', 'success');
+    await loadMessages(state.activeConversationId, false, { forceRender: true });
+  }
+
+  async function reportReview(reviewId) {
+    const reason = window.prompt('Why are you reporting this review?');
+    if (!reason || !reason.trim()) return;
+    const review = state.reviews.find(item => item.id === reviewId);
+    const result = await Auth.reportContent({
+      reporterId: state.user.id,
+      targetType: 'review',
+      targetId: reviewId,
+      listingId: review?.listingId || null,
+      reason: reason.trim(),
+    });
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    showToast('Review reported', 'success');
+  }
+
   async function refreshActiveThread() {
     if (!state.user || !state.activeConversationId) return;
     await loadMessages(state.activeConversationId, true);
@@ -792,6 +924,11 @@
       hour: '2-digit',
       minute: '2-digit',
     }).format(new Date(value));
+  }
+
+  function formatRating(rating) {
+    const count = Math.max(0, Math.min(5, Number(rating) || 0));
+    return `${count}/5`;
   }
 
   function escapeHtml(value) {

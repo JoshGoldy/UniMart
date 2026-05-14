@@ -111,3 +111,51 @@
 **status text default "accepted" -- "accepted" | "facility_booked" | "completed" | "cancelled"**
 
 **facility\_booking\_id uuid FK -> facility\_bookings.booking\_id**
+
+**## reviews**
+
+**review\_id uuid PK default gen\_random\_uuid()**
+
+**transaction\_id uuid FK -> transactions.transaction\_id**
+
+**reviewer\_id uuid FK -> auth.users.id**
+
+**reviewee\_id uuid FK -> auth.users.id**
+
+**listing\_id uuid FK -> listings.listing\_id**
+
+**rating integer -- 1 to 5**
+
+**body text**
+
+**status text default "visible" -- "visible" | "hidden" | "removed"**
+
+**## content\_reports**
+
+**report\_id uuid PK default gen\_random\_uuid()**
+
+**reporter\_id uuid FK -> auth.users.id**
+
+**target\_type text -- "listing" | "review"**
+
+**target\_id uuid**
+
+**listing\_id uuid nullable FK -> listings.listing\_id**
+
+**reason text**
+
+**status text default "open" -- "open" | "reviewing" | "resolved" | "dismissed"**
+
+**## moderation\_actions**
+
+**action\_id uuid PK default gen\_random\_uuid()**
+
+**admin\_id uuid nullable FK -> auth.users.id**
+
+**action text**
+
+**target\_type text**
+
+**target\_id uuid nullable**
+
+**note text**

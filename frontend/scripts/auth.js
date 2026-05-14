@@ -121,7 +121,7 @@ export async function signUp({ fullName, email, password, accountType, userRole 
   const cleanAccountType = cleanRole === 'student' && ['buyer', 'seller', 'seller_buyer'].includes(accountType)
     ? accountType
     : 'buyer';
-  const { error } = await _sb.auth.signUp({
+  const { data, error } = await _sb.auth.signUp({
     email,
     password,
     options: {
@@ -137,7 +137,7 @@ export async function signUp({ fullName, email, password, accountType, userRole 
     }
   });
   if (error) return { error: error.message };
-  return { success: true };
+  return { success: true, requiresEmailVerification: !data?.session };
 }
 
 export async function resendSignupOTP(email) {
@@ -362,6 +362,8 @@ function toListing(row = {}) {
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
     sellerDisplayName: seller.full_name || seller.username || seller.email || row.seller_display_name || null,
+    sellerRatingAverage: row.seller_rating_average === undefined ? null : Number(row.seller_rating_average),
+    sellerReviewCount: Number(row.seller_review_count) || 0,
   };
 }
 
@@ -429,9 +431,9 @@ export async function getMarketplaceListings() {
   if (error) {
     const fallback = await _sb.from('listings').select('*').eq('status', 'active').order('created_at', { ascending: false });
     if (fallback.error) return { error: fallback.error.message };
-    return { listings: (fallback.data || []).map(toListing) };
+    return { listings: await attachSellerRatings((fallback.data || []).map(toListing)) };
   }
-  return { listings: (data || []).map(toListing) };
+  return { listings: await attachSellerRatings((data || []).map(toListing)) };
 }
 
 export async function getMyListings(sellerId) {
@@ -600,6 +602,76 @@ function toTransaction(row = {}) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function toReview(row = {}) {
+  return {
+    id: row.review_id || row.id,
+    transactionId: row.transaction_id,
+    reviewerId: row.reviewer_id,
+    revieweeId: row.reviewee_id,
+    listingId: row.listing_id,
+    rating: Number(row.rating) || 0,
+    body: row.body || '',
+    status: row.status || 'visible',
+    createdAt: row.created_at,
+  };
+}
+
+function toContentReport(row = {}) {
+  return {
+    id: row.report_id || row.id,
+    reporterId: row.reporter_id,
+    targetType: row.target_type || row.targetType || 'listing',
+    targetId: row.target_id || row.targetId,
+    listingId: row.listing_id || row.listingId || (row.target_type === 'listing' ? row.target_id : null),
+    reason: row.reason || '',
+    status: row.status || 'open',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toModerationAction(row = {}) {
+  return {
+    id: row.action_id || row.id,
+    adminId: row.admin_id,
+    action: row.action || '',
+    targetType: row.target_type || '',
+    targetId: row.target_id,
+    note: row.note || '',
+    createdAt: row.created_at,
+  };
+}
+
+async function attachSellerRatings(listings) {
+  const sellerIds = [...new Set((listings || []).map(listing => listing.sellerId).filter(Boolean))];
+  if (!sellerIds.length) return listings || [];
+
+  const { data, error } = await _sb
+    .from('reviews')
+    .select('reviewee_id,rating')
+    .eq('status', 'visible')
+    .in('reviewee_id', sellerIds);
+  if (error) return listings || [];
+
+  const totals = (data || []).reduce((map, row) => {
+    const key = row.reviewee_id;
+    if (!map[key]) map[key] = { total: 0, count: 0 };
+    map[key].total += Number(row.rating) || 0;
+    map[key].count += 1;
+    return map;
+  }, {});
+
+  return (listings || []).map(listing => {
+    const rating = totals[listing.sellerId];
+    if (!rating) return listing;
+    return {
+      ...listing,
+      sellerRatingAverage: rating.total / rating.count,
+      sellerReviewCount: rating.count,
+    };
+  });
 }
 
 async function _getConversationById(conversationId) {
@@ -817,11 +889,22 @@ export async function getConversationMessages({ conversationId, userId, markRead
     .eq('conversation_id', resolvedConversationId)
     .order('created_at', { ascending: false });
 
+  const transactions = transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction);
+  const transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
+  const reviewsResult = transactionIds.length
+    ? await _sb
+        .from('reviews')
+        .select('*')
+        .in('transaction_id', transactionIds)
+        .order('created_at', { ascending: false })
+    : { data: [], error: null };
+
   const [conversation] = await _hydrateConversations([conversationRow], userId);
   return {
     conversation,
     offers: offersResult.error ? [] : (offersResult.data || []).map(toOffer),
-    transactions: transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction),
+    transactions,
+    reviews: reviewsResult.error ? [] : (reviewsResult.data || []).map(toReview),
     messages: (data || []).map(message => ({
       id: message.message_id || message.id,
       conversationId: message.conversation_id,
@@ -888,6 +971,48 @@ export async function updateOfferStatus({ offerId, userId, status }) {
   });
 
   return { success: true, offer: toOffer(updatedOffer), transaction };
+}
+
+export async function createReview({ transactionId, reviewerId, revieweeId, listingId, rating, body } = {}) {
+  const cleanRating = Number(rating);
+  if (!transactionId || !reviewerId || !revieweeId || !listingId) return { error: 'Missing review details.' };
+  if (!Number.isInteger(cleanRating) || cleanRating < 1 || cleanRating > 5) return { error: 'Rating must be between 1 and 5.' };
+
+  const { data, error } = await _sb
+    .from('reviews')
+    .upsert({
+      transaction_id: transactionId,
+      reviewer_id: reviewerId,
+      reviewee_id: revieweeId,
+      listing_id: listingId,
+      rating: cleanRating,
+      body: body || null,
+      status: 'visible',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'transaction_id,reviewer_id,reviewee_id' })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { success: true, review: toReview(data) };
+}
+
+export async function reportContent({ reporterId, targetType, targetId, listingId, reason } = {}) {
+  const cleanTargetType = ['listing', 'review'].includes(targetType) ? targetType : 'listing';
+  if (!reporterId || !targetId || !reason) return { error: 'Choose what you are reporting and add a reason.' };
+  const { data, error } = await _sb
+    .from('content_reports')
+    .insert({
+      reporter_id: reporterId,
+      target_type: cleanTargetType,
+      target_id: targetId,
+      listing_id: listingId || (cleanTargetType === 'listing' ? targetId : null),
+      reason,
+      status: 'open',
+    })
+    .select()
+    .single();
+  if (error) return { error: error.message };
+  return { success: true, report: toContentReport(data) };
 }
 
 export async function sendMessage({ conversationId, senderId, body }) {
@@ -961,34 +1086,83 @@ async function _loadFacilityConfig() {
 }
 
 export async function getAdminOverview() {
-  const [usersRes, listingsRes, permsRes, facilityConfigRes] = await Promise.all([
+  const [usersRes, listingsRes, permsRes, facilityConfigRes, reportsRes, actionsRes] = await Promise.all([
     _sb.from('users').select('*').order('full_name'),
     _sb.from('listings').select('*').order('created_at', { ascending: false }).limit(20),
     _sb.from('role_permissions').select('*'),
     _loadFacilityConfig(),
+    _sb.from('content_reports').select('*').order('created_at', { ascending: false }).limit(50),
+    _sb.from('moderation_actions').select('*').order('created_at', { ascending: false }).limit(50),
   ]);
   if (usersRes.error) return { error: usersRes.error.message };
   const users = (usersRes.data || []).map(toUser);
   const listings = (listingsRes.data || []).map(toListing);
+  const reports = reportsRes.error ? [] : (reportsRes.data || []).map(toContentReport);
+  const actions = actionsRes.error ? [] : (actionsRes.data || []).map(toModerationAction);
   return {
     metrics: {
       users: users.length,
       activeListings: listings.filter(item => item.status === 'active').length,
-      openReports: 0,
-      moderationActions: 0,
+      openReports: reports.filter(item => ['open', 'reviewing'].includes(item.status)).length,
+      moderationActions: actions.length,
     },
     users,
     recentListings: listings,
-    reports: [],
-    moderationActions: [],
+    reports,
+    moderationActions: actions,
     rolePermissions: permsRes.data || [],
     facilityConfig: facilityConfigRes.config || DEFAULT_FACILITY_CONFIG,
   };
 }
 
-export async function removeListingAsAdmin({ listingId }) { return deleteListing({ listingId }); }
-export async function removeReviewAsAdmin() { return { success: true }; }
-export async function updateContentReport() { return { success: true }; }
+async function _recordModerationAction({ adminId, action, targetType, targetId, note }) {
+  const { error } = await _sb.from('moderation_actions').insert({
+    admin_id: adminId || null,
+    action,
+    target_type: targetType,
+    target_id: targetId,
+    note: note || null,
+  });
+  if (error) console.warn('Failed to record moderation action:', error.message);
+}
+
+export async function removeListingAsAdmin({ listingId, adminId, note }) {
+  const { error } = await updateListingById(listingId, { status: 'archived' });
+  if (error) return { error: error.message };
+  await _sb
+    .from('content_reports')
+    .update({ status: 'resolved', updated_at: new Date().toISOString() })
+    .eq('target_type', 'listing')
+    .eq('target_id', listingId);
+  await _recordModerationAction({ adminId, action: 'removed_listing', targetType: 'listing', targetId: listingId, note });
+  return { success: true };
+}
+
+export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
+  const { error } = await _sb
+    .from('reviews')
+    .update({ status: 'removed', updated_at: new Date().toISOString() })
+    .eq('review_id', reviewId);
+  if (error) return { error: error.message };
+  await _sb
+    .from('content_reports')
+    .update({ status: 'resolved', updated_at: new Date().toISOString() })
+    .eq('target_type', 'review')
+    .eq('target_id', reviewId);
+  await _recordModerationAction({ adminId, action: 'removed_review', targetType: 'review', targetId: reviewId, note });
+  return { success: true };
+}
+
+export async function updateContentReport({ reportId, adminId, status, note } = {}) {
+  const cleanStatus = ['open', 'reviewing', 'resolved', 'dismissed'].includes(status) ? status : 'reviewing';
+  const { error } = await _sb
+    .from('content_reports')
+    .update({ status: cleanStatus, updated_at: new Date().toISOString() })
+    .eq('report_id', reportId);
+  if (error) return { error: error.message };
+  await _recordModerationAction({ adminId, action: 'updated_report_status', targetType: 'report', targetId: reportId, note });
+  return { success: true };
+}
 
 
 const FACILITY_BOOKING_TABLES = [
@@ -1348,6 +1522,8 @@ export const Auth = {
   getConversationMessages,
   sendMessage,
   updateOfferStatus,
+  createReview,
+  reportContent,
   getRolePermissions,
   updateRolePermission,
   updateUserRole,
