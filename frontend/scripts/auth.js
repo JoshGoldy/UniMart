@@ -1381,7 +1381,7 @@ export async function updateFacilityConfig({ opensAt, closesAt, slotMinutes, slo
   return { success: true };
 }
 
-export async function createFacilityBooking({ transactionId, listingId, buyerId, dropoffScheduledAt, collectionScheduledAt, note } = {}) {
+export async function createFacilityBooking({ transactionId, listingId, buyerId, dropoffScheduledAt, collectionScheduledAt } = {}) {
   if (!transactionId) return { error: 'An accepted offer is required before booking the trade facility.' };
   if (!listingId || !buyerId) return { error: 'Missing listing or buyer details.' };
   if (!dropoffScheduledAt || !collectionScheduledAt) return { error: 'Choose both a drop-off and collection slot.' };
@@ -1421,7 +1421,6 @@ export async function createFacilityBooking({ transactionId, listingId, buyerId,
       dropoff_scheduled_at: dropoff.toISOString(),
       collection_scheduled_at: collection.toISOString(),
       status: 'pending_dropoff',
-      note: note || null,
     })
     .select()
     .single();
