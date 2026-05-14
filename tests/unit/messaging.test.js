@@ -54,6 +54,7 @@ describe('messaging conversations', () => {
     });
 
     expect(result.success).toBe(true);
+    expect(result.conversation.id).toBe('conversation-1');
     expect(inserts).toEqual(expect.arrayContaining([
       expect.objectContaining({
         table: 'conversations',

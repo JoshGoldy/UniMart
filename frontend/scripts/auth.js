@@ -495,7 +495,7 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
 
   const sent = await sendMessage({ conversationId: _conversationId(conversation), senderId: buyerId, body: initialMessage });
   if (sent.error) return sent;
-  return { success: true, conversation };
+  return { success: true, conversation: { ...conversation, id: _conversationId(conversation) } };
 }
 
 function _uniqueValues(values = []) {

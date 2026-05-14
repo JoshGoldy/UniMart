@@ -299,12 +299,18 @@
   const state = {
     user: null,
     conversations: [],
-    activeConversationId: new URLSearchParams(window.location.search).get('conversation'),
+    activeConversationId: getInitialConversationId(),
     messages: [],
     messageSignature: '',
     conversationSignature: '',
     refreshTimer: null,
   };
+
+  function getInitialConversationId() {
+    const value = new URLSearchParams(window.location.search).get('conversation');
+    if (!value || value === 'undefined' || value === 'null') return null;
+    return value;
+  }
 
   initPage().then(user => {
     if (!user) return;
@@ -381,6 +387,7 @@
   }
 
   async function openConversation(conversationId) {
+    if (!conversationId || conversationId === 'undefined' || conversationId === 'null') return;
     state.activeConversationId = conversationId;
     const conversation = state.conversations.find(item => item.id === conversationId);
     if (conversation) {
