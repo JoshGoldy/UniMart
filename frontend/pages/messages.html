@@ -555,7 +555,7 @@
     }
 
     const offerHtml = latestOffer ? renderOfferCard(latestOffer, conversation) : '';
-    const bookingHtml = acceptedTransaction && conversation.role === 'buyer'
+    const bookingHtml = acceptedTransaction && state.user.id === acceptedTransaction.buyerId
       ? renderBookingCard(acceptedTransaction)
       : '';
     const reviewHtml = acceptedTransaction && ['facility_booked', 'completed'].includes(acceptedTransaction.status)
@@ -581,7 +581,8 @@
   }
 
   function renderOfferCard(offer, conversation) {
-    const canRespond = conversation.role === 'seller' && offer.status === 'pending';
+    const canRespond = state.user.id === offer.sellerId && offer.status === 'pending';
+    const isBuyer = state.user.id === offer.buyerId;
     const amount = offer.amount === null ? 'Trade offer' : formatCurrency(offer.amount);
     return `
       <div class="offer-card">
@@ -589,6 +590,8 @@
           <div>
             <div class="offer-title">${escapeHtml(amount)}</div>
             <div class="offer-meta">${escapeHtml(offer.note || 'No offer note added.')}</div>
+            ${offer.status === 'pending' && isBuyer ? '<div class="offer-meta">Waiting for the seller to accept or decline this offer.</div>' : ''}
+            ${offer.status === 'pending' && canRespond ? '<div class="offer-meta">Respond to this offer to continue the transaction.</div>' : ''}
           </div>
           <span class="offer-status ${escapeAttribute(offer.status)}">${escapeHtml(offer.status)}</span>
         </div>
