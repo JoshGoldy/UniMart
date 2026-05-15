@@ -669,6 +669,11 @@ p {
   transition: 0.2s ease;
 }
 
+.topbar-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .topbar-icon-btn:hover {
   background: var(--sand);
   color: var(--ink);

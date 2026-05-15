@@ -144,7 +144,7 @@ function ensureNotificationPanel(user) {
     wrap.className = 'notification-wrap dropdown';
     wrap.innerHTML = `
       <button class="topbar-icon-btn" type="button" title="Notifications" data-dropdown-trigger="topbar-notification-menu" aria-label="Notifications">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
           <path d="M6 8a4 4 0 1 1 8 0c0 4 1.5 4.5 1.5 5.5h-11C4.5 12.5 6 12 6 8Z" stroke-linejoin="round"/>
           <path d="M8.5 16a1.7 1.7 0 0 0 3 0" stroke-linecap="round"/>
         </svg>
