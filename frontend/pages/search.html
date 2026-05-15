@@ -815,6 +815,7 @@
     selectedListing: null,
     savedListings: new Set(JSON.parse(localStorage.getItem('unimart_saved_listings') || '[]')),
     savedOnly: false,
+    savedListingsRemoteReady: false,
   };
   const modal = document.getElementById('listing-modal');
 
@@ -872,7 +873,7 @@
   });
   document.getElementById('modal-save-btn').addEventListener('click', function (event) {
     if (!state.selectedListing) return;
-    toggleSavedListingById(state.selectedListing.id);
+    toggleSavedListingById(state.selectedListing.id).then(() => renderListings());
     updateModalSaveButton(state.selectedListing);
   });
   modal.addEventListener('click', function (event) {
@@ -893,6 +894,7 @@
     }
 
     loadListings();
+    loadSavedListings();
   });
 
   async function loadListings() {
@@ -907,6 +909,19 @@
     }
 
     state.listings = result.listings || [];
+    renderListings();
+  }
+
+  async function loadSavedListings() {
+    if (!state.user || !Auth.getSavedListingIds) return;
+    const result = await Auth.getSavedListingIds(state.user.id);
+    if (result.error) {
+      state.savedListingsRemoteReady = false;
+      return;
+    }
+    state.savedListingsRemoteReady = true;
+    state.savedListings = new Set(result.listingIds || []);
+    localStorage.setItem('unimart_saved_listings', JSON.stringify([...state.savedListings]));
     renderListings();
   }
 
@@ -1027,22 +1042,34 @@
     `;
   }
 
-  function toggleSavedListing(event) {
+  async function toggleSavedListing(event) {
     event.preventDefault();
     event.stopPropagation();
-    toggleSavedListingById(event.currentTarget.dataset.saveListing);
+    await toggleSavedListingById(event.currentTarget.dataset.saveListing);
     renderListings();
   }
 
-  function toggleSavedListingById(listingId) {
-    if (state.savedListings.has(listingId)) {
+  async function toggleSavedListingById(listingId) {
+    const wasSaved = state.savedListings.has(listingId);
+    if (wasSaved) {
       state.savedListings.delete(listingId);
-      showToast('Removed from saved listings', 'success');
     } else {
       state.savedListings.add(listingId);
-      showToast('Saved listing', 'success');
     }
     localStorage.setItem('unimart_saved_listings', JSON.stringify([...state.savedListings]));
+    if (state.savedListingsRemoteReady && state.user) {
+      const result = wasSaved
+        ? await Auth.unsaveListing({ userId: state.user.id, listingId })
+        : await Auth.saveListing({ userId: state.user.id, listingId });
+      if (result.error) {
+        if (wasSaved) state.savedListings.add(listingId);
+        else state.savedListings.delete(listingId);
+        localStorage.setItem('unimart_saved_listings', JSON.stringify([...state.savedListings]));
+        showToast(result.error, 'error');
+        return;
+      }
+    }
+    showToast(wasSaved ? 'Removed from saved listings' : 'Saved listing', 'success');
   }
 
   function openListingModal(listing) {

@@ -155,16 +155,6 @@
       line-height: 1.4;
     }
 
-    .price-guide-actions {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .price-guide-actions .btn {
-      padding: 8px 10px;
-      font-size: 0.78rem;
-    }
-
     .listing-board {
       padding: 22px;
     }
@@ -555,9 +545,6 @@
                 <div class="price-guide-range" id="price-guide-range"></div>
               </div>
               <div class="price-guide-copy" id="price-guide-copy"></div>
-              <div class="price-guide-actions">
-                <button class="btn btn-secondary" id="use-suggested-price-btn" type="button">Use suggested price</button>
-              </div>
             </div>
 
             <div class="form-group">
@@ -705,7 +692,6 @@
     document.getElementById(id).addEventListener('input', updatePriceGuide);
     document.getElementById(id).addEventListener('change', updatePriceGuide);
   });
-  document.getElementById('use-suggested-price-btn').addEventListener('click', useSuggestedPrice);
   updatePriceGuide();
 
   async function loadMyListings() {
@@ -857,19 +843,9 @@
     const condition = document.getElementById('listing-condition').value;
     const suggestion = getPriceSuggestion({ title, category, condition });
     const guide = document.getElementById('price-guide');
-    guide.dataset.suggestedPrice = suggestion.midpoint;
     document.getElementById('price-guide-range').textContent = `${formatCurrency(suggestion.low)} - ${formatCurrency(suggestion.high)}`;
     document.getElementById('price-guide-copy').textContent = `Suggested for ${suggestion.label} in ${condition.toLowerCase()} condition, informed by public South African consumer price data and adjusted for student resale.`;
     guide.classList.add('show');
-  }
-
-  function useSuggestedPrice() {
-    const value = Number(document.getElementById('price-guide').dataset.suggestedPrice || 0);
-    if (!value) return;
-    document.getElementById('listing-price').value = value;
-    const priceError = document.getElementById('price-error');
-    priceError.textContent = '';
-    priceError.classList.remove('visible');
   }
 
   function renderEmptyState(message) {

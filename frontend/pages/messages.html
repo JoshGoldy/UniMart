@@ -608,12 +608,13 @@
     const canRespond = state.user.id === offer.sellerId && offer.status === 'pending';
     const isBuyer = state.user.id === offer.buyerId;
     const amount = offer.amount === null ? 'Trade offer' : formatCurrency(offer.amount);
+    const note = formatOfferNote(offer);
     return `
       <div class="offer-card">
         <div class="offer-card-header">
           <div>
             <div class="offer-title">${escapeHtml(amount)}</div>
-            <div class="offer-meta">${escapeHtml(offer.note || 'No offer note added.')}</div>
+            <div class="offer-meta">${escapeHtml(note)}</div>
             ${offer.status === 'pending' && isBuyer ? '<div class="offer-meta">Waiting for the seller to accept or decline this offer.</div>' : ''}
             ${offer.status === 'pending' && canRespond ? '<div class="offer-meta">Respond to this offer to continue the transaction.</div>' : ''}
           </div>
@@ -627,6 +628,15 @@
         ` : ''}
       </div>
     `;
+  }
+
+  function formatOfferNote(offer) {
+    const note = String(offer.note || '').trim();
+    if (!note) return 'No offer note added.';
+    if (offer.amount === null || offer.amount === undefined) return note;
+    const amount = Number(offer.amount);
+    const pricePrefix = new RegExp(`^R\\s*${amount.toLocaleString('en-ZA').replace(/,/g, '[, ]?')}\\s*-\\s*`, 'i');
+    return note.replace(pricePrefix, '').trim() || 'No offer note added.';
   }
 
   function renderBookingCard(transaction) {

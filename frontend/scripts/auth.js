@@ -459,6 +459,36 @@ export async function getMarketplaceListings() {
   return { listings: await attachSellerRatings((data || []).map(toListing)) };
 }
 
+export async function getSavedListingIds(userId) {
+  if (!userId) return { listingIds: [] };
+  const { data, error } = await _sb
+    .from('saved_listings')
+    .select('listing_id')
+    .eq('user_id', userId);
+  if (error) return { error: _userFacingError(error), listingIds: [] };
+  return { listingIds: (data || []).map(row => row.listing_id).filter(Boolean) };
+}
+
+export async function saveListing({ userId, listingId } = {}) {
+  if (!userId || !listingId) return { error: 'Choose a listing to save.' };
+  const { error } = await _sb
+    .from('saved_listings')
+    .upsert({ user_id: userId, listing_id: listingId }, { onConflict: 'user_id,listing_id' });
+  if (error) return { error: _userFacingError(error) };
+  return { success: true };
+}
+
+export async function unsaveListing({ userId, listingId } = {}) {
+  if (!userId || !listingId) return { error: 'Choose a listing to remove.' };
+  const { error } = await _sb
+    .from('saved_listings')
+    .delete()
+    .eq('user_id', userId)
+    .eq('listing_id', listingId);
+  if (error) return { error: _userFacingError(error) };
+  return { success: true };
+}
+
 export async function getMyListings(sellerId) {
   const { data, error } = await _sb
     .from('listings')
@@ -1821,6 +1851,9 @@ export const Auth = {
   getOAuthRedirectUrl,
   setPendingOAuthProfile,
   getMarketplaceListings,
+  getSavedListingIds,
+  saveListing,
+  unsaveListing,
   getMyListings,
   createListing,
   updateListing,

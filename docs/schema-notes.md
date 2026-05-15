@@ -94,6 +94,10 @@
 
 Run `backend-role-security-schema.sql` after the feature migrations to enforce Student, Staff, and Admin permissions in Supabase RLS.
 
+**## saved listings**
+
+Run `saved-listings-schema.sql` to enable account-backed saved listings/watchlists. The app keeps a browser fallback so hearts still work before this table exists, but running the SQL makes saved listings persist across devices.
+
 **Students**
 
 Can browse active listings, message as buyers, create offers as buyers, create/manage own listings only when their account type allows selling, review completed handovers, and report content.
