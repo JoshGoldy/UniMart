@@ -45,6 +45,16 @@ create index if not exists transactions_conversation_idx on public.transactions(
 alter table public.facility_bookings
 add column if not exists transaction_id uuid references public.transactions(transaction_id);
 
+alter table public.facility_bookings
+alter column collection_scheduled_at drop not null;
+
+alter table public.facility_bookings
+drop constraint if exists facility_bookings_schedule_check;
+
+alter table public.facility_bookings
+add constraint facility_bookings_schedule_check
+check (collection_scheduled_at is null or collection_scheduled_at > dropoff_scheduled_at);
+
 create index if not exists facility_bookings_transaction_idx on public.facility_bookings(transaction_id);
 
 alter table public.offers enable row level security;
@@ -110,13 +120,15 @@ using (auth.uid() = buyer_id)
 with check (auth.uid() = buyer_id);
 
 drop policy if exists "Buyers can create facility bookings" on public.facility_bookings;
-create policy "Buyers can create facility bookings"
+drop policy if exists "Sellers can create facility dropoff bookings" on public.facility_bookings;
+create policy "Sellers can create facility dropoff bookings"
 on public.facility_bookings
 for insert
 with check (
-  auth.uid() = buyer_id
+  auth.uid() = seller_id
   and buyer_id <> seller_id
   and transaction_id is not null
+  and collection_scheduled_at is null
   and exists (
     select 1
     from public.transactions
@@ -127,3 +139,10 @@ with check (
       and transactions.status = 'accepted'
   )
 );
+
+drop policy if exists "Buyers can confirm facility collection" on public.facility_bookings;
+create policy "Buyers can confirm facility collection"
+on public.facility_bookings
+for update
+using (auth.uid() = buyer_id)
+with check (auth.uid() = buyer_id);

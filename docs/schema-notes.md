@@ -68,7 +68,7 @@
 
 **dropoff\_scheduled\_at timestamptz**
 
-**collection\_scheduled\_at timestamptz**
+**collection\_scheduled\_at timestamptz nullable until buyer confirms collection**
 
 **status text default "pending_dropoff" -- "pending_dropoff" | "received" | "ready_for_collection" | "released" | "cancelled"**
 

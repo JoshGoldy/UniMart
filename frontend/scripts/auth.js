@@ -599,6 +599,7 @@ function toTransaction(row = {}) {
     amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
     status: row.status || 'accepted',
     facilityBookingId: row.facility_booking_id || null,
+    facilityBooking: row.facilityBooking || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -889,8 +890,34 @@ export async function getConversationMessages({ conversationId, userId, markRead
     .eq('conversation_id', resolvedConversationId)
     .order('created_at', { ascending: false });
 
-  const transactions = transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction);
-  const transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
+  let transactions = transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction);
+  let transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
+  const bookingIds = transactions.map(transaction => transaction.facilityBookingId).filter(Boolean);
+  if (bookingIds.length || transactions.length) {
+    let bookingQuery = _sb.from('facility_bookings').select('*');
+    if (bookingIds.length) bookingQuery = bookingQuery.in('booking_id', bookingIds);
+    else bookingQuery = bookingQuery.in('transaction_id', transactionIds);
+    const bookingsResult = await bookingQuery;
+    let bookingRows = bookingsResult.error ? [] : (bookingsResult.data || []);
+    if (bookingIds.length && transactions.length) {
+      const byTransactionResult = await _sb
+        .from('facility_bookings')
+        .select('*')
+        .in('transaction_id', transactionIds);
+      if (!byTransactionResult.error) bookingRows = [...bookingRows, ...(byTransactionResult.data || [])];
+    }
+    const bookingsById = new Map(bookingRows.map(row => [row.booking_id || row.id, _toFacilityBooking(row)]));
+    const bookingsByTransaction = new Map(bookingRows.map(row => [row.transaction_id, _toFacilityBooking(row)]));
+    transactions = transactions.map(transaction => {
+      const booking = bookingsById.get(transaction.facilityBookingId) || bookingsByTransaction.get(transaction.id) || null;
+      return {
+        ...transaction,
+        facilityBookingId: transaction.facilityBookingId || booking?.id || null,
+        facilityBooking: booking,
+      };
+    });
+  }
+  transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
   const reviewsResult = transactionIds.length
     ? await _sb
         .from('reviews')
@@ -1247,6 +1274,10 @@ function _normaliseFacilityStatus(status) {
   return value || 'pending_dropoff';
 }
 
+function _hasReleaseMarker(row = {}) {
+  return Boolean(row.released_at || row.released_by || row.released_to || row.collected_at || row.collected_by);
+}
+
 function _buildFacilitySlots(config, rows = [], column, days = 14) {
   const now = new Date();
   const operatingDays = new Set(_normaliseOperatingDays(config.operatingDays).map(day => String(day).toLowerCase()));
@@ -1301,7 +1332,9 @@ function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new 
   const buyerId = _firstValue(row, ['buyer_id', 'buyerId', 'collector_id', 'collectorId']);
   const seller = usersById.get(sellerId) || {};
   const buyer = usersById.get(buyerId) || {};
-  const status = _normaliseFacilityStatus(_firstValue(row, ['status', 'booking_status', 'workflow_status', 'handover_status']));
+  const status = _hasReleaseMarker(row)
+    ? 'released'
+    : _normaliseFacilityStatus(_firstValue(row, ['status', 'booking_status', 'workflow_status', 'handover_status']));
 
   return {
     id: _firstValue(row, ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id']),
@@ -1316,7 +1349,7 @@ function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new 
     sellerName: seller.fullName || seller.username || seller.email || _firstValue(row, ['seller_name', 'seller_email']) || 'Seller',
     buyerName: buyer.fullName || buyer.username || buyer.email || _firstValue(row, ['buyer_name', 'buyer_email', 'collector_name']) || 'Buyer',
     dropoffScheduledAt: _firstValue(row, ['dropoff_scheduled_at', 'drop_off_scheduled_at', 'scheduled_dropoff_at', 'dropoff_at', 'drop_off_at', 'created_at']),
-    collectionScheduledAt: _firstValue(row, ['collection_scheduled_at', 'scheduled_collection_at', 'pickup_scheduled_at', 'collection_at', 'pickup_at', 'updated_at']),
+    collectionScheduledAt: _firstValue(row, ['collection_scheduled_at', 'scheduled_collection_at', 'pickup_scheduled_at', 'collection_at', 'pickup_at']),
     status,
     raw: row,
   };
@@ -1381,10 +1414,23 @@ export async function updateFacilityConfig({ opensAt, closesAt, slotMinutes, slo
   return { success: true };
 }
 
-export async function createFacilityBooking({ transactionId, listingId, buyerId, dropoffScheduledAt, collectionScheduledAt } = {}) {
+export async function createFacilityBooking({ transactionId, listingId, actorId, buyerId, dropoffScheduledAt, collectionScheduledAt } = {}) {
   if (!transactionId) return { error: 'An accepted offer is required before booking the trade facility.' };
-  if (!listingId || !buyerId) return { error: 'Missing listing or buyer details.' };
-  if (!dropoffScheduledAt || !collectionScheduledAt) return { error: 'Choose both a drop-off and collection slot.' };
+  if (!listingId) return { error: 'Missing listing details.' };
+  if (!dropoffScheduledAt) return { error: 'Choose the seller drop-off time.' };
+
+  const { data: transactionRow, error: transactionError } = await _sb
+    .from('transactions')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .maybeSingle();
+  if (transactionError) return { error: transactionError.message };
+  if (!transactionRow) return { error: 'Transaction not found.' };
+
+  const transaction = toTransaction(transactionRow);
+  const resolvedActorId = actorId || transaction.sellerId;
+  const resolvedBuyerId = buyerId || transaction.buyerId;
+  if (resolvedActorId !== transaction.sellerId) return { error: 'The seller must choose the drop-off time first.' };
 
   const listingsResult = await _sb.from('listings').select('*').eq('listing_id', listingId).maybeSingle();
   let listing = listingsResult.data;
@@ -1395,18 +1441,21 @@ export async function createFacilityBooking({ transactionId, listingId, buyerId,
   }
 
   const mappedListing = toListing(listing);
-  if (!mappedListing.sellerId || mappedListing.sellerId === buyerId) return { error: 'You cannot book a facility handover for your own listing.' };
+  if (!mappedListing.sellerId || mappedListing.sellerId !== transaction.sellerId || resolvedBuyerId !== transaction.buyerId) {
+    return { error: 'This booking does not match the accepted offer.' };
+  }
 
   const dropoff = new Date(dropoffScheduledAt);
-  const collection = new Date(collectionScheduledAt);
-  if (!Number.isFinite(dropoff.getTime()) || !Number.isFinite(collection.getTime())) return { error: 'Choose valid facility slots.' };
-  if (collection <= dropoff) return { error: 'Collection must be after drop-off.' };
+  const collection = collectionScheduledAt ? new Date(collectionScheduledAt) : null;
+  if (!Number.isFinite(dropoff.getTime())) return { error: 'Choose a valid seller drop-off time.' };
+  if (collection && !Number.isFinite(collection.getTime())) return { error: 'Choose a valid collection time.' };
+  if (collection && collection <= dropoff) return { error: 'Collection must be after drop-off.' };
 
   const { data: existingRows } = await _sb
     .from('facility_bookings')
     .select('booking_id,status')
     .eq('listing_id', mappedListing.id)
-    .eq('buyer_id', buyerId);
+    .eq('buyer_id', resolvedBuyerId);
   const existing = (existingRows || []).find(row => ['pending_dropoff', 'received', 'ready_for_collection'].includes(_normaliseFacilityStatus(row.status)));
   if (existing) return { error: 'You already have an active facility booking for this listing.' };
 
@@ -1416,20 +1465,57 @@ export async function createFacilityBooking({ transactionId, listingId, buyerId,
       transaction_id: transactionId,
       listing_id: mappedListing.id,
       seller_id: mappedListing.sellerId,
-      buyer_id: buyerId,
+      buyer_id: resolvedBuyerId,
       dropoff_scheduled_at: dropoff.toISOString(),
-      collection_scheduled_at: collection.toISOString(),
+      ...(collection ? { collection_scheduled_at: collection.toISOString() } : {}),
     })
     .select()
     .single();
   if (error) return { error: error.message };
   if (transactionId) {
+    const transactionValues = {
+      facility_booking_id: data.booking_id || data.id,
+      updated_at: new Date().toISOString(),
+    };
+    if (collection) transactionValues.status = 'facility_booked';
     await _sb
       .from('transactions')
-      .update({ facility_booking_id: data.booking_id || data.id, status: 'facility_booked', updated_at: new Date().toISOString() })
+      .update(transactionValues)
       .eq('transaction_id', transactionId);
   }
   return { success: true, booking: _toFacilityBooking(data, new Map([[mappedListing.id, mappedListing]])) };
+}
+
+export async function confirmFacilityCollection({ transactionId, bookingId, buyerId, collectionScheduledAt } = {}) {
+  if (!transactionId || !bookingId || !buyerId) return { error: 'Missing collection booking details.' };
+  if (!collectionScheduledAt) return { error: 'Choose your collection time.' };
+
+  const { data: bookingRow, error: bookingError } = await _sb
+    .from('facility_bookings')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+  if (bookingError) return { error: bookingError.message };
+  if (!bookingRow) return { error: 'Facility booking not found.' };
+  if (bookingRow.buyer_id !== buyerId || bookingRow.transaction_id !== transactionId) return { error: 'Only the buyer can confirm collection for this handover.' };
+
+  const collection = new Date(collectionScheduledAt);
+  const dropoff = new Date(bookingRow.dropoff_scheduled_at);
+  if (!Number.isFinite(collection.getTime())) return { error: 'Choose a valid collection time.' };
+  if (Number.isFinite(dropoff.getTime()) && collection <= dropoff) return { error: 'Collection must be after the seller drop-off time.' };
+
+  const { error } = await _sb
+    .from('facility_bookings')
+    .update({ collection_scheduled_at: collection.toISOString(), updated_at: new Date().toISOString() })
+    .eq('booking_id', bookingId);
+  if (error) return { error: error.message };
+
+  await _sb
+    .from('transactions')
+    .update({ status: 'facility_booked', updated_at: new Date().toISOString() })
+    .eq('transaction_id', transactionId);
+
+  return { success: true };
 }
 
 function _columnCompatiblePayload(values, row) {
@@ -1457,6 +1543,18 @@ async function _updateFacilityRow(table, bookingId, values, statusCandidates = [
       let { error } = await _sb.from(table).update(payload).eq(idColumn, bookingId);
       if (!error) return { success: true };
       lastError = error;
+    }
+  }
+
+  if (values.released_at || values.released_to || values.released_by) {
+    const { status, ...withoutStatus } = values;
+    const releasePayload = _columnCompatiblePayload(withoutStatus, targetRow);
+    if (Object.keys(releasePayload).length) {
+      for (const idColumn of availableIdColumns) {
+        let { error } = await _sb.from(table).update(releasePayload).eq(idColumn, bookingId);
+        if (!error) return { success: true, statusFallbackUsed: true };
+        lastError = error;
+      }
     }
   }
 
@@ -1545,6 +1643,7 @@ export const Auth = {
   updateContentReport,
   getFacilityAvailability,
   createFacilityBooking,
+  confirmFacilityCollection,
   getFacilityOverview,
   updateFacilityConfig,
   updateFacilityBooking

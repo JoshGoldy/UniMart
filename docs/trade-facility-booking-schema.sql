@@ -23,7 +23,7 @@ create table if not exists public.facility_bookings (
   seller_id uuid not null references auth.users(id) on delete cascade,
   buyer_id uuid not null references auth.users(id) on delete cascade,
   dropoff_scheduled_at timestamptz not null,
-  collection_scheduled_at timestamptz not null,
+  collection_scheduled_at timestamptz,
   status text not null default 'pending_dropoff' check (status in ('pending_dropoff', 'received', 'ready_for_collection', 'released', 'cancelled')),
   note text,
   received_at timestamptz,
@@ -36,8 +36,18 @@ create table if not exists public.facility_bookings (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint facility_bookings_participants_differ check (buyer_id <> seller_id),
-  constraint facility_bookings_schedule_check check (collection_scheduled_at > dropoff_scheduled_at)
+  constraint facility_bookings_schedule_check check (collection_scheduled_at is null or collection_scheduled_at > dropoff_scheduled_at)
 );
+
+alter table public.facility_bookings
+alter column collection_scheduled_at drop not null;
+
+alter table public.facility_bookings
+drop constraint if exists facility_bookings_schedule_check;
+
+alter table public.facility_bookings
+add constraint facility_bookings_schedule_check
+check (collection_scheduled_at is null or collection_scheduled_at > dropoff_scheduled_at);
 
 alter table public.facility_bookings
 drop constraint if exists facility_bookings_status_check;
@@ -89,20 +99,32 @@ for select
 using (auth.uid() is not null);
 
 drop policy if exists "Buyers can create facility bookings" on public.facility_bookings;
-create policy "Buyers can create facility bookings"
+drop policy if exists "Sellers can create facility dropoff bookings" on public.facility_bookings;
+create policy "Sellers can create facility dropoff bookings"
 on public.facility_bookings
 for insert
 with check (
-  auth.uid() = buyer_id
+  auth.uid() = seller_id
   and buyer_id <> seller_id
+  and collection_scheduled_at is null
+  and transaction_id is not null
   and exists (
     select 1
-    from public.listings
-    where listings.listing_id = facility_bookings.listing_id
-      and listings.seller_id = facility_bookings.seller_id
-      and listings.status = 'active'
+    from public.transactions
+    where transactions.transaction_id = facility_bookings.transaction_id
+      and transactions.buyer_id = facility_bookings.buyer_id
+      and transactions.seller_id = facility_bookings.seller_id
+      and transactions.listing_id = facility_bookings.listing_id
+      and transactions.status = 'accepted'
   )
 );
+
+drop policy if exists "Buyers can confirm facility collection" on public.facility_bookings;
+create policy "Buyers can confirm facility collection"
+on public.facility_bookings
+for update
+using (auth.uid() = buyer_id)
+with check (auth.uid() = buyer_id);
 
 drop policy if exists "Staff and admins can update facility bookings" on public.facility_bookings;
 create policy "Staff and admins can update facility bookings"
