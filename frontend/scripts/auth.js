@@ -838,6 +838,14 @@ function _markConversationReadLocally(userId, conversationId, timestamp = new Da
   localStorage.setItem(_conversationReadWatermarkKey(userId), JSON.stringify(watermarks));
 }
 
+function _afterLatestTimestamp(rows = [], fallback = new Date().toISOString()) {
+  const latest = rows
+    .map(row => new Date(row?.created_at || row?.createdAt || 0).getTime())
+    .filter(value => Number.isFinite(value) && value > 0)
+    .reduce((max, value) => Math.max(max, value), 0);
+  return new Date((latest || new Date(fallback).getTime()) + 1).toISOString();
+}
+
 function _isAfterLocalRead(userId, conversationId, createdAt) {
   const readAt = _getConversationReadWatermarks(userId)[conversationId];
   if (!readAt || !createdAt) return true;
@@ -1109,6 +1117,10 @@ export async function getConversationMessages({ conversationId, userId, markRead
 
   if (markRead && !offersResult.error) {
     _markOfferNotificationsSeen(userId, offersResult.data || []);
+    _markConversationReadLocally(userId, resolvedConversationId, _afterLatestTimestamp([
+      ...(data || []),
+      ...(offersResult.data || []),
+    ]));
   }
 
   const transactionsResult = await _sb

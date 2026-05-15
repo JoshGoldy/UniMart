@@ -514,6 +514,7 @@
   async function openConversation(conversationId) {
     if (!conversationId || conversationId === 'undefined' || conversationId === 'null') return;
     state.activeConversationId = conversationId;
+    window.__unimartActiveConversationId = conversationId;
     const conversation = state.conversations.find(item => item.id === conversationId);
     if (conversation) {
       document.getElementById('thread-title').textContent = conversation.listingTitle;
