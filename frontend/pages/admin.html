@@ -109,6 +109,88 @@
     .admin-table tr:last-child td {
       border-bottom: 0;
     }
+    .moderation-list {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+    .report-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .report-card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .report-title {
+      color: var(--ink);
+      font-size: 0.94rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+    .report-meta {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      margin-top: 4px;
+    }
+    .report-reason {
+      border-left: 3px solid var(--sage);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--linen);
+      color: var(--ink);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+    .report-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .report-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .report-actions .btn-secondary,
+    .report-actions .btn-danger-soft {
+      min-height: 40px;
+    }
+    .btn-danger-soft {
+      padding: 10px 14px;
+      border: 1px solid #e9b9b2;
+      border-radius: var(--radius);
+      background: #fff7f5;
+      color: #9f3c33;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn-danger-soft:hover {
+      background: #f8e9e7;
+    }
+    @media (max-width: 780px) {
+      .report-card-header,
+      .report-controls {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+      .report-actions {
+        justify-content: stretch;
+      }
+      .report-actions button {
+        width: 100%;
+      }
+    }
     .role-select,
     .admin-input,
     .admin-select {
@@ -466,12 +548,7 @@
               <div class="panel-title">Moderation and Reporting</div>
               <div class="panel-copy">Review flagged content, resolve reports, and export moderation data.</div>
             </div>
-            <table class="admin-table">
-              <thead>
-                <tr><th>Report</th><th>Status</th><th>Action</th></tr>
-              </thead>
-              <tbody id="report-table"></tbody>
-            </table>
+            <div class="moderation-list" id="report-table"></div>
             <div class="panel-body">
               <button class="btn-secondary" id="export-reports-btn" type="button">Export reports</button>
             </div>
@@ -748,28 +825,44 @@
 
   function renderReports() {
     const body = document.getElementById('report-table');
-    body.innerHTML = adminState.reports.length ? adminState.reports.map(report => `
-      <tr>
-        <td>
-          <strong>${escapeHtml(formatPermission(report.targetType))}: ${escapeHtml(report.targetTitle || 'Unknown target')}</strong><br />
-          <span class="muted">Reporter: ${escapeHtml(report.reporterName || shortId(report.reporterId))}</span><br />
-          ${report.targetSnippet ? `<span class="muted">Target: ${escapeHtml(truncate(report.targetSnippet, 120))}</span><br />` : ''}
-          ${report.targetStatus ? `<span class="muted">Target status: ${escapeHtml(formatStatusLabel(report.targetStatus))}</span><br />` : ''}
-          <span class="muted">${escapeHtml(report.reason)}</span>
-        </td>
-        <td><span class="status-pill ${escapeAttribute(report.status)}">${escapeHtml(formatStatusLabel(report.status))}</span></td>
-        <td>
-          <select class="admin-select" data-report-status="${escapeAttribute(report.id)}">
-            <option value="open" ${report.status === 'open' ? 'selected' : ''}>Open</option>
-            <option value="reviewing" ${report.status === 'reviewing' ? 'selected' : ''}>Reviewing</option>
-            <option value="resolved" ${report.status === 'resolved' ? 'selected' : ''}>Resolved</option>
-            <option value="dismissed" ${report.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
-          </select>
-          ${report.listingId ? `<button class="btn-secondary" style="margin-top:8px;width:100%" data-remove-listing="${escapeAttribute(report.listingId)}">Remove listing</button>` : ''}
-          ${report.targetType === 'review' && report.targetId ? `<button class="btn-secondary" style="margin-top:8px;width:100%" data-remove-review="${escapeAttribute(report.targetId)}">Remove review</button>` : ''}
-        </td>
-      </tr>
-    `).join('') : '<tr><td colspan="3" class="empty-row">No flagged content yet.</td></tr>';
+    body.innerHTML = adminState.reports.length ? adminState.reports.map(report => {
+      const isReview = report.targetType === 'review';
+      const targetLabel = isReview ? 'Review' : 'Listing';
+      const action = isReview && report.targetId
+        ? `<button class="btn-danger-soft" data-remove-review="${escapeAttribute(report.targetId)}">Remove review</button>`
+        : report.listingId
+          ? `<button class="btn-danger-soft" data-remove-listing="${escapeAttribute(report.listingId)}">Remove listing</button>`
+          : '';
+      return `
+        <article class="report-card">
+          <div class="report-card-header">
+            <div>
+              <div class="report-title">${escapeHtml(targetLabel)}: ${escapeHtml(report.targetTitle || 'Unknown target')}</div>
+              <div class="report-meta">Reporter: ${escapeHtml(report.reporterName || shortId(report.reporterId))}</div>
+              ${report.targetSnippet ? `<div class="report-meta">Content: ${escapeHtml(truncate(report.targetSnippet, 130))}</div>` : ''}
+              ${report.targetStatus ? `<div class="report-meta">Current status: ${escapeHtml(formatStatusLabel(report.targetStatus))}</div>` : ''}
+            </div>
+            <span class="status-pill ${escapeAttribute(report.status)}">${escapeHtml(formatStatusLabel(report.status))}</span>
+          </div>
+          <div class="report-reason">${escapeHtml(report.reason || 'No reason added.')}</div>
+          <div class="report-controls">
+            <label class="admin-field">
+              <span>Status</span>
+              <select class="admin-select" data-report-status="${escapeAttribute(report.id)}">
+                <option value="open" ${report.status === 'open' ? 'selected' : ''}>Open</option>
+                <option value="reviewing" ${report.status === 'reviewing' ? 'selected' : ''}>Reviewing</option>
+                <option value="resolved" ${report.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                <option value="dismissed" ${report.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
+              </select>
+            </label>
+            <div class="report-actions">
+              ${action}
+              <button class="btn-secondary" data-dismiss-report="${escapeAttribute(report.id)}">Dismiss report</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('') : '<div class="empty-row">No flagged content yet.</div>';
 
     body.querySelectorAll('[data-report-status]').forEach(select => {
       select.addEventListener('change', async function () {
@@ -786,6 +879,24 @@
           return;
         }
         showToast('Report updated', 'success');
+        loadAdminOverview();
+      });
+    });
+
+    body.querySelectorAll('[data-dismiss-report]').forEach(button => {
+      button.addEventListener('click', async function () {
+        const note = getModerationNote('Reason for dismissing this report:', 'Dismissed from admin dashboard');
+        const result = await Auth.updateContentReport({
+          reportId: this.dataset.dismissReport,
+          adminId: adminState.user.id,
+          status: 'dismissed',
+          note,
+        });
+        if (result.error) {
+          showToast(result.error, 'error');
+          return;
+        }
+        showToast('Report dismissed', 'success');
         loadAdminOverview();
       });
     });

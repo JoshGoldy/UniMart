@@ -1408,11 +1408,23 @@ export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
 
 export async function updateContentReport({ reportId, adminId, status, note } = {}) {
   const cleanStatus = ['open', 'reviewing', 'resolved', 'dismissed'].includes(status) ? status : 'reviewing';
-  const { error } = await _sb
+  const payload = { status: cleanStatus, updated_at: new Date().toISOString() };
+  let result = await _sb
     .from('content_reports')
-    .update({ status: cleanStatus, updated_at: new Date().toISOString() })
-    .eq('report_id', reportId);
-  if (error) return { error: _userFacingError(error) };
+    .update(payload)
+    .eq('report_id', reportId)
+    .select('report_id,id')
+    .maybeSingle();
+  if ((result.error && /report_id|schema cache|column/i.test(result.error.message || '')) || !result.data) {
+    result = await _sb
+      .from('content_reports')
+      .update(payload)
+      .eq('id', reportId)
+      .select('report_id,id')
+      .maybeSingle();
+  }
+  if (result.error) return { error: _userFacingError(result.error) };
+  if (!result.data) return { error: 'Report could not be found.' };
   await _recordModerationAction({ adminId, action: 'updated_report_status', targetType: 'report', targetId: reportId, note });
   return { success: true };
 }
