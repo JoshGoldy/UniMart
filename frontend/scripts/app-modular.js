@@ -95,7 +95,11 @@ export async function initPage() {
   initMobileSidebar();           // Imported from UI components
   refreshMessageNotifications(user);
   if (hasFeature(user, 'messages') && !window.__unimartNotificationTimer) {
-    window.__unimartNotificationTimer = setInterval(() => refreshMessageNotifications(user), 30000);
+    window.__unimartNotificationTimer = setInterval(() => refreshMessageNotifications(user), 15000);
+    window.addEventListener('focus', () => refreshMessageNotifications(user));
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshMessageNotifications(user);
+    });
   }
 
   // Setup sign out buttons
@@ -219,12 +223,17 @@ function renderNotificationPanel(unreadConversations, unreadTotal) {
   list.innerHTML = unreadConversations.slice(0, 5).map(item => `
     <a class="notification-item unread" href="messages.html?conversation=${encodeURIComponent(item.id)}">
       <strong>${escapeHtml(item.listingTitle || 'Marketplace conversation')}</strong>
-      <span>${escapeHtml(item.unreadCount === 1 ? '1 new message' : `${item.unreadCount} new messages`)} from ${escapeHtml(item.otherDisplayName || 'a UniMart user')}</span>
+      <span>${escapeHtml(notificationSummary(item))} from ${escapeHtml(item.otherDisplayName || 'a UniMart user')}</span>
       ${item.preview ? `<small>${escapeHtml(trimNotificationPreview(item.preview))}</small>` : ''}
     </a>
   `).join('') + `
     <a class="notification-view-all" href="messages.html">Open messages</a>
   `;
+}
+
+function notificationSummary(item = {}) {
+  if (item.notificationKind === 'offer') return 'New offer';
+  return item.unreadCount === 1 ? '1 new message' : `${item.unreadCount} new messages`;
 }
 
 function trimNotificationPreview(value = '') {

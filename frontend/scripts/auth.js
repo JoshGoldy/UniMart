@@ -947,7 +947,17 @@ export async function getUnreadMessageNotifications(userId) {
     .order('created_at', { ascending: false })
     .limit(100);
 
-  if (unreadError) return { error: _userFacingError(unreadError), total: 0, notifications: [] };
+  const { data: pendingOfferRows, error: offerError } = await _sb
+    .from('offers')
+    .select('*')
+    .eq('seller_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (unreadError && offerError) return { error: _userFacingError(unreadError), total: 0, notifications: [] };
+  if (unreadError) console.warn('Falling back to offer notifications only:', unreadError.message);
+  if (offerError) console.warn('Unable to load offer notifications:', offerError.message);
 
   const unreadByConversation = new Map();
   (unreadRows || []).forEach(message => {
@@ -956,7 +966,13 @@ export async function getUnreadMessageNotifications(userId) {
     unreadByConversation.get(id).push(message);
   });
 
-  if (!unreadByConversation.size) return { total: 0, notifications: [] };
+  const pendingOffersByConversation = new Map();
+  (pendingOfferRows || []).forEach(offer => {
+    if (!pendingOffersByConversation.has(offer.conversation_id)) pendingOffersByConversation.set(offer.conversation_id, []);
+    pendingOffersByConversation.get(offer.conversation_id).push(offer);
+  });
+
+  if (!unreadByConversation.size && !pendingOffersByConversation.size) return { total: 0, notifications: [] };
 
   const [usersById, listingsById] = await Promise.all([
     _fetchUsersByIds(conversations.flatMap(row => [row.buyer_id, row.seller_id])),
@@ -967,27 +983,34 @@ export async function getUnreadMessageNotifications(userId) {
     .map(row => {
       const conversationId = _conversationId(row);
       const unreadMessages = unreadByConversation.get(conversationId) || [];
-      if (!unreadMessages.length) return null;
+      const pendingOffers = pendingOffersByConversation.get(conversationId) || [];
+      if (!unreadMessages.length && !pendingOffers.length) return null;
 
       const conversation = toConversation({
         ...row,
         listing: listingsById[row.listing_id] || {},
         buyer: usersById[row.buyer_id] || {},
         seller: usersById[row.seller_id] || {},
-        unread_count: unreadMessages.length,
+        unread_count: unreadMessages.length || pendingOffers.length,
       }, userId);
+
+      const newestOffer = pendingOffers[0];
+      const newestMessage = unreadMessages[0];
+      const hasNewerOffer = newestOffer && (!newestMessage || new Date(newestOffer.created_at || 0) >= new Date(newestMessage.created_at || 0));
+      const offerAmount = newestOffer?.amount ? `R ${Number(newestOffer.amount).toLocaleString('en-ZA')}` : 'a trade';
 
       return {
         ...conversation,
-        preview: unreadMessages[0]?.body || '',
-        lastMessageAt: unreadMessages[0]?.created_at || conversation.lastMessageAt,
+        notificationKind: hasNewerOffer ? 'offer' : 'message',
+        preview: hasNewerOffer ? `New offer: ${offerAmount}` : newestMessage?.body || '',
+        lastMessageAt: (hasNewerOffer ? newestOffer?.created_at : newestMessage?.created_at) || conversation.lastMessageAt,
       };
     })
     .filter(Boolean)
     .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
 
   return {
-    total: (unreadRows || []).length,
+    total: notifications.reduce((sum, item) => sum + Number(item.unreadCount || 0), 0),
     notifications,
   };
 }
