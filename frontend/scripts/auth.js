@@ -1419,6 +1419,7 @@ function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new 
 
 export async function getFacilityOverview() {
   const loaded = await _loadFacilityBookingRows();
+  const { config } = await _loadFacilityConfig();
   if (loaded.error) {
     console.warn('Facility overview load failed:', loaded.error);
     return {
@@ -1426,6 +1427,7 @@ export async function getFacilityOverview() {
       metrics: { dropoffs: 0, collections: 0, ready: 0, completed: 0 },
       dropoffs: [],
       collections: [],
+      facilityConfig: config,
     };
   }
 
@@ -1458,6 +1460,7 @@ export async function getFacilityOverview() {
     collections,
     bookings,
     table: loaded.table,
+    facilityConfig: config,
   };
 }
 
