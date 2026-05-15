@@ -18,9 +18,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user?.email) throw new Error("Sign in before starting payment.");
 
@@ -51,12 +49,12 @@ Deno.serve(async (req) => {
           cashDueAmount,
           userId: userData.user.id,
         },
-        channels: ["card", "eft", "capitec_pay"],
       }),
     });
 
     const checkout = await response.json();
     if (!response.ok || !checkout.status) {
+      console.error("Paystack checkout failed", checkout);
       throw new Error(checkout.message || checkout.error || "Payment checkout could not be created.");
     }
 
@@ -77,6 +75,7 @@ Deno.serve(async (req) => {
     if (updateError) throw updateError;
     return Response.json({ redirectUrl: authorizationUrl, checkout: checkout.data, payment }, { headers: corsHeaders });
   } catch (err) {
+    console.error("create-paystack-checkout failed", err);
     return Response.json(
       { error: err instanceof Error ? err.message : "Payment failed" },
       { status: 400, headers: corsHeaders },

@@ -44,6 +44,20 @@ function _userFacingError(error, fallback = 'Something went wrong. Please try ag
   return message;
 }
 
+async function _edgeFunctionErrorMessage(error, fallback = 'Online checkout could not be started.') {
+  const context = error?.context;
+  if (context?.json) {
+    try {
+      const body = await context.json();
+      if (body?.error) return _userFacingError(body.error, fallback);
+      if (body?.message) return _userFacingError(body.message, fallback);
+    } catch (_err) {
+      // Fall back to the normal error message below.
+    }
+  }
+  return _userFacingError(error, fallback);
+}
+
 // Build page URLs safely for GitHub Pages, local dev, and the deployed /frontend/pages structure.
 // This also corrects older broken redirects that accidentally used /fontend/.
 export function getPageUrl(pageName) {
@@ -1310,12 +1324,11 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
   });
 
   if (checkoutResult.error) {
+    const message = await _edgeFunctionErrorMessage(checkoutResult.error);
     return {
-      success: true,
-      pendingGateway: true,
       payment: paymentRow,
       cashDueAmount,
-      message: 'Payment plan saved. The online checkout service still needs to be deployed.',
+      error: message,
     };
   }
 
@@ -1332,7 +1345,7 @@ export async function verifyPaymentCheckout({ transactionId, reference } = {}) {
   const result = await _sb.functions.invoke('verify-paystack-payment', {
     body: { transactionId, reference },
   });
-  if (result.error) return { error: _userFacingError(result.error, 'Payment could not be verified yet.') };
+  if (result.error) return { error: await _edgeFunctionErrorMessage(result.error, 'Payment could not be verified yet.') };
   if (result.data?.error) return { error: result.data.error };
   return { success: true, payment: result.data?.payment, transaction: result.data?.transaction };
 }

@@ -18,9 +18,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) throw new Error("Sign in before verifying payment.");
 
@@ -88,6 +86,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ payment: updatedPayment, transaction: updatedTransaction, verification }, { headers: corsHeaders });
   } catch (err) {
+    console.error("verify-paystack-payment failed", err);
     return Response.json(
       { error: err instanceof Error ? err.message : "Payment verification failed" },
       { status: 400, headers: corsHeaders },
