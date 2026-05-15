@@ -818,6 +818,32 @@ function _markOfferNotificationsSeen(userId, offers = []) {
   localStorage.setItem(_seenOfferNotificationKey(userId), JSON.stringify([...seen].slice(-250)));
 }
 
+function _conversationReadWatermarkKey(userId) {
+  return `unimart_conversation_read_at:${userId}`;
+}
+
+function _getConversationReadWatermarks(userId) {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(_conversationReadWatermarkKey(userId)) || '{}') || {};
+  } catch (_err) {
+    return {};
+  }
+}
+
+function _markConversationReadLocally(userId, conversationId, timestamp = new Date().toISOString()) {
+  if (typeof localStorage === 'undefined' || !userId || !conversationId) return;
+  const watermarks = _getConversationReadWatermarks(userId);
+  watermarks[conversationId] = timestamp;
+  localStorage.setItem(_conversationReadWatermarkKey(userId), JSON.stringify(watermarks));
+}
+
+function _isAfterLocalRead(userId, conversationId, createdAt) {
+  const readAt = _getConversationReadWatermarks(userId)[conversationId];
+  if (!readAt || !createdAt) return true;
+  return new Date(createdAt).getTime() > new Date(readAt).getTime();
+}
+
 async function _updateConversationTimestamp(conversationId, timestamp) {
   let { error } = await _sb
     .from('conversations')
@@ -880,12 +906,17 @@ async function _fetchListingsByIds(listingIds = []) {
 
 async function _countUnreadMessagesForConversation(conversationId, currentUserId) {
   const id = String(conversationId || '');
-  const countUnread = async column => _sb
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq(column, id)
-    .neq('sender_id', currentUserId)
-    .is('read_at', null);
+  const readAt = _getConversationReadWatermarks(currentUserId)[id];
+  const countUnread = async column => {
+    let query = _sb
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq(column, id)
+      .neq('sender_id', currentUserId)
+      .is('read_at', null);
+    if (readAt) query = query.gt('created_at', readAt);
+    return query;
+  };
 
   let result = await countUnread('conversation_id');
   if ((result.error && /invalid input syntax|uuid/i.test(result.error.message || '')) || result.count === 0) {
@@ -984,7 +1015,7 @@ export async function getUnreadMessageNotifications(userId) {
   if (offerError) console.warn('Unable to load offer notifications:', offerError.message);
 
   const unreadByConversation = new Map();
-  (unreadRows || []).forEach(message => {
+  (unreadRows || []).filter(message => _isAfterLocalRead(userId, message.conversation_id, message.created_at)).forEach(message => {
     const id = message.conversation_id;
     if (!unreadByConversation.has(id)) unreadByConversation.set(id, []);
     unreadByConversation.get(id).push(message);
@@ -992,7 +1023,10 @@ export async function getUnreadMessageNotifications(userId) {
 
   const pendingOffersByConversation = new Map();
   const seenOfferIds = _getSeenOfferNotificationIds(userId);
-  (pendingOfferRows || []).filter(offer => !seenOfferIds.has(_offerId(offer))).forEach(offer => {
+  (pendingOfferRows || [])
+    .filter(offer => !seenOfferIds.has(_offerId(offer)))
+    .filter(offer => _isAfterLocalRead(userId, offer.conversation_id, offer.created_at))
+    .forEach(offer => {
     if (!pendingOffersByConversation.has(offer.conversation_id)) pendingOffersByConversation.set(offer.conversation_id, []);
     pendingOffersByConversation.get(offer.conversation_id).push(offer);
   });
@@ -1050,6 +1084,7 @@ export async function getConversationMessages({ conversationId, userId, markRead
   const resolvedConversationId = _conversationId(conversationRow);
 
   if (markRead) {
+    _markConversationReadLocally(userId, resolvedConversationId);
     await _sb
       .from('messages')
       .update({ read_at: new Date().toISOString() })
