@@ -642,6 +642,9 @@ function toOffer(row = {}) {
 }
 
 function toTransaction(row = {}) {
+  const amount = row.amount === null || row.amount === undefined ? null : Number(row.amount);
+  const onlinePaidAmount = Number(row.online_paid_amount || 0);
+  const cashDueAmount = Number(row.cash_due_amount || Math.max(0, (amount || 0) - onlinePaidAmount));
   return {
     id: row.transaction_id || row.id,
     offerId: row.offer_id,
@@ -649,8 +652,15 @@ function toTransaction(row = {}) {
     listingId: row.listing_id,
     buyerId: row.buyer_id,
     sellerId: row.seller_id,
-    amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
+    amount,
     status: row.status || 'accepted',
+    paymentStatus: row.payment_status || (amount ? 'unpaid' : 'not_required'),
+    onlinePaidAmount,
+    cashDueAmount,
+    cashSettledAt: row.cash_settled_at || null,
+    cashSettledBy: row.cash_settled_by || null,
+    paymentGateway: row.payment_gateway || null,
+    paymentReference: row.payment_reference || null,
     facilityBookingId: row.facility_booking_id || null,
     facilityBooking: row.facilityBooking || null,
     createdAt: row.created_at,
@@ -1239,6 +1249,109 @@ export async function updateOfferStatus({ offerId, userId, status }) {
   return { success: true, offer: toOffer(updatedOffer), transaction };
 }
 
+export async function createPaymentCheckout({ transactionId, buyerId, onlineAmount } = {}) {
+  if (!transactionId || !buyerId) return { error: 'Missing payment details.' };
+  const amountToPay = Math.max(0, Number(onlineAmount) || 0);
+
+  const { data: transactionRow, error: transactionError } = await _sb
+    .from('transactions')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .maybeSingle();
+  if (transactionError) return { error: _userFacingError(transactionError) };
+  if (!transactionRow) return { error: 'Transaction not found.' };
+
+  const transaction = toTransaction(transactionRow);
+  if (transaction.buyerId !== buyerId) return { error: 'Only the buyer can make this payment.' };
+  if (!transaction.amount || transaction.amount <= 0) return { error: 'This trade does not need an online payment.' };
+  if (amountToPay <= 0 || amountToPay > transaction.amount) return { error: 'Choose an online payment amount within the accepted offer amount.' };
+
+  const cashDueAmount = Math.max(0, transaction.amount - amountToPay);
+  const paymentStatus = cashDueAmount > 0 ? 'partial_pending' : 'pending';
+  const now = new Date().toISOString();
+
+  const { data: paymentRow, error: paymentError } = await _sb
+    .from('payment_records')
+    .insert({
+      transaction_id: transaction.id,
+      offer_id: transaction.offerId,
+      buyer_id: transaction.buyerId,
+      seller_id: transaction.sellerId,
+      amount: amountToPay,
+      cash_due_amount: cashDueAmount,
+      gateway: 'paystack',
+      status: 'checkout_created',
+    })
+    .select()
+    .single();
+  if (paymentError) return { error: _userFacingError(paymentError, 'Payment records are not set up yet. Run the payments SQL first.') };
+
+  await _sb
+    .from('transactions')
+    .update({
+      payment_status: paymentStatus,
+      online_paid_amount: amountToPay,
+      cash_due_amount: cashDueAmount,
+      payment_gateway: 'paystack',
+      payment_reference: paymentRow.payment_id || paymentRow.id,
+      updated_at: now,
+    })
+    .eq('transaction_id', transaction.id);
+
+  const checkoutResult = await _sb.functions.invoke('create-paystack-checkout', {
+    body: {
+      paymentId: paymentRow.payment_id || paymentRow.id,
+      transactionId: transaction.id,
+      amount: amountToPay,
+      cashDueAmount,
+      currency: 'ZAR',
+      returnUrl: window.location.href.split('#')[0],
+    },
+  });
+
+  if (checkoutResult.error) {
+    return {
+      success: true,
+      pendingGateway: true,
+      payment: paymentRow,
+      cashDueAmount,
+      message: 'Payment plan saved. The online checkout service still needs to be deployed.',
+    };
+  }
+
+  return {
+    success: true,
+    payment: checkoutResult.data?.payment || paymentRow,
+    checkoutUrl: checkoutResult.data?.redirectUrl || checkoutResult.data?.checkout?.authorization_url,
+    cashDueAmount,
+  };
+}
+
+export async function verifyPaymentCheckout({ transactionId, reference } = {}) {
+  if (!transactionId) return { error: 'Missing payment details.' };
+  const result = await _sb.functions.invoke('verify-paystack-payment', {
+    body: { transactionId, reference },
+  });
+  if (result.error) return { error: _userFacingError(result.error, 'Payment could not be verified yet.') };
+  if (result.data?.error) return { error: result.data.error };
+  return { success: true, payment: result.data?.payment, transaction: result.data?.transaction };
+}
+
+export async function markTransactionCashSettled({ transactionId, staffId } = {}) {
+  if (!transactionId || !staffId) return { error: 'Missing cash settlement details.' };
+  const { error } = await _sb
+    .from('transactions')
+    .update({
+      cash_due_amount: 0,
+      cash_settled_at: new Date().toISOString(),
+      cash_settled_by: staffId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('transaction_id', transactionId);
+  if (error) return { error: _userFacingError(error, 'Could not confirm the cash settlement.') };
+  return { success: true };
+}
+
 export async function createReview({ transactionId, reviewerId, revieweeId, listingId, rating, body } = {}) {
   const cleanRating = Number(rating);
   if (!transactionId || !reviewerId || !revieweeId || !listingId) return { error: 'Missing review details.' };
@@ -1735,8 +1848,10 @@ export async function getFacilityAvailability() {
   };
 }
 
-function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new Map()) {
+function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new Map(), transactionsById = new Map()) {
   const listingId = _firstValue(row, ['listing_id', 'listingId', 'item_id', 'itemId']);
+  const transactionId = _firstValue(row, ['transaction_id', 'transactionId']);
+  const transaction = transactionsById.get(transactionId) || {};
   const listing = listingsById.get(listingId) || {};
   const sellerId = _firstValue(row, ['seller_id', 'sellerId']) || listing.sellerId;
   const buyerId = _firstValue(row, ['buyer_id', 'buyerId', 'collector_id', 'collectorId']);
@@ -1748,6 +1863,7 @@ function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new 
 
   return {
     id: _firstValue(row, ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id']),
+    transactionId,
     listingId,
     sellerId,
     buyerId,
@@ -1761,6 +1877,10 @@ function _toFacilityBooking(row = {}, listingsById = new Map(), usersById = new 
     dropoffScheduledAt: _firstValue(row, ['dropoff_scheduled_at', 'drop_off_scheduled_at', 'scheduled_dropoff_at', 'dropoff_at', 'drop_off_at', 'created_at']),
     collectionScheduledAt: _firstValue(row, ['collection_scheduled_at', 'scheduled_collection_at', 'pickup_scheduled_at', 'collection_at', 'pickup_at']),
     status,
+    paymentStatus: transaction.paymentStatus || 'unpaid',
+    onlinePaidAmount: Number(transaction.onlinePaidAmount || 0),
+    cashDueAmount: Number(transaction.cashDueAmount || 0),
+    cashSettledAt: transaction.cashSettledAt || null,
     raw: row,
   };
 }
@@ -1781,16 +1901,21 @@ export async function getFacilityOverview() {
 
   const rows = loaded.rows || [];
   const listingIds = rows.map(row => _firstValue(row, ['listing_id', 'listingId', 'item_id', 'itemId']));
+  const transactionIds = _uniqueValues(rows.map(row => _firstValue(row, ['transaction_id', 'transactionId'])));
   const rawSellerIds = rows.map(row => _firstValue(row, ['seller_id', 'sellerId']));
   const buyerIds = rows.map(row => _firstValue(row, ['buyer_id', 'buyerId', 'collector_id', 'collectorId']));
 
   const listingsById = await _loadListingsByIds(listingIds);
+  const { data: transactionRows } = transactionIds.length
+    ? await _sb.from('transactions').select('*').in('transaction_id', transactionIds)
+    : { data: [] };
+  const transactionsById = new Map((transactionRows || []).map(row => [row.transaction_id || row.id, toTransaction(row)]));
   const sellerIds = [
     ...rawSellerIds,
     ...[...listingsById.values()].map(listing => listing.sellerId),
   ];
   const usersById = await _loadUsersByIds([...sellerIds, ...buyerIds]);
-  const bookings = rows.map(row => _toFacilityBooking(row, listingsById, usersById));
+  const bookings = rows.map(row => _toFacilityBooking(row, listingsById, usersById, transactionsById));
 
   const activeDropoffStatuses = ['pending_dropoff'];
   const activeCollectionStatuses = ['received', 'ready_for_collection'];
@@ -1991,6 +2116,19 @@ export async function updateFacilityBooking({ bookingId, staffId, action, releas
     values.ready_at = now;
     values.marked_ready_by = staffId || null;
   } else if (action === 'release_item') {
+    const loaded = await _loadFacilityBookingRows();
+    const bookingRow = (loaded.rows || []).find(item => ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'].some(column => String(item[column] || '') === String(bookingId)));
+    const transactionId = bookingRow?.transaction_id;
+    if (transactionId) {
+      const { data: transactionRow } = await _sb.from('transactions').select('*').eq('transaction_id', transactionId).maybeSingle();
+      const transaction = toTransaction(transactionRow || {});
+      if (Number(transaction.cashDueAmount || 0) > 0 && !transaction.cashSettledAt) {
+        return { error: `Outstanding cash of R ${Number(transaction.cashDueAmount).toLocaleString('en-ZA')} must be confirmed before release.` };
+      }
+      if (transaction.paymentStatus && ['pending', 'partial_pending', 'unpaid'].includes(transaction.paymentStatus) && Number(transaction.onlinePaidAmount || 0) > 0) {
+        return { error: 'Online payment must be confirmed before release.' };
+      }
+    }
     values.status = 'released';
     values.released_at = now;
     values.released_by = staffId || null;
@@ -2063,6 +2201,9 @@ export const Auth = {
   getConversationMessages,
   sendMessage,
   updateOfferStatus,
+  createPaymentCheckout,
+  verifyPaymentCheckout,
+  markTransactionCashSettled,
   createReview,
   reportContent,
   getRolePermissions,

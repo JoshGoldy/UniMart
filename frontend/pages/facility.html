@@ -294,6 +294,9 @@
     document.querySelectorAll('[data-workflow-action]').forEach(button => {
       button.addEventListener('click', () => handleWorkflowAction(button));
     });
+    document.querySelectorAll('[data-cash-settle]').forEach(button => {
+      button.addEventListener('click', () => confirmCashSettlement(button));
+    });
   }
 
   function renderDropoffBooking(booking) {
@@ -307,7 +310,8 @@
       ? `<button class="btn btn-primary" type="button" data-workflow-action="mark_ready" data-booking-id="${escapeAttribute(booking.id)}">Mark ready</button>`
       : '';
     const releaseAction = booking.status === 'ready_for_collection'
-      ? `<input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Expected collector ID" value="${escapeAttribute(booking.buyerId)}" />
+      ? `${booking.cashDueAmount > 0 && !booking.cashSettledAt ? `<button class="btn btn-secondary" type="button" data-cash-settle="${escapeAttribute(booking.transactionId)}">Confirm cash paid</button>` : ''}
+         <input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Expected collector ID" value="${escapeAttribute(booking.buyerId)}" />
          <button class="btn btn-primary" type="button" data-workflow-action="release_item" data-booking-id="${escapeAttribute(booking.id)}">Release item</button>`
       : '';
     return renderBookingCard(booking, `${readyAction}${releaseAction}`, `Collection: ${formatDateTime(booking.collectionScheduledAt)}`);
@@ -322,6 +326,7 @@
           <div class="booking-meta">${escapeHtml(booking.category)} - ${escapeHtml(booking.condition)} - ${formatCurrency(booking.price)}</div>
           <div class="booking-meta">Seller: ${escapeHtml(booking.sellerName)} | Buyer: ${escapeHtml(booking.buyerName)}</div>
           <div class="booking-meta">${escapeHtml(scheduleLabel)}</div>
+          <div class="booking-meta">Online paid: ${formatCurrency(booking.onlinePaidAmount || 0)} | Cash due: ${formatCurrency(booking.cashDueAmount || 0)}${booking.cashSettledAt ? ' (settled)' : ''}</div>
         </div>
         <div class="booking-footer">
           <span class="status-pill">${escapeHtml(formatStatus(booking.status))}</span>
@@ -369,6 +374,26 @@
       release_item: 'Item release confirmed.',
     };
     showToast(successMessages[action] || 'Workflow updated.', 'success');
+    loadFacilityOverview();
+  }
+
+  async function confirmCashSettlement(button) {
+    const transactionId = button.dataset.cashSettle;
+    if (!transactionId) return;
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Saving...';
+    const result = await Auth.markTransactionCashSettled({
+      transactionId,
+      staffId: facilityState.user.id,
+    });
+    button.disabled = false;
+    button.textContent = originalText;
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    showToast('Cash balance confirmed.', 'success');
     loadFacilityOverview();
   }
 

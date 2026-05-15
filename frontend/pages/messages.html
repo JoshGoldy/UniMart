@@ -434,6 +434,7 @@
   initPage().then(user => {
     if (!user) return;
     state.user = user;
+    handlePaymentReturn();
     loadConversations({ showLoading: true, forceRender: true }).then(() => {
       if (state.activeConversationId) openConversation(state.activeConversationId);
     });
@@ -448,6 +449,25 @@
     event.preventDefault();
     await submitMessage();
   });
+
+  async function handlePaymentReturn() {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const transactionId = params.get('transaction');
+    const reference = params.get('reference') || params.get('trxref');
+    if (payment !== 'success' || !transactionId) return;
+
+    const result = await Auth.verifyPaymentCheckout({ transactionId, reference });
+    if (result.error) showToast(result.error, 'error');
+    else showToast('Online payment confirmed.', 'success');
+
+    params.delete('payment');
+    params.delete('transaction');
+    params.delete('reference');
+    params.delete('trxref');
+    const nextUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`;
+    window.history.replaceState({}, '', nextUrl);
+  }
 
   async function loadConversations(options = {}) {
     const { showLoading = false, forceRender = false } = options;
@@ -582,13 +602,14 @@
     }
 
     const offerHtml = latestOffer ? renderOfferCard(latestOffer, conversation) : '';
+    const paymentHtml = acceptedTransaction ? renderPaymentCard(acceptedTransaction) : '';
     const bookingHtml = acceptedTransaction
       ? renderBookingCard(acceptedTransaction)
       : '';
     const reviewHtml = acceptedTransaction && ['facility_booked', 'completed'].includes(acceptedTransaction.status)
       ? renderReviewCard(acceptedTransaction, conversation)
       : '';
-    wrap.innerHTML = `${offerHtml}${bookingHtml}${reviewHtml}`;
+    wrap.innerHTML = `${offerHtml}${paymentHtml}${bookingHtml}${reviewHtml}`;
     if (acceptedTransaction) ensureFacilityInfo();
 
     wrap.querySelectorAll('[data-offer-action]').forEach(button => {
@@ -604,11 +625,47 @@
       buyerCollectionButton.addEventListener('click', confirmBuyerCollection);
       loadBuyerCollectionSlots(acceptedTransaction);
     }
+    const paymentButton = document.getElementById('start-payment-btn');
+    if (paymentButton) paymentButton.addEventListener('click', startOnlinePayment);
     const reviewButton = document.getElementById('submit-review-btn');
     if (reviewButton) reviewButton.addEventListener('click', submitReview);
     wrap.querySelectorAll('[data-report-review]').forEach(button => {
       button.addEventListener('click', () => reportReview(button.dataset.reportReview));
     });
+  }
+
+  function renderPaymentCard(transaction) {
+    if (!transaction.amount || transaction.amount <= 0) {
+      return `
+        <div class="booking-card-inline">
+          <div class="offer-title">Payment</div>
+          <div class="offer-meta">This trade does not have an online payment amount.</div>
+        </div>
+      `;
+    }
+
+    const paid = Number(transaction.onlinePaidAmount || 0);
+    const cashDue = Number(transaction.cashDueAmount || Math.max(0, transaction.amount - paid));
+    const canPay = state.user.id === transaction.buyerId && !['paid', 'completed'].includes(transaction.paymentStatus);
+    return `
+      <div class="booking-card-inline">
+        <div>
+          <div class="offer-title">Payment plan</div>
+          <div class="offer-meta">Accepted amount: ${formatCurrency(transaction.amount)}. Online: ${formatCurrency(paid)}. Cash due at collection: ${formatCurrency(cashDue)}.</div>
+          <div class="offer-meta">Status: ${escapeHtml(formatStatusLabel(transaction.paymentStatus || 'unpaid'))}${cashDue > 0 ? '. Staff will confirm the cash balance before release.' : ''}</div>
+        </div>
+        ${canPay ? `
+          <div class="booking-slot-grid">
+            <div class="form-group">
+              <label class="form-label" for="online-payment-amount">Pay online now</label>
+              <input class="form-input" id="online-payment-amount" type="number" min="1" max="${escapeAttribute(transaction.amount)}" step="1" value="${escapeAttribute(transaction.amount)}" />
+            </div>
+          </div>
+          <span class="form-error" id="payment-error"></span>
+          <button class="btn btn-primary" id="start-payment-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">Pay online</button>
+        ` : ''}
+      </div>
+    `;
   }
 
   function renderOfferCard(offer, conversation) {
@@ -873,6 +930,43 @@
     showToast(button.dataset.offerAction === 'accepted' ? 'Offer accepted' : 'Offer declined', 'success');
     await loadMessages(state.activeConversationId, false, { forceRender: true });
     await loadConversations({ forceRender: true });
+  }
+
+  async function startOnlinePayment() {
+    const button = document.getElementById('start-payment-btn');
+    const input = document.getElementById('online-payment-amount');
+    const error = document.getElementById('payment-error');
+    const transaction = state.transactions.find(item => item.id === button?.dataset.transactionId);
+    if (!button || !input || !transaction) return;
+
+    const amount = Number(input.value);
+    error.textContent = '';
+    if (!Number.isFinite(amount) || amount <= 0 || amount > Number(transaction.amount || 0)) {
+      error.textContent = 'Enter an online amount up to the accepted offer amount.';
+      return;
+    }
+
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Starting payment...';
+    const result = await Auth.createPaymentCheckout({
+      transactionId: transaction.id,
+      buyerId: state.user.id,
+      onlineAmount: amount,
+    });
+    button.disabled = false;
+    button.textContent = originalText;
+
+    if (result.error) {
+      error.textContent = result.error;
+      return;
+    }
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl;
+      return;
+    }
+    showToast(result.message || 'Payment plan saved. Online checkout is not connected yet.', 'success');
+    await loadMessages(state.activeConversationId, false, { forceRender: true });
   }
 
   async function loadSellerDropoffSlots() {
