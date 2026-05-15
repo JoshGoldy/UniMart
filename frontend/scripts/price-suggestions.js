@@ -62,8 +62,8 @@ const CONDITION_MULTIPLIERS = {
   New: 1,
   'Like New': 0.82,
   Good: 0.65,
-  Fair: 0.48,
-  Used: 0.55,
+  Fair: 0.5,
+  Used: 0.38,
 };
 
 function roundToNearestTen(value) {
