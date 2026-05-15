@@ -116,6 +116,55 @@
       flex: 1;
     }
 
+    .price-guide {
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--linen);
+      padding: 12px 14px;
+      gap: 8px;
+    }
+
+    .price-guide.show {
+      display: grid;
+    }
+
+    .price-guide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .price-guide-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .price-guide-range {
+      color: var(--sage);
+      font-size: 0.95rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .price-guide-copy {
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
+    .price-guide-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .price-guide-actions .btn {
+      padding: 8px 10px;
+      font-size: 0.78rem;
+    }
+
     .listing-board {
       padding: 22px;
     }
@@ -500,6 +549,17 @@
               </div>
             </div>
 
+            <div class="price-guide" id="price-guide">
+              <div class="price-guide-header">
+                <div class="price-guide-title">Fair price guide</div>
+                <div class="price-guide-range" id="price-guide-range"></div>
+              </div>
+              <div class="price-guide-copy" id="price-guide-copy"></div>
+              <div class="price-guide-actions">
+                <button class="btn btn-secondary" id="use-suggested-price-btn" type="button">Use suggested price</button>
+              </div>
+            </div>
+
             <div class="form-group">
               <label class="form-label" for="listing-type">Listing type</label>
               <select class="form-select" id="listing-type">
@@ -541,6 +601,7 @@
     // Import modules
     import { Auth, initializeSupabase, getSupabaseClient } from '../scripts/auth.js';
     import * as App from '../scripts/app-modular.js';
+    import { getPriceSuggestion } from '../scripts/price-suggestions.js';
     
     // Initialize Supabase
     const _sb = initializeSupabase(window.supabase);
@@ -640,6 +701,12 @@
 
   document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
   document.getElementById('listing-image-file').addEventListener('change', updateImagePreview);
+  ['listing-title', 'listing-category', 'listing-condition'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updatePriceGuide);
+    document.getElementById(id).addEventListener('change', updatePriceGuide);
+  });
+  document.getElementById('use-suggested-price-btn').addEventListener('click', useSuggestedPrice);
+  updatePriceGuide();
 
   async function loadMyListings() {
     if (!pageState.user) return;
@@ -764,6 +831,7 @@
     document.getElementById('save-listing-btn').textContent = 'Save changes';
     document.getElementById('cancel-edit-btn').style.display = 'inline-flex';
     updateImagePreview();
+    updatePriceGuide();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -780,6 +848,28 @@
     document.getElementById('save-listing-btn').textContent = 'Create listing';
     document.getElementById('cancel-edit-btn').style.display = 'none';
     updateImagePreview();
+    updatePriceGuide();
+  }
+
+  function updatePriceGuide() {
+    const title = document.getElementById('listing-title').value;
+    const category = document.getElementById('listing-category').value;
+    const condition = document.getElementById('listing-condition').value;
+    const suggestion = getPriceSuggestion({ title, category, condition });
+    const guide = document.getElementById('price-guide');
+    guide.dataset.suggestedPrice = suggestion.midpoint;
+    document.getElementById('price-guide-range').textContent = `${formatCurrency(suggestion.low)} - ${formatCurrency(suggestion.high)}`;
+    document.getElementById('price-guide-copy').textContent = `Suggested for ${suggestion.label} in ${condition.toLowerCase()} condition, informed by public South African consumer price data and adjusted for student resale.`;
+    guide.classList.add('show');
+  }
+
+  function useSuggestedPrice() {
+    const value = Number(document.getElementById('price-guide').dataset.suggestedPrice || 0);
+    if (!value) return;
+    document.getElementById('listing-price').value = value;
+    const priceError = document.getElementById('price-error');
+    priceError.textContent = '';
+    priceError.classList.remove('visible');
   }
 
   function renderEmptyState(message) {
