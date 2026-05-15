@@ -171,6 +171,17 @@ function ensureNotificationPanel(user) {
 
 async function refreshMessageNotifications(user) {
   if (!user || !hasFeature(user, 'messages')) return;
+  if (Auth.getUnreadMessageNotifications) {
+    const notificationResult = await Auth.getUnreadMessageNotifications(user.id);
+    if (!notificationResult.error) {
+      const unread = notificationResult.notifications || [];
+      const unreadTotal = Number(notificationResult.total || 0);
+      setUnreadMessageBadge(unreadTotal);
+      renderNotificationPanel(unread, unreadTotal);
+      return;
+    }
+  }
+
   const result = await Auth.getConversations(user.id);
   if (result.error) {
     setUnreadMessageBadge(0);
@@ -209,10 +220,16 @@ function renderNotificationPanel(unreadConversations, unreadTotal) {
     <a class="notification-item unread" href="messages.html?conversation=${encodeURIComponent(item.id)}">
       <strong>${escapeHtml(item.listingTitle || 'Marketplace conversation')}</strong>
       <span>${escapeHtml(item.unreadCount === 1 ? '1 new message' : `${item.unreadCount} new messages`)} from ${escapeHtml(item.otherDisplayName || 'a UniMart user')}</span>
+      ${item.preview ? `<small>${escapeHtml(trimNotificationPreview(item.preview))}</small>` : ''}
     </a>
   `).join('') + `
     <a class="notification-view-all" href="messages.html">Open messages</a>
   `;
+}
+
+function trimNotificationPreview(value = '') {
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  return text.length > 82 ? `${text.slice(0, 79)}...` : text;
 }
 
 // Re-export everything for convenience

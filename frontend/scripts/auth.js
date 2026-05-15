@@ -925,6 +925,73 @@ export async function getConversations(userId) {
   return { conversations };
 }
 
+export async function getUnreadMessageNotifications(userId) {
+  const { data: conversationRows, error: conversationError } = await _sb
+    .from('conversations')
+    .select('*')
+    .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+    .order('last_message_at', { ascending: false });
+
+  if (conversationError) return { error: _userFacingError(conversationError), total: 0, notifications: [] };
+
+  const conversations = conversationRows || [];
+  const conversationIds = _uniqueValues(conversations.map(row => _conversationId(row)));
+  if (!conversationIds.length) return { total: 0, notifications: [] };
+
+  const { data: unreadRows, error: unreadError } = await _sb
+    .from('messages')
+    .select('id,conversation_id,sender_id,body,created_at,read_at')
+    .in('conversation_id', conversationIds)
+    .neq('sender_id', userId)
+    .is('read_at', null)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (unreadError) return { error: _userFacingError(unreadError), total: 0, notifications: [] };
+
+  const unreadByConversation = new Map();
+  (unreadRows || []).forEach(message => {
+    const id = message.conversation_id;
+    if (!unreadByConversation.has(id)) unreadByConversation.set(id, []);
+    unreadByConversation.get(id).push(message);
+  });
+
+  if (!unreadByConversation.size) return { total: 0, notifications: [] };
+
+  const [usersById, listingsById] = await Promise.all([
+    _fetchUsersByIds(conversations.flatMap(row => [row.buyer_id, row.seller_id])),
+    _fetchListingsByIds(conversations.map(row => row.listing_id)),
+  ]);
+
+  const notifications = conversations
+    .map(row => {
+      const conversationId = _conversationId(row);
+      const unreadMessages = unreadByConversation.get(conversationId) || [];
+      if (!unreadMessages.length) return null;
+
+      const conversation = toConversation({
+        ...row,
+        listing: listingsById[row.listing_id] || {},
+        buyer: usersById[row.buyer_id] || {},
+        seller: usersById[row.seller_id] || {},
+        unread_count: unreadMessages.length,
+      }, userId);
+
+      return {
+        ...conversation,
+        preview: unreadMessages[0]?.body || '',
+        lastMessageAt: unreadMessages[0]?.created_at || conversation.lastMessageAt,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
+
+  return {
+    total: (unreadRows || []).length,
+    notifications,
+  };
+}
+
 export async function getConversationMessages({ conversationId, userId, markRead = false }) {
   let convResult = await _getConversationById(conversationId);
 
@@ -1893,6 +1960,7 @@ export const Auth = {
   startConversation,
   startOffer,
   getConversations,
+  getUnreadMessageNotifications,
   getConversationMessages,
   sendMessage,
   updateOfferStatus,

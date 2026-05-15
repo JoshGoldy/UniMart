@@ -468,8 +468,14 @@
 
     const conversations = result.conversations || [];
     const nextSignature = conversations.map(item => `${item.id}:${item.unreadCount}:${item.lastMessageAt || ''}:${item.status}`).join('|');
-    count.textContent = `${state.conversations.length} conversation${state.conversations.length === 1 ? '' : 's'}`;
-    setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
+    count.textContent = `${conversations.length} conversation${conversations.length === 1 ? '' : 's'}`;
+    if (Auth.getUnreadMessageNotifications) {
+      const unreadResult = await Auth.getUnreadMessageNotifications(state.user.id);
+      if (!unreadResult.error) setUnreadMessageBadge(Number(unreadResult.total || 0));
+      else setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
+    } else {
+      setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
+    }
 
     if (!forceRender && nextSignature === state.conversationSignature) return;
 
