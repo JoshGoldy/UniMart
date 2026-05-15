@@ -21,6 +21,29 @@ export function getSupabaseClient() {
   return _sb;
 }
 
+function _userFacingError(error, fallback = 'Something went wrong. Please try again.') {
+  const message = typeof error === 'string' ? error : error?.message;
+  if (!message) return fallback;
+  const technicalPatterns = [
+    /supabase/i,
+    /schema cache/i,
+    /relation .* does not exist/i,
+    /column .* does not exist/i,
+    /violates .* constraint/i,
+    /check constraint/i,
+    /foreign key/i,
+    /duplicate key/i,
+    /invalid input syntax/i,
+    /\buuid\b/i,
+    /row-level security/i,
+    /\brls\b/i,
+    /permission denied for/i,
+  ];
+  if (technicalPatterns.some(pattern => pattern.test(message))) return fallback;
+  if (/failed to fetch|network/i.test(message)) return 'We could not connect right now. Please check your connection and try again.';
+  return message;
+}
+
 // Build page URLs safely for GitHub Pages, local dev, and the deployed /frontend/pages structure.
 // This also corrects older broken redirects that accidentally used /fontend/.
 export function getPageUrl(pageName) {
@@ -136,7 +159,7 @@ export async function signUp({ fullName, email, password, accountType, userRole 
       }
     }
   });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true, requiresEmailVerification: !data?.session };
 }
 
@@ -148,14 +171,14 @@ export async function resendSignupOTP(email) {
       emailRedirectTo: getPageUrl('login.html'),
     },
   });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
 // Sign-in
 export async function signIn({ email, password }) {
   const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   const profile = await _ensureProfile(data.user);
   return { success: true, user: profile || _buildUser(data.user) };
 }
@@ -167,13 +190,13 @@ export async function signInWithGoogle({ redirectTo } = {}) {
       redirectTo: redirectTo || getOAuthRedirectUrl(),
     },
   });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
 export async function handleOAuthCallback() {
   const { data: { session }, error } = await _sb.auth.getSession();
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   if (!session?.user) return { error: 'We could not complete Google sign-in. Please try again.' };
 
   const profile = await _ensureProfile(session.user);
@@ -184,7 +207,7 @@ export async function handleOAuthCallback() {
 // OTP verification
 export async function verifyOTP(email, token) {
   const { data, error } = await _sb.auth.verifyOtp({ email, token, type: 'signup' });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   if (data.user) {
     const meta = data.user.user_metadata || {};
     await _sb.from('users').upsert({
@@ -236,7 +259,7 @@ export async function updateProfile({ id, fullName, email, accountType, username
     }).eq('id', id),
     _sb.auth.updateUser({ data: { full_name: fullName, account_type: cleanAccountType, username: cleanUsername || null } }),
   ]);
-  if (dbErr || authErr) return { error: (dbErr || authErr).message };
+  if (dbErr || authErr) return { error: _userFacingError(dbErr || authErr) };
   return { success: true };
 }
 
@@ -246,7 +269,7 @@ export async function updateCampusInfo({ id, university, campus, studentNumber }
     uni_campus: campus || null,
     student_number: studentNumber || null,
   }).eq('id', id);
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
@@ -255,13 +278,13 @@ export async function updatePassword({ currentPassword, newPassword, email }) {
   const { error: reAuthErr } = await _sb.auth.signInWithPassword({ email, password: currentPassword });
   if (reAuthErr) return { error: 'Incorrect current password.' };
   const { error: updateErr } = await _sb.auth.updateUser({ password: newPassword });
-  if (updateErr) return { error: updateErr.message };
+  if (updateErr) return { error: _userFacingError(updateErr) };
   return { success: true };
 }
 
 export async function requestPasswordReset({ email, redirectTo }) {
   const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
@@ -277,13 +300,13 @@ export async function handlePasswordRecoverySession() {
 
   if (accessToken && refreshToken) {
     const { error } = await _sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    if (error) return { error: error.message };
+    if (error) return { error: _userFacingError(error) };
     return { success: true };
   }
 
   if (code && _sb.auth.exchangeCodeForSession) {
     const { error } = await _sb.auth.exchangeCodeForSession(code);
-    if (error) return { error: error.message };
+    if (error) return { error: _userFacingError(error) };
     return { success: true };
   }
 
@@ -294,7 +317,7 @@ export async function completePasswordRecovery({ newPassword }) {
   const recovered = await handlePasswordRecoverySession();
   if (recovered.error) return recovered;
   const { error } = await _sb.auth.updateUser({ password: newPassword });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
@@ -430,7 +453,7 @@ export async function getMarketplaceListings() {
 
   if (error) {
     const fallback = await _sb.from('listings').select('*').eq('status', 'active').order('created_at', { ascending: false });
-    if (fallback.error) return { error: fallback.error.message };
+    if (fallback.error) return { error: _userFacingError(fallback.error) };
     return { listings: await attachSellerRatings((fallback.data || []).map(toListing)) };
   }
   return { listings: await attachSellerRatings((data || []).map(toListing)) };
@@ -442,7 +465,7 @@ export async function getMyListings(sellerId) {
     .select('*')
     .eq('seller_id', sellerId)
     .order('created_at', { ascending: false });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { listings: (data || []).map(toListing) };
 }
 
@@ -459,7 +482,7 @@ export async function createListing(payload) {
       .select()
       .single());
   }
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true, listing: toListing(data) };
 }
 
@@ -468,13 +491,13 @@ export async function updateListing(payload) {
   if (isMissingListingTypeError(error)) {
     ({ data, error } = await updateListingById(payload.listingId, legacyListingPayload(payload), payload.sellerId));
   }
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true, listing: toListing(data) };
 }
 
 export async function deleteListing({ listingId, sellerId }) {
   const { error } = await deleteListingById(listingId, sellerId);
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
@@ -486,7 +509,7 @@ export async function uploadListingImage(file, userId) {
     cacheControl: '3600',
     upsert: false,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   const { data } = _sb.storage.from(LISTING_IMAGE_BUCKET).getPublicUrl(path);
   return { imageUrl: data.publicUrl };
 }
@@ -550,7 +573,7 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
     .eq('seller_id', sellerId)
     .maybeSingle();
 
-  if (findErr) return { error: findErr.message };
+  if (findErr) return { error: _userFacingError(findErr) };
 
   if (!conversation) {
     const inserted = await _sb
@@ -558,7 +581,7 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
       .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId, status: 'open', last_message_at: new Date().toISOString() })
       .select()
       .single();
-    if (inserted.error) return { error: inserted.error.message };
+    if (inserted.error) return { error: _userFacingError(inserted.error) };
     conversation = inserted.data;
   }
 
@@ -726,7 +749,7 @@ export async function startOffer({ listingId, buyerId, offerText }) {
     .select()
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true, conversation: { ...conversation, id: conversationId }, offer: toOffer(data) };
 }
 
@@ -851,7 +874,7 @@ export async function getConversations(userId) {
     .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
     .order('last_message_at', { ascending: false });
 
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
 
   const conversations = await _hydrateConversations(data || [], userId);
   return { conversations };
@@ -860,7 +883,7 @@ export async function getConversations(userId) {
 export async function getConversationMessages({ conversationId, userId, markRead = false }) {
   let convResult = await _getConversationById(conversationId);
 
-  if (convResult.error) return { error: convResult.error.message };
+  if (convResult.error) return { error: _userFacingError(convResult.error) };
   const conversationRow = convResult.data;
   if (!conversationRow || ![conversationRow.buyer_id, conversationRow.seller_id].includes(userId)) return { error: 'Conversation not found.' };
 
@@ -881,7 +904,7 @@ export async function getConversationMessages({ conversationId, userId, markRead
     .eq('conversation_id', resolvedConversationId)
     .order('created_at', { ascending: true });
 
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
 
   const offersResult = await _sb
     .from('offers')
@@ -956,7 +979,7 @@ export async function updateOfferStatus({ offerId, userId, status }) {
     .select('*')
     .eq('offer_id', offerId)
     .maybeSingle();
-  if (offerError) return { error: offerError.message };
+  if (offerError) return { error: _userFacingError(offerError) };
   if (!offerRow) return { error: 'Offer not found.' };
   if (offerRow.seller_id !== userId) return { error: 'Only the seller can respond to this offer.' };
   if (offerRow.status !== 'pending') return { error: 'This offer has already been handled.' };
@@ -968,7 +991,7 @@ export async function updateOfferStatus({ offerId, userId, status }) {
     .eq('offer_id', offerId)
     .select()
     .single();
-  if (updateError) return { error: updateError.message };
+  if (updateError) return { error: _userFacingError(updateError) };
 
   let transaction = null;
   if (status === 'accepted') {
@@ -992,7 +1015,7 @@ export async function updateOfferStatus({ offerId, userId, status }) {
       })
       .select()
       .single();
-    if (inserted.error) return { error: inserted.error.message };
+    if (inserted.error) return { error: _userFacingError(inserted.error) };
     transaction = toTransaction(inserted.data);
   }
 
@@ -1024,7 +1047,7 @@ export async function createReview({ transactionId, reviewerId, revieweeId, list
     }, { onConflict: 'transaction_id,reviewer_id,reviewee_id' })
     .select()
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true, review: toReview(data) };
 }
 
@@ -1043,7 +1066,7 @@ export async function reportContent({ reporterId, targetType, targetId, listingI
     })
     .select()
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true, report: toContentReport(data) };
 }
 
@@ -1054,7 +1077,7 @@ export async function sendMessage({ conversationId, senderId, body }) {
     .insert({ conversation_id: conversationId, sender_id: senderId, body, created_at: now })
     .select()
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   await _updateConversationTimestamp(conversationId, now);
   return { success: true, message: data };
 }
@@ -1067,13 +1090,13 @@ export async function getRolePermissions() {
 
 export async function updateRolePermission({ role, permission, enabled }) {
   const { error } = await _sb.from('role_permissions').upsert({ role, permission, enabled }, { onConflict: 'role,permission' });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
 export async function updateUserRole({ userId, role }) {
   const { error } = await _sb.from('users').update({ user_role: role }).eq('id', userId);
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
@@ -1213,7 +1236,7 @@ export async function getAdminOverview() {
     _sb.from('transactions').select('*').order('created_at', { ascending: false }).limit(500),
     _loadFacilityBookingRows(),
   ]);
-  if (usersRes.error) return { error: usersRes.error.message };
+  if (usersRes.error) return { error: _userFacingError(usersRes.error) };
   const users = (usersRes.data || []).map(toUser);
   const listings = (listingsRes.data || []).map(toListing);
   const userMap = new Map(users.map(user => [user.id, user]));
@@ -1303,7 +1326,7 @@ export async function removeListingAsAdmin({ listingId, adminId, note }) {
     }
     lastError = error;
   }
-  if (!removed) return { error: lastError?.message || 'Unable to remove listing.' };
+  if (!removed) return { error: _userFacingError(lastError, 'Unable to remove listing.') };
   await _sb
     .from('content_reports')
     .update({ status: 'resolved', updated_at: new Date().toISOString() })
@@ -1328,7 +1351,7 @@ export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
     }
     lastError = error;
   }
-  if (!removed) return { error: lastError?.message || 'Unable to remove review.' };
+  if (!removed) return { error: _userFacingError(lastError, 'Unable to remove review.') };
   await _sb
     .from('content_reports')
     .update({ status: 'resolved', updated_at: new Date().toISOString() })
@@ -1344,7 +1367,7 @@ export async function updateContentReport({ reportId, adminId, status, note } = 
     .from('content_reports')
     .update({ status: cleanStatus, updated_at: new Date().toISOString() })
     .eq('report_id', reportId);
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   await _recordModerationAction({ adminId, action: 'updated_report_status', targetType: 'report', targetId: reportId, note });
   return { success: true };
 }
@@ -1372,7 +1395,7 @@ async function _loadFacilityBookingRows() {
     if (!error) return { table, rows: data || [] };
     lastError = error;
   }
-  return { table: null, rows: [], error: lastError?.message || 'Facility booking table could not be found.' };
+  return { table: null, rows: [], error: _userFacingError(lastError, 'Facility bookings could not be loaded.') };
 }
 
 function _dateKey(value) {
@@ -1571,7 +1594,7 @@ export async function updateFacilityConfig({ opensAt, closesAt, slotMinutes, slo
     updated_at: new Date().toISOString(),
   };
   const { error } = await _sb.from('facility_config').upsert(values, { onConflict: 'config_id' });
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
@@ -1585,7 +1608,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
     .select('*')
     .eq('transaction_id', transactionId)
     .maybeSingle();
-  if (transactionError) return { error: transactionError.message };
+  if (transactionError) return { error: _userFacingError(transactionError) };
   if (!transactionRow) return { error: 'Transaction not found.' };
 
   const transaction = toTransaction(transactionRow);
@@ -1632,7 +1655,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
     })
     .select()
     .single();
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
   if (transactionId) {
     const transactionValues = {
       facility_booking_id: data.booking_id || data.id,
@@ -1656,7 +1679,7 @@ export async function confirmFacilityCollection({ transactionId, bookingId, buye
     .select('*')
     .eq('booking_id', bookingId)
     .maybeSingle();
-  if (bookingError) return { error: bookingError.message };
+  if (bookingError) return { error: _userFacingError(bookingError) };
   if (!bookingRow) return { error: 'Facility booking not found.' };
   if (bookingRow.buyer_id !== buyerId || bookingRow.transaction_id !== transactionId) return { error: 'Only the buyer can confirm collection for this handover.' };
 
@@ -1669,7 +1692,7 @@ export async function confirmFacilityCollection({ transactionId, bookingId, buye
     .from('facility_bookings')
     .update({ collection_scheduled_at: collection.toISOString(), updated_at: new Date().toISOString() })
     .eq('booking_id', bookingId);
-  if (error) return { error: error.message };
+  if (error) return { error: _userFacingError(error) };
 
   await _sb
     .from('transactions')
@@ -1719,7 +1742,7 @@ async function _updateFacilityRow(table, bookingId, values, statusCandidates = [
     }
   }
 
-  return { error: lastError?.message || 'Unable to update facility booking.' };
+  return { error: _userFacingError(lastError, 'Unable to update this handover.') };
 }
 
 export async function updateFacilityBooking({ bookingId, staffId, action, releaseToUserId } = {}) {
