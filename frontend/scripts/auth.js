@@ -1107,6 +1107,91 @@ function _toFacilityConfig(row = {}) {
   };
 }
 
+function _monthKey(value) {
+  const date = value ? new Date(value) : new Date();
+  if (!Number.isFinite(date.getTime())) return 'Unknown';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _recentMonthKeys(monthCount = 6) {
+  const now = new Date();
+  return Array.from({ length: monthCount }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (monthCount - 1 - index), 1);
+    return {
+      key: _monthKey(date),
+      label: date.toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' }),
+    };
+  });
+}
+
+function _timeToMinutes(value, fallback) {
+  const [hours, minutes] = String(value || fallback).split(':').map(Number);
+  return ((Number.isFinite(hours) ? hours : 0) * 60) + (Number.isFinite(minutes) ? minutes : 0);
+}
+
+function _countBy(items = [], getKey) {
+  return items.reduce((map, item) => {
+    const key = getKey(item);
+    map[key] = (map[key] || 0) + 1;
+    return map;
+  }, {});
+}
+
+function _buildAdminAnalytics({ transactions = [], facilityRows = [], reports = [], actions = [], facilityConfig = DEFAULT_FACILITY_CONFIG } = {}) {
+  const bookings = facilityRows.map(row => _toFacilityBooking(row));
+  const completedTransactions = transactions.filter(transaction => transaction.status === 'completed');
+  const months = _recentMonthKeys(6);
+  const completedByMonth = _countBy(completedTransactions, transaction => _monthKey(transaction.updated_at || transaction.created_at));
+  const completedTransactionsOverTime = months.map(month => ({
+    ...month,
+    count: completedByMonth[month.key] || 0,
+  }));
+
+  const now = new Date();
+  const windowStart = new Date(now);
+  windowStart.setDate(now.getDate() - 29);
+  const relevantBookings = bookings.filter(booking => {
+    const dropoff = new Date(booking.dropoffScheduledAt);
+    return Number.isFinite(dropoff.getTime()) && dropoff >= windowStart && dropoff <= now;
+  });
+  const operatingDays = new Set(_normaliseOperatingDays(facilityConfig.operatingDays).map(day => String(day).toLowerCase()));
+  let operatingDayCount = 0;
+  for (let index = 0; index < 30; index += 1) {
+    const day = new Date(windowStart);
+    day.setDate(windowStart.getDate() + index);
+    if (operatingDays.has(_weekdayName(day))) operatingDayCount += 1;
+  }
+  const slotsPerDay = Math.max(0, Math.floor(
+    (_timeToMinutes(facilityConfig.closesAt, '17:00') - _timeToMinutes(facilityConfig.opensAt, '09:00')) /
+    Math.max(10, Number(facilityConfig.slotMinutes) || 30)
+  ));
+  const capacity = operatingDayCount * slotsPerDay * Math.max(1, Number(facilityConfig.slotCapacity) || 1);
+
+  const reportStatusCounts = _countBy(reports, report => report.status || 'open');
+  const reportTypeCounts = _countBy(reports, report => report.targetType || report.target_type || 'listing');
+  const actionCounts = _countBy(actions, action => action.action || 'moderation_action');
+
+  return {
+    completedTransactionsOverTime,
+    facilityUtilization: {
+      period: 'Last 30 days',
+      used: relevantBookings.length,
+      capacity,
+      percentage: capacity ? Math.round((relevantBookings.length / capacity) * 100) : 0,
+    },
+    moderationSummary: {
+      totalReports: reports.length,
+      openReports: reports.filter(report => ['open', 'reviewing'].includes(report.status)).length,
+      resolvedReports: reports.filter(report => report.status === 'resolved').length,
+      dismissedReports: reports.filter(report => report.status === 'dismissed').length,
+      totalActions: actions.length,
+      reportStatusCounts,
+      reportTypeCounts,
+      actionCounts,
+    },
+  };
+}
+
 async function _loadFacilityConfig() {
   const { data, error } = await _sb
     .from('facility_config')
@@ -1118,13 +1203,15 @@ async function _loadFacilityConfig() {
 }
 
 export async function getAdminOverview() {
-  const [usersRes, listingsRes, permsRes, facilityConfigRes, reportsRes, actionsRes] = await Promise.all([
+  const [usersRes, listingsRes, permsRes, facilityConfigRes, reportsRes, actionsRes, transactionsRes, facilityBookingsRes] = await Promise.all([
     _sb.from('users').select('*').order('full_name'),
     _sb.from('listings').select('*').order('created_at', { ascending: false }).limit(20),
     _sb.from('role_permissions').select('*'),
     _loadFacilityConfig(),
     _sb.from('content_reports').select('*').order('created_at', { ascending: false }).limit(50),
     _sb.from('moderation_actions').select('*').order('created_at', { ascending: false }).limit(50),
+    _sb.from('transactions').select('*').order('created_at', { ascending: false }).limit(500),
+    _loadFacilityBookingRows(),
   ]);
   if (usersRes.error) return { error: usersRes.error.message };
   const users = (usersRes.data || []).map(toUser);
@@ -1168,6 +1255,14 @@ export async function getAdminOverview() {
       adminName: admin?.fullName || admin?.email || mapped.adminId || 'System',
     };
   });
+  const transactions = transactionsRes.error ? [] : (transactionsRes.data || []);
+  const analytics = _buildAdminAnalytics({
+    transactions,
+    facilityRows: facilityBookingsRes.rows || [],
+    reports,
+    actions,
+    facilityConfig: facilityConfigRes.config || DEFAULT_FACILITY_CONFIG,
+  });
   return {
     metrics: {
       users: users.length,
@@ -1179,6 +1274,7 @@ export async function getAdminOverview() {
     recentListings: listings,
     reports,
     moderationActions: actions,
+    analytics,
     rolePermissions: permsRes.data || [],
     facilityConfig: facilityConfigRes.config || DEFAULT_FACILITY_CONFIG,
   };
@@ -1657,7 +1753,21 @@ export async function updateFacilityBooking({ bookingId, staffId, action, releas
     release_item: ['released', 'completed', 'collected', 'closed'],
   };
 
-  return _updateFacilityRow(loaded.table, bookingId, values, statusFallbacks[action] || []);
+  const result = await _updateFacilityRow(loaded.table, bookingId, values, statusFallbacks[action] || []);
+  if (result.success && action === 'release_item') {
+    const rowsResult = await _sb.from(loaded.table).select('*');
+    const row = (rowsResult.data || []).find(item => {
+      return ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'].some(column => String(item[column] || '') === String(bookingId));
+    });
+    const transactionId = row?.transaction_id;
+    if (transactionId) {
+      await _sb
+        .from('transactions')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('transaction_id', transactionId);
+    }
+  }
+  return result;
 }
 
 // Export as default Auth object for backwards compatibility

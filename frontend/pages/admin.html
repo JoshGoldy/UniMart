@@ -260,6 +260,54 @@
       display: block;
       font-size: 0.82rem;
     }
+    .analytics-grid {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+    .analytics-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: #fff;
+    }
+    .analytics-title {
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 10px;
+    }
+    .bar-list {
+      display: grid;
+      gap: 9px;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr) 42px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    .bar-track {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--sand);
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--sage);
+    }
+    .summary-list {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+    .summary-list strong {
+      color: var(--ink);
+    }
     .empty-row {
       color: var(--muted);
       text-align: center;
@@ -333,6 +381,7 @@
         <a class="management-card" href="#role-management"><span class="management-title">User Roles</span><span class="management-copy">Assign student, staff, and admin access.</span></a>
         <a class="management-card" href="#permission-management"><span class="management-title">Access Rules</span><span class="management-copy">Choose what each role can see and do.</span></a>
         <a class="management-card" href="#moderation"><span class="management-title">Moderation</span><span class="management-copy">Review reports and remove bad listings.</span></a>
+        <a class="management-card" href="#analytics"><span class="management-title">Analytics</span><span class="management-copy">Export operational and moderation reports.</span></a>
       </div>
 
       <div class="admin-layout">
@@ -393,6 +442,20 @@
             </div>
             <div class="panel-body">
               <div class="permission-grid" id="permission-grid"></div>
+            </div>
+          </section>
+
+          <section class="admin-panel" id="analytics">
+            <div class="panel-header">
+              <div class="panel-title">Analytics and Reports</div>
+              <div class="panel-copy">Track completed transactions, facility utilization, and moderation trends.</div>
+            </div>
+            <div class="analytics-grid" id="analytics-panel"></div>
+            <div class="panel-body">
+              <div class="admin-actions">
+                <button class="btn-secondary" id="export-analytics-csv-btn" type="button">Export full CSV</button>
+                <button class="btn-secondary" id="export-analytics-pdf-btn" type="button">Export PDF</button>
+              </div>
             </div>
           </section>
         </div>
@@ -468,6 +531,7 @@
     reports: [],
     actions: [],
     permissions: [],
+    analytics: {},
   };
   const weekdays = [
     ['monday', 'Mon'],
@@ -498,6 +562,8 @@
   function bindEvents() {
     document.getElementById('facility-config-form').addEventListener('submit', saveFacilityConfig);
     document.getElementById('export-reports-btn').addEventListener('click', exportReports);
+    document.getElementById('export-analytics-csv-btn').addEventListener('click', exportFullAnalyticsCsv);
+    document.getElementById('export-analytics-pdf-btn').addEventListener('click', exportAnalyticsPdf);
   }
 
   async function loadAdminOverview() {
@@ -512,6 +578,7 @@
     adminState.reports = result.reports || [];
     adminState.actions = result.moderationActions || [];
     adminState.permissions = result.rolePermissions || [];
+    adminState.analytics = result.analytics || {};
 
     document.getElementById('metric-users').textContent = result.metrics.users;
     document.getElementById('metric-active-listings').textContent = result.metrics.activeListings;
@@ -524,6 +591,7 @@
     renderReports();
     renderListings();
     renderActivity();
+    renderAnalytics();
   }
 
   function populateFacilityConfig(config) {
@@ -800,6 +868,58 @@
     `).join('') : '<tr><td colspan="3" class="empty-row">No moderation activity yet.</td></tr>';
   }
 
+  function renderAnalytics() {
+    const analytics = adminState.analytics || {};
+    const completed = analytics.completedTransactionsOverTime || [];
+    const maxCompleted = Math.max(1, ...completed.map(item => item.count || 0));
+    const utilization = analytics.facilityUtilization || { used: 0, capacity: 0, percentage: 0, period: 'Last 30 days' };
+    const moderation = analytics.moderationSummary || {};
+    const actionCounts = moderation.actionCounts || {};
+    const reportStatusCounts = moderation.reportStatusCounts || {};
+    const reportTypeCounts = moderation.reportTypeCounts || {};
+
+    document.getElementById('analytics-panel').innerHTML = `
+      <div class="analytics-card">
+        <div class="analytics-title">Completed Transactions Over Time</div>
+        <div class="bar-list">
+          ${completed.map(item => renderBarRow(item.label, item.count, maxCompleted)).join('') || '<div class="empty-row">No completed transactions yet.</div>'}
+        </div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-title">Trade Facility Utilization vs Capacity</div>
+        <div class="summary-list">
+          <div><strong>${utilization.used || 0}</strong> bookings used out of <strong>${utilization.capacity || 0}</strong> available capacity (${escapeHtml(utilization.period || 'Last 30 days')}).</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, utilization.percentage || 0)}%"></div></div>
+          <div><strong>${utilization.percentage || 0}%</strong> utilization</div>
+        </div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-title">Flagged and Moderated Content Summary</div>
+        <div class="summary-list">
+          <div><strong>${moderation.totalReports || 0}</strong> total reports</div>
+          <div><strong>${moderation.openReports || 0}</strong> open/reviewing reports</div>
+          <div><strong>${moderation.resolvedReports || 0}</strong> resolved reports</div>
+          <div><strong>${moderation.dismissedReports || 0}</strong> dismissed reports</div>
+          <div><strong>${moderation.totalActions || 0}</strong> moderation actions</div>
+          <div>Report statuses: ${escapeHtml(formatCountMap(reportStatusCounts))}</div>
+          <div>Report types: ${escapeHtml(formatCountMap(reportTypeCounts))}</div>
+          <div>Actions: ${escapeHtml(formatCountMap(actionCounts))}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBarRow(label, value, maxValue) {
+    const width = Math.round(((value || 0) / Math.max(1, maxValue)) * 100);
+    return `
+      <div class="bar-row">
+        <span>${escapeHtml(label)}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${width}%"></span></span>
+        <strong>${value || 0}</strong>
+      </div>
+    `;
+  }
+
   function exportReports() {
     const rows = [
       ['type', 'target', 'reason_or_action', 'status', 'created_at'],
@@ -814,6 +934,107 @@
     link.download = `unimart-moderation-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function exportFullAnalyticsCsv() {
+    const rows = buildFullReportRows();
+    downloadCsv(rows, `unimart-full-report-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  function exportAnalyticsPdf() {
+    const analytics = adminState.analytics || {};
+    const completedRows = (analytics.completedTransactionsOverTime || [])
+      .map(item => `<tr><td>${escapeHtml(item.label)}</td><td>${item.count || 0}</td></tr>`)
+      .join('');
+    const utilization = analytics.facilityUtilization || {};
+    const moderation = analytics.moderationSummary || {};
+    const reportWindow = window.open('', '_blank');
+    if (!reportWindow) {
+      showToast('Allow pop-ups to export the PDF report.', 'error');
+      return;
+    }
+    reportWindow.document.write(`
+      <!doctype html>
+      <html>
+      <head>
+        <title>UniMart Analytics Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f241f; padding: 28px; }
+          h1, h2 { margin: 0 0 10px; }
+          section { margin: 22px 0; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid #ddd7ca; padding: 8px; text-align: left; }
+          th { background: #f4f1ea; }
+          .muted { color: #6f6a5f; }
+        </style>
+      </head>
+      <body>
+        <h1>UniMart Analytics Report</h1>
+        <p class="muted">Generated ${escapeHtml(formatDate(new Date().toISOString()))}</p>
+        <section>
+          <h2>Completed Transactions Over Time</h2>
+          <table><thead><tr><th>Period</th><th>Completed</th></tr></thead><tbody>${completedRows}</tbody></table>
+        </section>
+        <section>
+          <h2>Trade Facility Utilization</h2>
+          <p>${utilization.used || 0} bookings used out of ${utilization.capacity || 0} capacity (${utilization.percentage || 0}%) for ${escapeHtml(utilization.period || 'Last 30 days')}.</p>
+        </section>
+        <section>
+          <h2>Flagged and Moderated Content</h2>
+          <p>Total reports: ${moderation.totalReports || 0}</p>
+          <p>Open/reviewing: ${moderation.openReports || 0}</p>
+          <p>Resolved: ${moderation.resolvedReports || 0}</p>
+          <p>Dismissed: ${moderation.dismissedReports || 0}</p>
+          <p>Moderation actions: ${moderation.totalActions || 0}</p>
+          <p>Report statuses: ${escapeHtml(formatCountMap(moderation.reportStatusCounts || {}))}</p>
+          <p>Report types: ${escapeHtml(formatCountMap(moderation.reportTypeCounts || {}))}</p>
+          <p>Actions: ${escapeHtml(formatCountMap(moderation.actionCounts || {}))}</p>
+        </section>
+      </body>
+      </html>
+    `);
+    reportWindow.document.close();
+    reportWindow.focus();
+    reportWindow.print();
+  }
+
+  function buildFullReportRows() {
+    const analytics = adminState.analytics || {};
+    const utilization = analytics.facilityUtilization || {};
+    const moderation = analytics.moderationSummary || {};
+    return [
+      ['section', 'metric', 'value', 'extra'],
+      ...(analytics.completedTransactionsOverTime || []).map(item => ['completed_transactions_over_time', item.label, item.count || 0, item.key || '']),
+      ['facility_utilization', 'used', utilization.used || 0, utilization.period || 'Last 30 days'],
+      ['facility_utilization', 'capacity', utilization.capacity || 0, utilization.period || 'Last 30 days'],
+      ['facility_utilization', 'percentage', `${utilization.percentage || 0}%`, utilization.period || 'Last 30 days'],
+      ['moderation_summary', 'total_reports', moderation.totalReports || 0, ''],
+      ['moderation_summary', 'open_reports', moderation.openReports || 0, ''],
+      ['moderation_summary', 'resolved_reports', moderation.resolvedReports || 0, ''],
+      ['moderation_summary', 'dismissed_reports', moderation.dismissedReports || 0, ''],
+      ['moderation_summary', 'total_actions', moderation.totalActions || 0, ''],
+      ...Object.entries(moderation.reportStatusCounts || {}).map(([key, value]) => ['report_status', key, value, '']),
+      ...Object.entries(moderation.reportTypeCounts || {}).map(([key, value]) => ['report_type', key, value, '']),
+      ...Object.entries(moderation.actionCounts || {}).map(([key, value]) => ['moderation_action', key, value, '']),
+      ...adminState.reports.map(report => ['report', report.targetType, report.status, `${report.targetTitle || ''} | ${report.reason || ''}`]),
+      ...adminState.actions.map(action => ['action', action.action, action.targetType, action.note || '']),
+    ];
+  }
+
+  function downloadCsv(rows, filename) {
+    const csv = rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function formatCountMap(map = {}) {
+    const entries = Object.entries(map);
+    return entries.length ? entries.map(([key, value]) => `${formatPermission(key)}: ${value}`).join(', ') : 'None';
   }
 
   function getModerationNote(promptText, fallback) {
