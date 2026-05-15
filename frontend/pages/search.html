@@ -253,21 +253,21 @@
     }
 
     .details-dialog {
-      width: min(920px, 100%);
+      width: min(980px, 100%);
       max-height: 90vh;
       overflow: auto;
       background: #fff;
       border-radius: 22px;
       box-shadow: var(--shadow-lg);
       border: 1px solid var(--border);
-      padding: 24px;
+      padding: 26px;
     }
 
     .details-header {
       display: flex;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     .details-title {
@@ -301,13 +301,13 @@
 
     .details-body {
       display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
-      gap: 22px;
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      gap: 28px;
     }
 
     .modal-image {
       width: 100%;
-      aspect-ratio: 16 / 11;
+      aspect-ratio: 4 / 3;
       border-radius: 18px;
       overflow: hidden;
       background: var(--linen);
@@ -327,7 +327,7 @@
     .details-panel {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
     .details-price {
@@ -336,22 +336,64 @@
       color: var(--sage);
     }
 
+    .details-topline {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .details-save-btn {
+      flex-shrink: 0;
+    }
+
     .details-copy {
       font-size: 0.9rem;
       color: var(--muted);
       line-height: 1.7;
+      padding: 14px 0;
+      border-top: 1px solid var(--sand);
+      border-bottom: 1px solid var(--sand);
     }
 
     .buyer-actions {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--linen);
     }
 
     .buyer-action-row {
       display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
+    }
+
+    .safety-action {
+      align-self: flex-start;
+      color: #9f3c33;
+      font-size: 0.82rem;
+      font-weight: 800;
+      padding: 7px 0;
+    }
+
+    .safety-action:hover {
+      color: #76251f;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .seller-detail {
+      display: grid;
+      gap: 3px;
+    }
+
+    .seller-detail .seller-rating-row {
+      font-weight: 500;
     }
 
     .details-grid {
@@ -408,6 +450,10 @@
 
       .details-body,
       .details-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .buyer-action-row {
         grid-template-columns: 1fr;
       }
     }
@@ -604,7 +650,10 @@
       </div>
 
       <div class="details-panel">
-        <div class="details-price" id="modal-price"></div>
+        <div class="details-topline">
+          <div class="details-price" id="modal-price"></div>
+          <button class="save-listing-btn details-save-btn" id="modal-save-btn" type="button" aria-label="Save listing"></button>
+        </div>
         <div class="listing-tags" id="modal-tags"></div>
         <div class="details-copy" id="modal-description"></div>
         <div class="buyer-actions" id="modal-buyer-actions">
@@ -614,7 +663,7 @@
             <button class="btn btn-primary" type="button" data-buyer-action="message">Message seller</button>
             <button class="btn btn-secondary" type="button" data-buyer-action="offer">Make offer</button>
           </div>
-          <button class="btn btn-secondary" id="report-listing-btn" type="button">Report listing</button>
+          <button class="btn-reset safety-action" id="report-listing-btn" type="button">Report listing</button>
         </div>
         <div class="details-grid">
           <div class="details-meta-card">
@@ -627,7 +676,7 @@
           </div>
           <div class="details-meta-card">
             <strong>Seller</strong>
-            <span id="modal-seller"></span>
+            <span class="seller-detail" id="modal-seller"></span>
           </div>
           <div class="details-meta-card">
             <strong>Listed on</strong>
@@ -716,6 +765,11 @@
   clearFiltersBtn.addEventListener('click', clearFilters);
 
   document.getElementById('modal-close').addEventListener('click', closeListingModal);
+  document.getElementById('modal-save-btn').addEventListener('click', function (event) {
+    if (!state.selectedListing) return;
+    toggleSavedListingById(state.selectedListing.id);
+    updateModalSaveButton(state.selectedListing);
+  });
   modal.addEventListener('click', function (event) {
     if (event.target === modal) closeListingModal();
   });
@@ -868,7 +922,11 @@
   function toggleSavedListing(event) {
     event.preventDefault();
     event.stopPropagation();
-    const listingId = event.currentTarget.dataset.saveListing;
+    toggleSavedListingById(event.currentTarget.dataset.saveListing);
+    renderListings();
+  }
+
+  function toggleSavedListingById(listingId) {
     if (state.savedListings.has(listingId)) {
       state.savedListings.delete(listingId);
       showToast('Removed from saved listings', 'success');
@@ -877,7 +935,6 @@
       showToast('Saved listing', 'success');
     }
     localStorage.setItem('unimart_saved_listings', JSON.stringify([...state.savedListings]));
-    renderListings();
   }
 
   function openListingModal(listing) {
@@ -888,13 +945,17 @@
     document.getElementById('modal-description').textContent = listing.description || 'No description added yet.';
     document.getElementById('modal-condition').textContent = listing.condition;
     document.getElementById('modal-status').textContent = formatStatusLabel(listing.status);
-    document.getElementById('modal-seller').textContent = `${getSellerName(listing)}${formatSellerRating(listing)}`;
+    document.getElementById('modal-seller').innerHTML = `
+      <span>${escapeHtml(getSellerName(listing))}</span>
+      <span class="seller-rating-row">${renderSellerStars(listing)}<span>${escapeHtml(getSellerRatingText(listing))}</span></span>
+    `;
     document.getElementById('modal-date').textContent = formatDate(listing.createdAt);
     document.getElementById('modal-tags').innerHTML = `
       <span class="listing-tag">${escapeHtml(listing.condition)}</span>
       <span class="listing-tag trade">${escapeHtml(formatListingType(getListingType(listing)))}</span>
       <span class="listing-tag">${escapeHtml(formatStatusLabel(listing.status))}</span>
     `;
+    updateModalSaveButton(listing);
 
     const buyerActions = document.getElementById('modal-buyer-actions');
     buyerActions.style.display = shouldShowBuyerActions(listing) ? 'flex' : 'none';
@@ -919,6 +980,14 @@
 
     modal.classList.add('show');
     modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function updateModalSaveButton(listing) {
+    const button = document.getElementById('modal-save-btn');
+    const isSaved = state.savedListings.has(listing.id);
+    button.classList.toggle('saved', isSaved);
+    button.setAttribute('aria-label', isSaved ? 'Remove saved listing' : 'Save listing');
+    button.innerHTML = `<svg viewBox="0 0 20 20" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8"><path d="M10 16.5s-6-3.4-6-8A3.2 3.2 0 0 1 9.5 6.2L10 6.8l.5-.6A3.2 3.2 0 0 1 16 8.5c0 4.6-6 8-6 8Z" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
   function closeListingModal() {
