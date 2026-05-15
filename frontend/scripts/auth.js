@@ -854,6 +854,23 @@ async function _fetchListingsByIds(listingIds = []) {
   return Object.fromEntries((data || []).map(listing => [listing.listing_id || listing.id, listing]));
 }
 
+async function _countUnreadMessagesForConversation(conversationId, currentUserId) {
+  const id = String(conversationId || '');
+  const countUnread = async column => _sb
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq(column, id)
+    .neq('sender_id', currentUserId)
+    .is('read_at', null);
+
+  let result = await countUnread('conversation_id');
+  if ((result.error && /invalid input syntax|uuid/i.test(result.error.message || '')) || result.count === 0) {
+    const fallback = await countUnread('id');
+    if (!fallback.error && Number(fallback.count || 0) > 0) result = fallback;
+  }
+  return Number(result.count || 0);
+}
+
 function toConversation(row = {}, currentUserId) {
   const listing = row.listings || row.listing || {};
   const buyer = row.buyer || {};
@@ -883,19 +900,14 @@ async function _hydrateConversations(rows = [], currentUserId) {
   ]);
 
   return Promise.all(rows.map(async row => {
-    const unread = await _sb
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('conversation_id', _conversationId(row))
-      .neq('sender_id', currentUserId)
-      .is('read_at', null);
+    const unreadCount = await _countUnreadMessagesForConversation(_conversationId(row), currentUserId);
 
     return toConversation({
       ...row,
       listing: listingsById[row.listing_id] || {},
       buyer: usersById[row.buyer_id] || {},
       seller: usersById[row.seller_id] || {},
-      unread_count: unread.count || 0,
+      unread_count: unreadCount,
     }, currentUserId);
   }));
 }

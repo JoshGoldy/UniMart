@@ -172,7 +172,11 @@ function ensureNotificationPanel(user) {
 async function refreshMessageNotifications(user) {
   if (!user || !hasFeature(user, 'messages')) return;
   const result = await Auth.getConversations(user.id);
-  if (result.error) return;
+  if (result.error) {
+    setUnreadMessageBadge(0);
+    renderNotificationPanel([], 0);
+    return;
+  }
 
   const conversations = result.conversations || [];
   const unread = conversations.filter(item => Number(item.unreadCount || 0) > 0);
