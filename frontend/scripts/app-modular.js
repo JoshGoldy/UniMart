@@ -89,9 +89,14 @@ export async function initPage() {
   // Initialize UI using imported functions
   populateUserShell(user);
   buildDynamicNavigation(user);  // Imported from navigation service
+  ensureNotificationPanel(user);
   initDropdowns();                // Imported from UI components
   setActiveNav();                 // Imported from navigation service
   initMobileSidebar();           // Imported from UI components
+  refreshMessageNotifications(user);
+  if (hasFeature(user, 'messages') && !window.__unimartNotificationTimer) {
+    window.__unimartNotificationTimer = setInterval(() => refreshMessageNotifications(user), 30000);
+  }
 
   // Setup sign out buttons
   document.querySelectorAll('[data-action="signout"]').forEach(btn => {
@@ -126,6 +131,84 @@ function populateUserShell(user) {
   nameEls.forEach(el => el.textContent = user.fullName);
   roleEls.forEach(el => el.textContent = roleLabel);
   initEls.forEach(el => el.textContent = initials);
+}
+
+function ensureNotificationPanel(user) {
+  if (!hasFeature(user, 'messages')) return;
+  const actions = document.querySelector('.topbar-actions');
+  if (!actions) return;
+
+  let wrap = document.querySelector('.notification-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'notification-wrap dropdown';
+    wrap.innerHTML = `
+      <button class="topbar-icon-btn" type="button" title="Notifications" data-dropdown-trigger="topbar-notification-menu" aria-label="Notifications">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 8a4 4 0 1 1 8 0c0 4 1.5 4.5 1.5 5.5h-11C4.5 12.5 6 12 6 8Z" stroke-linejoin="round"/>
+          <path d="M8.5 16a1.7 1.7 0 0 0 3 0" stroke-linecap="round"/>
+        </svg>
+        <span class="notification-dot" id="topbar-notification-count">0</span>
+      </button>
+      <div class="dropdown-menu notification-menu" id="topbar-notification-menu">
+        <div class="notification-header">Notifications</div>
+        <div id="topbar-notification-list"></div>
+      </div>
+    `;
+    const avatar = actions.querySelector('.topbar-avatar');
+    if (avatar) actions.insertBefore(wrap, avatar);
+    else actions.prepend(wrap);
+  }
+
+  wrap.classList.add('dropdown');
+  const trigger = wrap.querySelector('[data-notification-trigger], .topbar-icon-btn');
+  if (trigger) trigger.setAttribute('data-dropdown-trigger', 'topbar-notification-menu');
+  if (!document.getElementById('topbar-notification-list')) {
+    const menu = document.getElementById('topbar-notification-menu');
+    if (menu) menu.innerHTML = '<div class="notification-header">Notifications</div><div id="topbar-notification-list"></div>';
+  }
+}
+
+async function refreshMessageNotifications(user) {
+  if (!user || !hasFeature(user, 'messages')) return;
+  const result = await Auth.getConversations(user.id);
+  if (result.error) return;
+
+  const conversations = result.conversations || [];
+  const unread = conversations.filter(item => Number(item.unreadCount || 0) > 0);
+  const unreadTotal = unread.reduce((total, item) => total + Number(item.unreadCount || 0), 0);
+  setUnreadMessageBadge(unreadTotal);
+  renderNotificationPanel(unread, unreadTotal);
+}
+
+function renderNotificationPanel(unreadConversations, unreadTotal) {
+  const countEls = document.querySelectorAll('#topbar-notification-count');
+  countEls.forEach(el => {
+    el.textContent = unreadTotal > 99 ? '99+' : String(unreadTotal);
+    el.style.display = unreadTotal > 0 ? 'inline-flex' : 'none';
+  });
+
+  const list = document.getElementById('topbar-notification-list');
+  if (!list) return;
+
+  if (!unreadConversations.length) {
+    list.innerHTML = `
+      <div class="notification-empty">
+        <strong>No new messages</strong>
+        <span>You are all caught up.</span>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = unreadConversations.slice(0, 5).map(item => `
+    <a class="notification-item unread" href="messages.html?conversation=${encodeURIComponent(item.id)}">
+      <strong>${escapeHtml(item.listingTitle || 'Marketplace conversation')}</strong>
+      <span>${escapeHtml(item.unreadCount === 1 ? '1 new message' : `${item.unreadCount} new messages`)} from ${escapeHtml(item.otherDisplayName || 'a UniMart user')}</span>
+    </a>
+  `).join('') + `
+    <a class="notification-view-all" href="messages.html">Open messages</a>
+  `;
 }
 
 // Re-export everything for convenience
