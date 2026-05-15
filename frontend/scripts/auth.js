@@ -635,8 +635,10 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
 }
 
 function _parseOfferAmount(text = '') {
-  const match = String(text).replace(/,/g, '').match(/(?:r|zar)?\s*(\d+(?:\.\d{1,2})?)/i);
-  return match ? Number(match[1]) : null;
+  const match = String(text).match(/(?:r|zar)?\s*(\d[\d\s,]*(?:\.\d{1,2})?)/i);
+  if (!match) return null;
+  const amount = Number(match[1].replace(/[\s,]/g, ''));
+  return Number.isFinite(amount) ? amount : null;
 }
 
 function toOffer(row = {}) {
@@ -1302,6 +1304,13 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
 
   const transaction = toTransaction(transactionRow);
   if (transaction.buyerId !== buyerId) return { error: 'Only the buyer can make this payment.' };
+  const { data: offerRow, error: offerError } = await _sb
+    .from('offers')
+    .select('offer_id,status')
+    .eq('offer_id', transaction.offerId)
+    .maybeSingle();
+  if (offerError) return { error: _userFacingError(offerError) };
+  if (!offerRow || offerRow.status !== 'accepted') return { error: 'The seller must accept the offer before payment.' };
   if (!transaction.amount || transaction.amount <= 0) return { error: 'This trade does not need an online payment.' };
   if (amountToPay <= 0 || amountToPay > transaction.amount) return { error: 'Choose an online payment amount within the accepted offer amount.' };
 

@@ -75,9 +75,11 @@ with check (
   and exists (
     select 1
     from public.transactions
+    join public.offers on offers.offer_id = transactions.offer_id
     where transactions.transaction_id = payment_records.transaction_id
       and transactions.buyer_id = auth.uid()
       and transactions.seller_id = payment_records.seller_id
+      and offers.status = 'accepted'
   )
 );
 
