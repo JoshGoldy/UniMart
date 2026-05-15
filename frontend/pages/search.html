@@ -366,6 +366,62 @@
       background: var(--linen);
     }
 
+    .buyer-message-input {
+      min-height: 96px;
+      max-height: 150px;
+      resize: none;
+      overflow-y: auto;
+      line-height: 1.45;
+    }
+
+    .offer-box {
+      display: none;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .offer-box.show {
+      display: grid;
+    }
+
+    .offer-box-title {
+      color: var(--ink);
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .offer-fields {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.45fr) minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    .offer-note-input {
+      min-height: 70px;
+      max-height: 120px;
+      resize: none;
+      overflow-y: auto;
+      line-height: 1.45;
+    }
+
+    .message-helper-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 18px;
+    }
+
+    .message-count {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 0.74rem;
+      white-space: nowrap;
+    }
+
     .buyer-action-row {
       display: flex;
       display: grid;
@@ -476,6 +532,10 @@
       }
 
       .buyer-action-row {
+        grid-template-columns: 1fr;
+      }
+
+      .offer-fields {
         grid-template-columns: 1fr;
       }
     }
@@ -593,6 +653,7 @@
 
       <div class="filter-bar">
         <button class="filter-chip active" data-category="all">All</button>
+        <button class="filter-chip" data-category="saved">Saved</button>
         <button class="filter-chip" data-category="Textbooks">Textbooks</button>
         <button class="filter-chip" data-category="Electronics">Electronics</button>
         <button class="filter-chip" data-category="Furniture">Furniture</button>
@@ -679,8 +740,22 @@
         <div class="listing-tags" id="modal-tags"></div>
         <div class="details-copy" id="modal-description"></div>
         <div class="buyer-actions" id="modal-buyer-actions">
-          <textarea class="form-input" id="buyer-message-input" rows="3" placeholder="Ask a question or make an offer..."></textarea>
-          <span class="form-error" id="buyer-message-error"></span>
+          <textarea class="form-input buyer-message-input" id="buyer-message-input" rows="3" maxlength="240" placeholder="Ask a question about this listing..."></textarea>
+          <div class="message-helper-row">
+            <span class="form-error" id="buyer-message-error"></span>
+            <span class="message-count" id="buyer-message-count">0/240</span>
+          </div>
+          <div class="offer-box" id="offer-box">
+            <div class="offer-box-title">Offer details</div>
+            <div class="offer-fields">
+              <input class="form-input" id="offer-amount-input" type="number" min="0" step="1" placeholder="Amount, e.g. 450" />
+              <textarea class="form-input offer-note-input" id="offer-note-input" rows="2" maxlength="180" placeholder="Add a short offer note or trade idea..."></textarea>
+            </div>
+            <div class="message-helper-row">
+              <span class="form-error" id="offer-error"></span>
+              <span class="message-count" id="offer-note-count">0/180</span>
+            </div>
+          </div>
           <div class="buyer-action-row">
             <button class="btn btn-primary" type="button" data-buyer-action="message">Message seller</button>
             <button class="btn btn-secondary" type="button" data-buyer-action="offer">Make offer</button>
@@ -739,6 +814,7 @@
     user: null,
     selectedListing: null,
     savedListings: new Set(JSON.parse(localStorage.getItem('unimart_saved_listings') || '[]')),
+    savedOnly: false,
   };
   const modal = document.getElementById('listing-modal');
 
@@ -746,7 +822,9 @@
     chip.addEventListener('click', function () {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       this.classList.add('active');
-      state.category = this.dataset.category || 'all';
+      const category = this.dataset.category || 'all';
+      state.savedOnly = category === 'saved';
+      state.category = state.savedOnly ? 'all' : category;
       renderListings();
     });
   });
@@ -787,6 +865,11 @@
   clearFiltersBtn.addEventListener('click', clearFilters);
 
   document.getElementById('modal-close').addEventListener('click', closeListingModal);
+  document.getElementById('buyer-message-input').addEventListener('input', updateBuyerMessageMeta);
+  document.getElementById('offer-note-input').addEventListener('input', updateOfferMeta);
+  document.getElementById('offer-amount-input').addEventListener('input', function () {
+    document.getElementById('offer-error').textContent = '';
+  });
   document.getElementById('modal-save-btn').addEventListener('click', function (event) {
     if (!state.selectedListing) return;
     toggleSavedListingById(state.selectedListing.id);
@@ -830,6 +913,7 @@
   function renderListings() {
     const priceError = validatePriceFilters();
     const filtered = state.listings.filter(listing => {
+      const matchesSaved = !state.savedOnly || state.savedListings.has(listing.id);
       const matchesCategory = state.category === 'all' || normalizeCategory(listing.category) === normalizeCategory(state.category);
       const matchesCondition = state.condition === 'all' || normalizeCondition(listing.condition) === normalizeCondition(state.condition);
       const matchesListingType = state.listingType === 'all' || getListingType(listing) === state.listingType;
@@ -847,7 +931,7 @@
         String(listing.price),
       ].join(' ').toLowerCase();
       const matchesQuery = !state.query || haystack.includes(state.query);
-      return !priceError && matchesCategory && matchesCondition && matchesListingType && matchesMinPrice && matchesMaxPrice && matchesQuery;
+      return !priceError && matchesSaved && matchesCategory && matchesCondition && matchesListingType && matchesMinPrice && matchesMaxPrice && matchesQuery;
     });
 
     const grid = document.getElementById('listings-grid');
@@ -867,8 +951,10 @@
     resultsMeta.textContent = `${filtered.length} listing${filtered.length === 1 ? '' : 's'} found${getFilterSummary()}`;
 
     if (!filtered.length) {
-      document.getElementById('empty-title').textContent = 'No matching listings';
-      document.getElementById('empty-copy').textContent = hasActiveFilters()
+      document.getElementById('empty-title').textContent = state.savedOnly ? 'No saved listings yet' : 'No matching listings';
+      document.getElementById('empty-copy').textContent = state.savedOnly && !state.savedListings.size
+        ? 'Tap the heart on a listing to save it here for later.'
+        : hasActiveFilters()
         ? 'No listings match the current keyword, category, condition, listing type, and price filters. Clear filters or adjust the filters to see more results.'
         : 'Try a different search term or switch to another category.';
       empty.style.display = 'flex';
@@ -983,6 +1069,12 @@
     buyerActions.style.display = shouldShowBuyerActions(listing) ? 'flex' : 'none';
     document.getElementById('buyer-message-input').value = '';
     document.getElementById('buyer-message-error').textContent = '';
+    document.getElementById('offer-amount-input').value = '';
+    document.getElementById('offer-note-input').value = '';
+    document.getElementById('offer-error').textContent = '';
+    document.getElementById('offer-box').classList.remove('show');
+    updateBuyerMessageMeta();
+    updateOfferMeta();
 
     const imageWrap = document.getElementById('modal-image-wrap');
     const image = document.getElementById('modal-image');
@@ -1012,6 +1104,29 @@
     button.innerHTML = `<svg viewBox="0 0 20 20" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8"><path d="M10 16.5s-6-3.4-6-8A3.2 3.2 0 0 1 9.5 6.2L10 6.8l.5-.6A3.2 3.2 0 0 1 16 8.5c0 4.6-6 8-6 8Z" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
+  function updateBuyerMessageMeta() {
+    const input = document.getElementById('buyer-message-input');
+    const count = document.getElementById('buyer-message-count');
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
+    count.textContent = `${input.value.length}/240`;
+  }
+
+  function updateOfferMeta() {
+    const input = document.getElementById('offer-note-input');
+    const count = document.getElementById('offer-note-count');
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+    count.textContent = `${input.value.length}/180`;
+  }
+
+  function buildOfferText(amount, note) {
+    const parts = [];
+    if (amount) parts.push(`R ${Number(amount).toLocaleString('en-ZA')}`);
+    if (note) parts.push(note);
+    return parts.join(' - ');
+  }
+
   function closeListingModal() {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
@@ -1024,11 +1139,28 @@
       const action = this.dataset.buyerAction;
       const input = document.getElementById('buyer-message-input');
       const error = document.getElementById('buyer-message-error');
+      const offerBox = document.getElementById('offer-box');
+      const offerError = document.getElementById('offer-error');
+      const offerAmount = document.getElementById('offer-amount-input').value.trim();
+      const offerNote = document.getElementById('offer-note-input').value.trim();
       const text = input.value.trim();
       error.textContent = '';
+      offerError.textContent = '';
 
-      if (!text) {
-        error.textContent = action === 'offer' ? 'Enter your offer before sending.' : 'Enter a message before sending.';
+      if (action === 'offer' && !offerBox.classList.contains('show')) {
+        offerBox.classList.add('show');
+        updateOfferMeta();
+        document.getElementById('offer-amount-input').focus();
+        return;
+      }
+
+      if (action === 'message' && !text) {
+        error.textContent = 'Enter a message before sending.';
+        return;
+      }
+
+      if (action === 'offer' && !offerAmount && !offerNote) {
+        offerError.textContent = 'Add an amount or trade idea before sending.';
         return;
       }
 
@@ -1040,7 +1172,8 @@
         ? await Auth.startOffer({
             listingId: state.selectedListing.id,
             buyerId: state.user.id,
-            offerText: text,
+            offerText: buildOfferText(offerAmount, offerNote),
+            messageText: text,
           })
         : await Auth.startConversation({
             listingId: state.selectedListing.id,
@@ -1190,6 +1323,7 @@
   function hasActiveFilters() {
     return Boolean(
       state.query ||
+      state.savedOnly ||
       state.category !== 'all' ||
       state.condition !== 'all' ||
       state.listingType !== 'all' ||
@@ -1206,6 +1340,7 @@
   function clearFilters() {
     state.query = '';
     state.category = 'all';
+    state.savedOnly = false;
     state.condition = 'all';
     state.listingType = 'all';
     state.minPrice = '';

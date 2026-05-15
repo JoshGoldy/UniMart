@@ -721,17 +721,20 @@ async function _getConversationById(conversationId) {
   return result;
 }
 
-export async function startOffer({ listingId, buyerId, offerText }) {
+export async function startOffer({ listingId, buyerId, offerText, messageText = '' }) {
+  const cleanMessage = String(messageText || '').trim();
+  const cleanOffer = String(offerText || '').trim();
+  const initialMessage = cleanMessage ? `${cleanMessage}\n\nOffer: ${cleanOffer}` : `Offer: ${cleanOffer}`;
   const conversationResult = await startConversation({
     listingId,
     buyerId,
-    initialMessage: `Offer: ${offerText}`,
+    initialMessage,
   });
   if (conversationResult.error) return conversationResult;
 
   const conversation = conversationResult.conversation;
   const conversationId = _conversationId(conversation);
-  const amount = _parseOfferAmount(offerText);
+  const amount = _parseOfferAmount(cleanOffer);
   const offerType = amount === null ? 'trade' : 'purchase';
 
   const { data, error } = await _sb
@@ -743,7 +746,7 @@ export async function startOffer({ listingId, buyerId, offerText }) {
       seller_id: conversation.seller_id,
       offer_type: offerType,
       amount,
-      note: offerText,
+      note: cleanOffer,
       status: 'pending',
     })
     .select()
