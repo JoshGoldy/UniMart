@@ -90,6 +90,22 @@
 
 **note text**
 
+**## backend role security**
+
+Run `backend-role-security-schema.sql` after the feature migrations to enforce Student, Staff, and Admin permissions in Supabase RLS.
+
+**Students**
+
+Can browse active listings, message as buyers, create offers as buyers, create/manage own listings only when their account type allows selling, review completed handovers, and report content.
+
+**Staff**
+
+Can read and update trade facility bookings and read facility participants needed for handover work.
+
+**Admins**
+
+Can manage roles, permissions, facility config, reports, moderation actions, listing moderation, and review moderation.
+
 **status text default "pending" -- "pending" | "accepted" | "declined" | "cancelled"**
 
 **## transactions**
