@@ -374,16 +374,33 @@
     }
 
     .buyer-action-row .btn {
+      display: inline-flex;
+      align-items: center;
+      min-height: 50px;
+      border-radius: var(--radius);
       justify-content: center;
       width: 100%;
     }
 
+    .buyer-action-row .btn-secondary {
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--sage);
+      box-shadow: none;
+    }
+
+    .buyer-action-row .btn-secondary:hover {
+      background: #eef6f0;
+      border-color: rgba(58, 102, 69, 0.3);
+    }
+
     .safety-action {
-      align-self: flex-end;
+      align-self: flex-start;
       color: #9f3c33;
       font-size: 0.82rem;
       font-weight: 800;
-      padding: 4px 0 0;
+      margin-top: -4px;
+      padding: 0 0 2px;
     }
 
     .safety-action:hover {
