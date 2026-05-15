@@ -1042,9 +1042,18 @@ export async function getUnreadMessageNotifications(userId) {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  if (unreadError && offerError) return { error: _userFacingError(unreadError), total: 0, notifications: [] };
+  const { data: buyerActionRows, error: buyerActionError } = await _sb
+    .from('offers')
+    .select('*')
+    .eq('buyer_id', userId)
+    .in('status', ['accepted', 'declined'])
+    .order('updated_at', { ascending: false })
+    .limit(50);
+
+  if (unreadError && offerError && buyerActionError) return { error: _userFacingError(unreadError), total: 0, notifications: [] };
   if (unreadError) console.warn('Falling back to offer notifications only:', unreadError.message);
   if (offerError) console.warn('Unable to load offer notifications:', offerError.message);
+  if (buyerActionError) console.warn('Unable to load buyer action notifications:', buyerActionError.message);
 
   const unreadByConversation = new Map();
   (unreadRows || []).filter(message => _isAfterLocalRead(userId, message.conversation_id, message.created_at)).forEach(message => {
@@ -1063,7 +1072,15 @@ export async function getUnreadMessageNotifications(userId) {
     pendingOffersByConversation.get(offer.conversation_id).push(offer);
   });
 
-  if (!unreadByConversation.size && !pendingOffersByConversation.size) return { total: 0, notifications: [] };
+  const buyerActionsByConversation = new Map();
+  (buyerActionRows || [])
+    .filter(offer => _isAfterLocalRead(userId, offer.conversation_id, offer.responded_at || offer.updated_at || offer.created_at))
+    .forEach(offer => {
+      if (!buyerActionsByConversation.has(offer.conversation_id)) buyerActionsByConversation.set(offer.conversation_id, []);
+      buyerActionsByConversation.get(offer.conversation_id).push(offer);
+    });
+
+  if (!unreadByConversation.size && !pendingOffersByConversation.size && !buyerActionsByConversation.size) return { total: 0, notifications: [] };
 
   const [usersById, listingsById] = await Promise.all([
     _fetchUsersByIds(conversations.flatMap(row => [row.buyer_id, row.seller_id])),
@@ -1075,26 +1092,34 @@ export async function getUnreadMessageNotifications(userId) {
       const conversationId = _conversationId(row);
       const unreadMessages = unreadByConversation.get(conversationId) || [];
       const pendingOffers = pendingOffersByConversation.get(conversationId) || [];
-      if (!unreadMessages.length && !pendingOffers.length) return null;
+      const buyerActions = buyerActionsByConversation.get(conversationId) || [];
+      if (!unreadMessages.length && !pendingOffers.length && !buyerActions.length) return null;
 
       const conversation = toConversation({
         ...row,
         listing: listingsById[row.listing_id] || {},
         buyer: usersById[row.buyer_id] || {},
         seller: usersById[row.seller_id] || {},
-        unread_count: unreadMessages.length || pendingOffers.length,
+        unread_count: unreadMessages.length || pendingOffers.length || buyerActions.length,
       }, userId);
 
       const newestOffer = pendingOffers[0];
       const newestMessage = unreadMessages[0];
-      const hasNewerOffer = newestOffer && (!newestMessage || new Date(newestOffer.created_at || 0) >= new Date(newestMessage.created_at || 0));
+      const newestBuyerAction = buyerActions[0];
+      const newestActionAt = new Date(newestBuyerAction?.responded_at || newestBuyerAction?.updated_at || newestBuyerAction?.created_at || 0);
+      const hasNewerAction = newestBuyerAction && (!newestMessage || newestActionAt >= new Date(newestMessage.created_at || 0));
+      const hasNewerOffer = newestOffer && (!newestMessage || new Date(newestOffer.created_at || 0) >= new Date(newestMessage.created_at || 0)) && (!newestBuyerAction || new Date(newestOffer.created_at || 0) >= newestActionAt);
       const offerAmount = newestOffer?.amount ? `R ${Number(newestOffer.amount).toLocaleString('en-ZA')}` : 'a trade';
 
       return {
         ...conversation,
-        notificationKind: hasNewerOffer ? 'offer' : 'message',
-        preview: hasNewerOffer ? `New offer: ${offerAmount}` : newestMessage?.body || '',
-        lastMessageAt: (hasNewerOffer ? newestOffer?.created_at : newestMessage?.created_at) || conversation.lastMessageAt,
+        notificationKind: hasNewerOffer ? 'offer' : hasNewerAction ? 'offer-response' : 'message',
+        preview: hasNewerOffer
+          ? `New offer: ${offerAmount}`
+          : hasNewerAction
+            ? `Offer ${newestBuyerAction.status}`
+            : newestMessage?.body || '',
+        lastMessageAt: (hasNewerOffer ? newestOffer?.created_at : hasNewerAction ? (newestBuyerAction.responded_at || newestBuyerAction.updated_at) : newestMessage?.created_at) || conversation.lastMessageAt,
       };
     })
     .filter(Boolean)

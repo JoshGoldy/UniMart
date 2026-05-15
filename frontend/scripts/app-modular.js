@@ -242,6 +242,7 @@ function renderNotificationPanel(unreadConversations, unreadTotal) {
 
 function notificationSummary(item = {}) {
   if (item.notificationKind === 'offer') return 'New offer';
+  if (item.notificationKind === 'offer-response') return 'Offer update';
   return item.unreadCount === 1 ? '1 new message' : `${item.unreadCount} new messages`;
 }
 

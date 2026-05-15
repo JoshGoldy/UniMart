@@ -434,8 +434,9 @@
   initPage().then(user => {
     if (!user) return;
     state.user = user;
-    handlePaymentReturn();
-    loadConversations({ showLoading: true, forceRender: true }).then(() => {
+    loadConversations({ showLoading: true, forceRender: true }).then(async () => {
+      await handlePaymentReturn();
+      if (state.activeConversationId) await loadMessages(state.activeConversationId, false, { forceRender: true });
       if (state.activeConversationId) openConversation(state.activeConversationId);
     });
     state.refreshTimer = setInterval(refreshActiveThread, 12000);
@@ -647,12 +648,13 @@
     const paid = Number(transaction.onlinePaidAmount || 0);
     const cashDue = Number(transaction.cashDueAmount || Math.max(0, transaction.amount - paid));
     const canPay = state.user.id === transaction.buyerId && !['paid', 'completed'].includes(transaction.paymentStatus);
+    const paymentDone = ['paid', 'partial_paid'].includes(transaction.paymentStatus) || paid > 0;
     return `
       <div class="booking-card-inline">
         <div>
           <div class="offer-title">Payment plan</div>
           <div class="offer-meta">Accepted amount: ${formatCurrency(transaction.amount)}. Online: ${formatCurrency(paid)}. Cash due at collection: ${formatCurrency(cashDue)}.</div>
-          <div class="offer-meta">Status: ${escapeHtml(formatStatusLabel(transaction.paymentStatus || 'unpaid'))}${cashDue > 0 ? '. Staff will confirm the cash balance before release.' : ''}</div>
+          <div class="offer-meta">Status: ${escapeHtml(formatStatusLabel(transaction.paymentStatus || 'unpaid'))}${cashDue > 0 ? '. Staff will confirm the cash balance before release.' : ''}${paymentDone ? ' You can continue with the trade facility handover.' : ''}</div>
         </div>
         ${canPay ? `
           <div class="booking-slot-grid">
@@ -722,7 +724,7 @@
       return `
         <div class="booking-card-inline">
           <div class="offer-title">Waiting for seller drop-off time</div>
-          <div class="offer-meta">The seller accepted your offer. They need to choose when they will drop the item at the trade facility before you choose collection.</div>
+          <div class="offer-meta">Payment does not complete the handover. The seller still needs to choose when they will drop the item at the trade facility, then you choose collection.</div>
           ${renderFacilityInfo()}
         </div>
       `;
@@ -733,7 +735,7 @@
         <div class="booking-card-inline">
           <div>
             <div class="offer-title">Choose your drop-off time</div>
-            <div class="offer-meta">Pick when you will drop the item at the trade facility. The buyer will choose collection after this.</div>
+            <div class="offer-meta">Pick when you will drop the item at the trade facility. The buyer will choose collection after this, even if they have already paid online.</div>
             ${renderFacilityInfo()}
           </div>
           <div class="booking-slot-grid">
