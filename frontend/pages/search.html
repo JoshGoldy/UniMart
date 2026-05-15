@@ -132,17 +132,92 @@
     }
 
     .listing-card-footer {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
-      padding-top: 4px;
+      padding-top: 12px;
       border-top: 1px solid var(--sand);
     }
 
     .listing-card-date {
       font-size: 0.76rem;
       color: var(--muted);
+    }
+
+    .seller-summary {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .seller-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      color: var(--ink);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .seller-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .seller-rating-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      min-height: 18px;
+    }
+
+    .seller-stars {
+      display: inline-flex;
+      gap: 1px;
+      color: #d49b24;
+      letter-spacing: 0;
+      font-size: 0.84rem;
+      line-height: 1;
+    }
+
+    .seller-stars span.empty {
+      color: #d8d2c5;
+    }
+
+    .card-footer-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .save-listing-btn {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      background: var(--linen);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.18s ease;
+    }
+
+    .save-listing-btn:hover,
+    .save-listing-btn.saved {
+      background: #f8e9e7;
+      color: #b94135;
+      border-color: #ecc4be;
+    }
+
+    .save-listing-btn svg {
+      width: 18px;
+      height: 18px;
     }
 
     .listing-card-action {
@@ -152,11 +227,13 @@
       color: var(--sage);
       font-size: 0.82rem;
       font-weight: 700;
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      background: #eef6f0;
     }
 
     .listing-card-action span:last-child {
-      text-decoration: underline;
-      text-underline-offset: 3px;
+      text-decoration: none;
     }
 
     .details-modal {
@@ -589,6 +666,7 @@
     maxPrice: '',
     user: null,
     selectedListing: null,
+    savedListings: new Set(JSON.parse(localStorage.getItem('unimart_saved_listings') || '[]')),
   };
   const modal = document.getElementById('listing-modal');
 
@@ -737,12 +815,16 @@
         if (listing) openListingModal(listing);
       });
     });
+    grid.querySelectorAll('[data-save-listing]').forEach(button => {
+      button.addEventListener('click', toggleSavedListing);
+    });
   }
 
   function renderListingCard(listing) {
     const description = listing.description
       ? escapeHtml(listing.description.length > 110 ? `${listing.description.slice(0, 107)}...` : listing.description)
       : 'No description added yet.';
+    const isSaved = state.savedListings.has(listing.id);
 
     return `
       <article class="listing-card" data-id="${listing.id}" tabindex="0" role="button" aria-label="Open ${escapeAttribute(listing.title)} details">
@@ -761,14 +843,40 @@
           <span class="listing-tag">${escapeHtml(formatStatusLabel(listing.status))}</span>
         </div>
         <div class="listing-card-footer">
-          <div class="listing-card-date">Seller: ${escapeHtml(getSellerName(listing))}${formatSellerRating(listing)}</div>
-          <div class="listing-card-action">
-            <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <span>View details</span>
+          <div class="seller-summary">
+            <div class="seller-line">
+              <span>Seller</span>
+              <span class="seller-name">${escapeHtml(getSellerName(listing))}</span>
+            </div>
+            <div class="seller-rating-row">${renderSellerStars(listing)}<span>${escapeHtml(getSellerRatingText(listing))}</span></div>
+          </div>
+          <div class="card-footer-actions">
+            <button class="save-listing-btn ${isSaved ? 'saved' : ''}" type="button" data-save-listing="${listing.id}" aria-label="${isSaved ? 'Remove saved listing' : 'Save listing'}">
+              <svg viewBox="0 0 20 20" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8"><path d="M10 16.5s-6-3.4-6-8A3.2 3.2 0 0 1 9.5 6.2L10 6.8l.5-.6A3.2 3.2 0 0 1 16 8.5c0 4.6-6 8-6 8Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="listing-card-action">
+              <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span>Details</span>
+            </div>
           </div>
         </div>
       </article>
     `;
+  }
+
+  function toggleSavedListing(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const listingId = event.currentTarget.dataset.saveListing;
+    if (state.savedListings.has(listingId)) {
+      state.savedListings.delete(listingId);
+      showToast('Removed from saved listings', 'success');
+    } else {
+      state.savedListings.add(listingId);
+      showToast('Saved listing', 'success');
+    }
+    localStorage.setItem('unimart_saved_listings', JSON.stringify([...state.savedListings]));
+    renderListings();
   }
 
   function openListingModal(listing) {
@@ -914,6 +1022,22 @@
     if (!listing.sellerReviewCount) return '';
     const average = Number(listing.sellerRatingAverage || 0).toFixed(1);
     return ` - ${average}/5 (${listing.sellerReviewCount})`;
+  }
+
+  function getSellerRatingText(listing) {
+    if (!listing.sellerReviewCount) return 'No reviews yet';
+    const average = Number(listing.sellerRatingAverage || 0).toFixed(1);
+    return `${average} (${listing.sellerReviewCount})`;
+  }
+
+  function renderSellerStars(listing) {
+    const average = Number(listing.sellerRatingAverage || 0);
+    const filled = Math.round(average);
+    return `
+      <span class="seller-stars" aria-label="${escapeAttribute(getSellerRatingText(listing))}">
+        ${[1, 2, 3, 4, 5].map(index => `<span class="${index <= filled ? '' : 'empty'}">★</span>`).join('')}
+      </span>
+    `;
   }
 
   function shouldShowBuyerActions(listing) {
