@@ -384,7 +384,7 @@ function toListing(row = {}) {
     imageUrl: row.image_url || row.imageUrl || '',
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
-    sellerDisplayName: seller.full_name || seller.username || seller.email || row.seller_display_name || null,
+    sellerDisplayName: seller.username || seller.full_name || seller.email || row.seller_display_name || null,
     sellerRatingAverage: row.seller_rating_average === undefined ? null : Number(row.seller_rating_average),
     sellerReviewCount: Number(row.seller_review_count) || 0,
   };
