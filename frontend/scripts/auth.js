@@ -794,6 +794,30 @@ function _conversationId(row = {}) {
   return row.conversation_id || row.id;
 }
 
+function _offerId(row = {}) {
+  return row.offer_id || row.id;
+}
+
+function _seenOfferNotificationKey(userId) {
+  return `unimart_seen_offer_notifications:${userId}`;
+}
+
+function _getSeenOfferNotificationIds(userId) {
+  if (typeof localStorage === 'undefined') return new Set();
+  try {
+    return new Set(JSON.parse(localStorage.getItem(_seenOfferNotificationKey(userId)) || '[]'));
+  } catch (_err) {
+    return new Set();
+  }
+}
+
+function _markOfferNotificationsSeen(userId, offers = []) {
+  if (typeof localStorage === 'undefined' || !userId || !offers.length) return;
+  const seen = _getSeenOfferNotificationIds(userId);
+  offers.map(_offerId).filter(Boolean).forEach(id => seen.add(id));
+  localStorage.setItem(_seenOfferNotificationKey(userId), JSON.stringify([...seen].slice(-250)));
+}
+
 async function _updateConversationTimestamp(conversationId, timestamp) {
   let { error } = await _sb
     .from('conversations')
@@ -967,7 +991,8 @@ export async function getUnreadMessageNotifications(userId) {
   });
 
   const pendingOffersByConversation = new Map();
-  (pendingOfferRows || []).forEach(offer => {
+  const seenOfferIds = _getSeenOfferNotificationIds(userId);
+  (pendingOfferRows || []).filter(offer => !seenOfferIds.has(_offerId(offer))).forEach(offer => {
     if (!pendingOffersByConversation.has(offer.conversation_id)) pendingOffersByConversation.set(offer.conversation_id, []);
     pendingOffersByConversation.get(offer.conversation_id).push(offer);
   });
@@ -1046,6 +1071,10 @@ export async function getConversationMessages({ conversationId, userId, markRead
     .select('*')
     .eq('conversation_id', resolvedConversationId)
     .order('created_at', { ascending: false });
+
+  if (markRead && !offersResult.error) {
+    _markOfferNotificationsSeen(userId, offersResult.data || []);
+  }
 
   const transactionsResult = await _sb
     .from('transactions')
