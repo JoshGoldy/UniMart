@@ -630,6 +630,10 @@ function toContentReport(row = {}) {
     status: row.status || 'open',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    reporterName: row.reporterName || row.reporter_name || null,
+    targetTitle: row.targetTitle || row.target_title || null,
+    targetSnippet: row.targetSnippet || row.target_snippet || null,
+    targetStatus: row.targetStatus || row.target_status || null,
   };
 }
 
@@ -642,6 +646,7 @@ function toModerationAction(row = {}) {
     targetId: row.target_id,
     note: row.note || '',
     createdAt: row.created_at,
+    adminName: row.adminName || row.admin_name || null,
   };
 }
 
@@ -1124,8 +1129,45 @@ export async function getAdminOverview() {
   if (usersRes.error) return { error: usersRes.error.message };
   const users = (usersRes.data || []).map(toUser);
   const listings = (listingsRes.data || []).map(toListing);
-  const reports = reportsRes.error ? [] : (reportsRes.data || []).map(toContentReport);
-  const actions = actionsRes.error ? [] : (actionsRes.data || []).map(toModerationAction);
+  const userMap = new Map(users.map(user => [user.id, user]));
+  const rawReports = reportsRes.error ? [] : (reportsRes.data || []);
+  const reviewIds = rawReports.filter(report => report.target_type === 'review').map(report => report.target_id).filter(Boolean);
+  const reportListingIds = rawReports
+    .flatMap(report => [report.listing_id, report.target_type === 'listing' ? report.target_id : null])
+    .filter(Boolean);
+  const [reportedReviewsRes, reportedListings] = await Promise.all([
+    reviewIds.length ? _sb.from('reviews').select('*').in('review_id', reviewIds) : { data: [], error: null },
+    _loadListingsByIds(reportListingIds),
+  ]);
+  const reportedReviews = (reportedReviewsRes.data || []).map(toReview);
+  const reviewMap = new Map(reportedReviews.map(review => [review.id, review]));
+  const reviewListingIds = reportedReviews.map(review => review.listingId).filter(Boolean);
+  const reviewListings = await _loadListingsByIds(reviewListingIds);
+  const listingsById = new Map([...reportedListings, ...reviewListings]);
+
+  const reports = rawReports.map(row => {
+    const report = toContentReport(row);
+    const review = report.targetType === 'review' ? reviewMap.get(report.targetId) : null;
+    const listing = report.targetType === 'listing'
+      ? listingsById.get(report.targetId) || listingsById.get(report.listingId)
+      : listingsById.get(review?.listingId || report.listingId);
+    return {
+      ...report,
+      listingId: report.listingId || review?.listingId || listing?.id || null,
+      reporterName: userMap.get(report.reporterId)?.fullName || userMap.get(report.reporterId)?.email || report.reporterId,
+      targetTitle: listing?.title || (report.targetType === 'review' ? 'Review' : 'Listing'),
+      targetSnippet: review ? `${review.rating}/5 - ${review.body || 'No review text.'}` : (listing?.description || ''),
+      targetStatus: review?.status || listing?.status || null,
+    };
+  });
+  const actions = actionsRes.error ? [] : (actionsRes.data || []).map(action => {
+    const mapped = toModerationAction(action);
+    const admin = userMap.get(mapped.adminId);
+    return {
+      ...mapped,
+      adminName: admin?.fullName || admin?.email || mapped.adminId || 'System',
+    };
+  });
   return {
     metrics: {
       users: users.length,
@@ -1154,8 +1196,18 @@ async function _recordModerationAction({ adminId, action, targetType, targetId, 
 }
 
 export async function removeListingAsAdmin({ listingId, adminId, note }) {
-  const { error } = await updateListingById(listingId, { status: 'archived' });
-  if (error) return { error: error.message };
+  const statusCandidates = ['archived', 'removed', 'inactive', 'sold'];
+  let lastError = null;
+  let removed = false;
+  for (const status of statusCandidates) {
+    const { error } = await updateListingById(listingId, { status });
+    if (!error) {
+      removed = true;
+      break;
+    }
+    lastError = error;
+  }
+  if (!removed) return { error: lastError?.message || 'Unable to remove listing.' };
   await _sb
     .from('content_reports')
     .update({ status: 'resolved', updated_at: new Date().toISOString() })
@@ -1166,11 +1218,21 @@ export async function removeListingAsAdmin({ listingId, adminId, note }) {
 }
 
 export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
-  const { error } = await _sb
-    .from('reviews')
-    .update({ status: 'removed', updated_at: new Date().toISOString() })
-    .eq('review_id', reviewId);
-  if (error) return { error: error.message };
+  const statusCandidates = ['removed', 'hidden'];
+  let lastError = null;
+  let removed = false;
+  for (const status of statusCandidates) {
+    const { error } = await _sb
+      .from('reviews')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('review_id', reviewId);
+    if (!error) {
+      removed = true;
+      break;
+    }
+    lastError = error;
+  }
+  if (!removed) return { error: lastError?.message || 'Unable to remove review.' };
   await _sb
     .from('content_reports')
     .update({ status: 'resolved', updated_at: new Date().toISOString() })

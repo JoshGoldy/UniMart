@@ -683,7 +683,10 @@
     body.innerHTML = adminState.reports.length ? adminState.reports.map(report => `
       <tr>
         <td>
-          <strong>${escapeHtml(formatPermission(report.targetType))}</strong><br />
+          <strong>${escapeHtml(formatPermission(report.targetType))}: ${escapeHtml(report.targetTitle || 'Unknown target')}</strong><br />
+          <span class="muted">Reporter: ${escapeHtml(report.reporterName || shortId(report.reporterId))}</span><br />
+          ${report.targetSnippet ? `<span class="muted">Target: ${escapeHtml(truncate(report.targetSnippet, 120))}</span><br />` : ''}
+          ${report.targetStatus ? `<span class="muted">Target status: ${escapeHtml(formatStatusLabel(report.targetStatus))}</span><br />` : ''}
           <span class="muted">${escapeHtml(report.reason)}</span>
         </td>
         <td><span class="status-pill ${escapeAttribute(report.status)}">${escapeHtml(formatStatusLabel(report.status))}</span></td>
@@ -702,11 +705,12 @@
 
     body.querySelectorAll('[data-report-status]').forEach(select => {
       select.addEventListener('change', async function () {
+        const note = getModerationNote(`Reason for marking this report ${this.value}:`, `Marked ${this.value} from admin dashboard`);
         const result = await Auth.updateContentReport({
           reportId: this.dataset.reportStatus,
           adminId: adminState.user.id,
           status: this.value,
-          note: `Marked ${this.value} from admin dashboard`,
+          note,
         });
         if (result.error) {
           showToast(result.error, 'error');
@@ -721,10 +725,11 @@
     body.querySelectorAll('[data-remove-listing]').forEach(button => {
       button.addEventListener('click', async function () {
         if (!window.confirm('Remove this listing from the marketplace?')) return;
+        const note = getModerationNote('Reason for removing this listing:', 'Removed from flagged content review');
         const result = await Auth.removeListingAsAdmin({
           listingId: this.dataset.removeListing,
           adminId: adminState.user.id,
-          note: 'Removed from flagged content review',
+          note,
         });
         if (result.error) {
           showToast(result.error, 'error');
@@ -738,10 +743,11 @@
     body.querySelectorAll('[data-remove-review]').forEach(button => {
       button.addEventListener('click', async function () {
         if (!window.confirm('Remove this review?')) return;
+        const note = getModerationNote('Reason for removing this review:', 'Removed from flagged content review');
         const result = await Auth.removeReviewAsAdmin({
           reviewId: this.dataset.removeReview,
           adminId: adminState.user.id,
-          note: 'Removed from flagged content review',
+          note,
         });
         if (result.error) {
           showToast(result.error, 'error');
@@ -767,10 +773,11 @@
     body.querySelectorAll('[data-remove-listing]').forEach(button => {
       button.addEventListener('click', async function () {
         if (!window.confirm('Remove this listing from the marketplace?')) return;
+        const note = getModerationNote('Reason for removing this listing:', 'Removed from recent listing review');
         const result = await Auth.removeListingAsAdmin({
           listingId: this.dataset.removeListing,
           adminId: adminState.user.id,
-          note: 'Removed from recent listing review',
+          note,
         });
         if (result.error) {
           showToast(result.error, 'error');
@@ -786,9 +793,9 @@
     const body = document.getElementById('activity-table');
     body.innerHTML = adminState.actions.length ? adminState.actions.map(action => `
       <tr>
-        <td>${escapeHtml(formatPermission(action.action))}</td>
+        <td>${escapeHtml(formatPermission(action.action))}<br /><span class="muted">${escapeHtml(action.note || 'No note added.')}</span></td>
         <td>${escapeHtml(action.targetType)}<br /><span class="muted">${escapeHtml(String(action.targetId || '').slice(0, 8))}</span></td>
-        <td>${formatDate(action.createdAt)}</td>
+        <td>${formatDate(action.createdAt)}<br /><span class="muted">${escapeHtml(action.adminName || 'System')}</span></td>
       </tr>
     `).join('') : '<tr><td colspan="3" class="empty-row">No moderation activity yet.</td></tr>';
   }
@@ -807,6 +814,21 @@
     link.download = `unimart-moderation-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function getModerationNote(promptText, fallback) {
+    const value = window.prompt(promptText, fallback);
+    return value && value.trim() ? value.trim() : fallback;
+  }
+
+  function truncate(value, maxLength) {
+    const text = String(value || '');
+    return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+  }
+
+  function shortId(value) {
+    if (!value) return 'Unknown';
+    return `${String(value).slice(0, 8)}...`;
   }
 
   function minutesBetween(start, end) {

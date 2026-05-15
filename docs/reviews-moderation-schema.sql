@@ -47,6 +47,12 @@ alter table public.reviews enable row level security;
 alter table public.content_reports enable row level security;
 alter table public.moderation_actions enable row level security;
 
+drop policy if exists "Admins can read all listings" on public.listings;
+create policy "Admins can read all listings"
+on public.listings
+for select
+using (exists (select 1 from public.users where users.id = auth.uid() and users.user_role = 'admin'));
+
 drop policy if exists "Admins can moderate listings" on public.listings;
 create policy "Admins can moderate listings"
 on public.listings
