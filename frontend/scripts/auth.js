@@ -1408,25 +1408,31 @@ export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
 
 export async function updateContentReport({ reportId, adminId, status, note } = {}) {
   const cleanStatus = ['open', 'reviewing', 'resolved', 'dismissed'].includes(status) ? status : 'reviewing';
-  const payload = { status: cleanStatus, updated_at: new Date().toISOString() };
-  let result = await _sb
-    .from('content_reports')
-    .update(payload)
-    .eq('report_id', reportId)
-    .select('report_id,id')
-    .maybeSingle();
-  if ((result.error && /report_id|schema cache|column/i.test(result.error.message || '')) || !result.data) {
-    result = await _sb
-      .from('content_reports')
-      .update(payload)
-      .eq('id', reportId)
-      .select('report_id,id')
-      .maybeSingle();
+  const payloads = [
+    { status: cleanStatus, updated_at: new Date().toISOString() },
+    { status: cleanStatus },
+  ];
+  const idColumns = ['report_id', 'id'];
+  let lastError = null;
+
+  for (const payload of payloads) {
+    for (const column of idColumns) {
+      const result = await _sb
+        .from('content_reports')
+        .update(payload)
+        .eq(column, reportId)
+        .select();
+      if (!result.error && (result.data || []).length) {
+        await _recordModerationAction({ adminId, action: 'updated_report_status', targetType: 'report', targetId: reportId, note });
+        return { success: true };
+      }
+      if (!result.error && !(result.data || []).length) continue;
+      lastError = result.error;
+    }
   }
-  if (result.error) return { error: _userFacingError(result.error) };
-  if (!result.data) return { error: 'Report could not be found.' };
-  await _recordModerationAction({ adminId, action: 'updated_report_status', targetType: 'report', targetId: reportId, note });
-  return { success: true };
+
+  if (lastError) return { error: _userFacingError(lastError, 'Unable to update this report. Check that your admin role is active and the report status field allows this value.') };
+  return { error: 'Report could not be found.' };
 }
 
 
