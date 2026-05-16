@@ -700,7 +700,7 @@
         <div class="offer-card-header">
           <div>
             <div class="offer-title">${escapeHtml(amount)}</div>
-            <div class="offer-meta">${escapeHtml(note)}</div>
+            ${note ? `<div class="offer-meta">${escapeHtml(note)}</div>` : ''}
             ${offer.status === 'pending' && isBuyer ? '<div class="offer-meta">Waiting for the seller to accept or decline this offer.</div>' : ''}
             ${offer.status === 'pending' && canRespond ? '<div class="offer-meta">Respond to this offer to continue the transaction.</div>' : ''}
           </div>
@@ -718,12 +718,13 @@
 
   function formatOfferNote(offer) {
     const note = String(offer.note || '').trim();
-    if (!note) return 'No offer note added.';
+    if (!note) return '';
     if (offer.amount === null || offer.amount === undefined) return note;
     const amount = Number(offer.amount);
-    const amountPattern = amount.toLocaleString('en-ZA').replace(/\s/g, '[\\s,]*').replace(/,/g, '[\\s,]*');
-    const pricePrefix = new RegExp(`^R\\s*${amountPattern}\\s*-\\s*`, 'i');
-    return note.replace(pricePrefix, '').trim() || 'No offer note added.';
+    const plainAmount = String(Math.trunc(amount));
+    const flexibleAmount = plainAmount.split('').join('[\\s,]*');
+    const pricePrefix = new RegExp(`^(?:R|ZAR)?\\s*${flexibleAmount}(?:\\.\\d{1,2})?\\s*-?\\s*`, 'i');
+    return note.replace(pricePrefix, '').trim();
   }
 
   function renderBookingCard(transaction) {
@@ -735,8 +736,8 @@
       return `
         <div class="booking-card-inline">
           <div class="offer-title">Trade facility handover booked</div>
-          <div class="offer-meta">Seller drop-off: ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}. Buyer collection: ${escapeHtml(formatSlot(booking.collectionScheduledAt))}.</div>
-          <div class="offer-meta">${state.user.id === transaction.buyerId ? 'Your collection time is confirmed. Go to the trade facility at this time and bring proof of identity.' : 'The buyer has confirmed their collection time.'}</div>
+          <div class="offer-meta">Shared handover time: ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}.</div>
+          <div class="offer-meta">${state.user.id === transaction.buyerId ? 'Meet the seller at this time to complete the transfer. Bring proof of identity.' : 'Meet the buyer at this time to complete the transfer.'}</div>
           ${renderFacilityInfo()}
         </div>
       `;
@@ -746,7 +747,7 @@
       return `
         <div class="booking-card-inline">
           <div class="offer-title">Waiting for seller drop-off time</div>
-          <div class="offer-meta">Payment does not complete the handover. The seller still needs to choose when they will drop the item at the trade facility, then you choose collection.</div>
+          <div class="offer-meta">Payment does not complete the handover. The seller still needs to choose the shared trade facility handover time.</div>
           ${renderFacilityInfo()}
         </div>
       `;
@@ -757,17 +758,17 @@
         <div class="booking-card-inline">
           <div>
             <div class="offer-title">Choose your drop-off time</div>
-            <div class="offer-meta">Pick when you will drop the item at the trade facility. The buyer will choose collection after this, even if they have already paid online.</div>
+            <div class="offer-meta">Pick the shared time when you and the buyer will meet at the trade facility to complete the transfer.</div>
             ${renderFacilityInfo()}
           </div>
           <div class="booking-slot-grid">
             <div class="form-group">
-              <label class="form-label" for="handover-dropoff-slot">Your drop-off time</label>
+              <label class="form-label" for="handover-dropoff-slot">Shared handover time</label>
               <select class="form-input" id="handover-dropoff-slot"></select>
             </div>
           </div>
           <span class="form-error" id="handover-booking-error"></span>
-          <button class="btn btn-primary" id="set-seller-dropoff-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">Set drop-off time</button>
+          <button class="btn btn-primary" id="set-seller-dropoff-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">Set handover time</button>
         </div>
       `;
     }
@@ -1004,14 +1005,14 @@
     const result = await Auth.getFacilityAvailability();
     if (result.error) {
       error.textContent = result.error;
-      populateSlotSelect(document.getElementById('handover-dropoff-slot'), [], 'No drop-off slots available');
-      button.textContent = 'Set drop-off time';
+      populateSlotSelect(document.getElementById('handover-dropoff-slot'), [], 'No handover slots available');
+      button.textContent = 'Set handover time';
       return;
     }
     state.facilityAvailability = result;
-    populateSlotSelect(document.getElementById('handover-dropoff-slot'), result.dropoffSlots || [], 'No drop-off slots available');
+    populateSlotSelect(document.getElementById('handover-dropoff-slot'), result.dropoffSlots || [], 'No handover slots available');
     button.disabled = !document.getElementById('handover-dropoff-slot')?.value;
-    button.textContent = 'Set drop-off time';
+    button.textContent = 'Set handover time';
   }
 
   async function loadBuyerCollectionSlots(transaction) {
@@ -1056,7 +1057,7 @@
     error.textContent = '';
 
     if (!transaction || !dropoffScheduledAt) {
-      error.textContent = 'Choose your drop-off time.';
+      error.textContent = 'Choose the shared handover time.';
       return;
     }
 
@@ -1067,8 +1068,9 @@
       listingId: transaction.listingId,
       actorId: state.user.id,
       dropoffScheduledAt,
+      collectionScheduledAt: dropoffScheduledAt,
     });
-    button.textContent = 'Set drop-off time';
+    button.textContent = 'Set handover time';
 
     if (result.error) {
       button.disabled = false;
@@ -1076,7 +1078,7 @@
       return;
     }
 
-    showToast('Drop-off time set', 'success');
+    showToast('Handover time set', 'success');
     await loadMessages(state.activeConversationId, false, { forceRender: true });
   }
 

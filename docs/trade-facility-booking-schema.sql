@@ -36,7 +36,7 @@ create table if not exists public.facility_bookings (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint facility_bookings_participants_differ check (buyer_id <> seller_id),
-  constraint facility_bookings_schedule_check check (collection_scheduled_at is null or collection_scheduled_at > dropoff_scheduled_at)
+  constraint facility_bookings_schedule_check check (collection_scheduled_at is null or collection_scheduled_at >= dropoff_scheduled_at)
 );
 
 alter table public.facility_bookings
@@ -47,7 +47,7 @@ drop constraint if exists facility_bookings_schedule_check;
 
 alter table public.facility_bookings
 add constraint facility_bookings_schedule_check
-check (collection_scheduled_at is null or collection_scheduled_at > dropoff_scheduled_at);
+check (collection_scheduled_at is null or collection_scheduled_at >= dropoff_scheduled_at);
 
 alter table public.facility_bookings
 drop constraint if exists facility_bookings_status_check;

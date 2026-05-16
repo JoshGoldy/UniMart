@@ -53,7 +53,7 @@ drop constraint if exists facility_bookings_schedule_check;
 
 alter table public.facility_bookings
 add constraint facility_bookings_schedule_check
-check (collection_scheduled_at is null or collection_scheduled_at > dropoff_scheduled_at);
+check (collection_scheduled_at is null or collection_scheduled_at >= dropoff_scheduled_at);
 
 create index if not exists facility_bookings_transaction_idx on public.facility_bookings(transaction_id);
 

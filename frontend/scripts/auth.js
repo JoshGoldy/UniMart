@@ -399,8 +399,15 @@ function toListing(row = {}) {
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
     sellerDisplayName: seller.username || seller.full_name || seller.email || row.seller_display_name || null,
+    sellerFullName: seller.full_name || row.seller_full_name || null,
+    sellerUsername: seller.username || row.seller_username || null,
+    sellerUniversity: seller.university || row.seller_university || null,
+    sellerCampus: seller.uni_campus || seller.campus || row.seller_campus || null,
     sellerRatingAverage: row.seller_rating_average === undefined ? null : Number(row.seller_rating_average),
     sellerReviewCount: Number(row.seller_review_count) || 0,
+    sellerCompletedTransactions: Number(row.seller_completed_transactions || 0),
+    sellerRecentCategories: Array.isArray(row.seller_recent_categories) ? row.seller_recent_categories : [],
+    sellerLastCompletedAt: row.seller_last_completed_at || null,
   };
 }
 
@@ -432,7 +439,7 @@ function isMissingListingTypeError(error) {
 }
 
 async function tryListingSelect(baseSelect) {
-  let query = _sb.from('listings').select(`${baseSelect}, users:seller_id(full_name,email,username)`);
+  let query = _sb.from('listings').select(`${baseSelect}, users:seller_id(full_name,email,username,university,uni_campus)`);
   let { data, error } = await query;
   if (!error) return { data, error };
   return _sb.from('listings').select(baseSelect);
@@ -461,7 +468,7 @@ async function deleteListingById(listingId, sellerId) {
 export async function getMarketplaceListings() {
   const { data, error } = await _sb
     .from('listings')
-    .select('*, users:seller_id(full_name,email,username)')
+    .select('*, users:seller_id(full_name,email,username,university,uni_campus)')
     .eq('status', 'active')
     .order('created_at', { ascending: false });
 
@@ -729,18 +736,29 @@ function toModerationAction(row = {}) {
   };
 }
 
-async function attachSellerRatings(listings) {
+async function attachSellerTrustStats(listings) {
   const sellerIds = [...new Set((listings || []).map(listing => listing.sellerId).filter(Boolean))];
   if (!sellerIds.length) return listings || [];
 
-  const { data, error } = await _sb
+  const [reviewsResult, transactionsResult, soldListingsResult] = await Promise.all([
+    _sb
     .from('reviews')
     .select('reviewee_id,rating')
     .eq('status', 'visible')
-    .in('reviewee_id', sellerIds);
-  if (error) return listings || [];
+      .in('reviewee_id', sellerIds),
+    _sb
+      .from('transactions')
+      .select('seller_id,listing_id,updated_at,created_at,status')
+      .eq('status', 'completed')
+      .in('seller_id', sellerIds)
+      .limit(500),
+    _sb
+      .from('listings')
+      .select('listing_id,category')
+      .in('seller_id', sellerIds),
+  ]);
 
-  const totals = (data || []).reduce((map, row) => {
+  const totals = (reviewsResult.data || []).reduce((map, row) => {
     const key = row.reviewee_id;
     if (!map[key]) map[key] = { total: 0, count: 0 };
     map[key].total += Number(row.rating) || 0;
@@ -748,16 +766,39 @@ async function attachSellerRatings(listings) {
     return map;
   }, {});
 
+  const listingCategories = new Map((soldListingsResult.data || []).map(row => [row.listing_id, row.category || 'Other']));
+  const history = (transactionsResult.data || []).reduce((map, row) => {
+    const key = row.seller_id;
+    if (!map[key]) map[key] = { count: 0, categories: {}, lastCompletedAt: null };
+    map[key].count += 1;
+    const category = listingCategories.get(row.listing_id) || 'Other';
+    map[key].categories[category] = (map[key].categories[category] || 0) + 1;
+    const completedAt = row.updated_at || row.created_at;
+    if (completedAt && (!map[key].lastCompletedAt || new Date(completedAt) > new Date(map[key].lastCompletedAt))) {
+      map[key].lastCompletedAt = completedAt;
+    }
+    return map;
+  }, {});
+
   return (listings || []).map(listing => {
     const rating = totals[listing.sellerId];
-    if (!rating) return listing;
+    const sellerHistory = history[listing.sellerId];
     return {
       ...listing,
-      sellerRatingAverage: rating.total / rating.count,
-      sellerReviewCount: rating.count,
+      ...(rating ? {
+        sellerRatingAverage: rating.total / rating.count,
+        sellerReviewCount: rating.count,
+      } : {}),
+      sellerCompletedTransactions: sellerHistory?.count || 0,
+      sellerRecentCategories: sellerHistory
+        ? Object.entries(sellerHistory.categories).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([label, count]) => ({ label, count }))
+        : [],
+      sellerLastCompletedAt: sellerHistory?.lastCompletedAt || null,
     };
   });
 }
+
+const attachSellerRatings = attachSellerTrustStats;
 
 async function _getConversationById(conversationId) {
   let result = await _sb
@@ -2034,7 +2075,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
   const collection = collectionScheduledAt ? new Date(collectionScheduledAt) : null;
   if (!Number.isFinite(dropoff.getTime())) return { error: 'Choose a valid seller drop-off time.' };
   if (collection && !Number.isFinite(collection.getTime())) return { error: 'Choose a valid collection time.' };
-  if (collection && collection <= dropoff) return { error: 'Collection must be after drop-off.' };
+  if (collection && collection < dropoff) return { error: 'Collection cannot be before the handover time.' };
 
   const { data: existingRows } = await _sb
     .from('facility_bookings')
@@ -2087,7 +2128,7 @@ export async function confirmFacilityCollection({ transactionId, bookingId, buye
   const collection = new Date(collectionScheduledAt);
   const dropoff = new Date(bookingRow.dropoff_scheduled_at);
   if (!Number.isFinite(collection.getTime())) return { error: 'Choose a valid collection time.' };
-  if (Number.isFinite(dropoff.getTime()) && collection <= dropoff) return { error: 'Collection must be after the seller drop-off time.' };
+  if (Number.isFinite(dropoff.getTime()) && collection < dropoff) return { error: 'Collection cannot be before the handover time.' };
 
   const { error } = await _sb
     .from('facility_bookings')

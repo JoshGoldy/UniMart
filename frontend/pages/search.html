@@ -252,6 +252,10 @@
       display: flex;
     }
 
+    #seller-modal {
+      z-index: 1600;
+    }
+
     .details-dialog {
       width: min(980px, 100%);
       max-height: 90vh;
@@ -467,17 +471,139 @@
 
     .seller-detail {
       display: grid;
-      gap: 3px;
+      gap: 6px;
     }
 
     .seller-detail .seller-rating-row {
       font-weight: 500;
     }
 
+    .seller-profile-link {
+      justify-self: flex-start;
+      color: var(--sage);
+      font-size: 0.94rem;
+      font-weight: 800;
+      padding: 0;
+    }
+
+    .seller-profile-link:hover {
+      color: var(--sage-dark);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .seller-trust-line {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
     .details-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+    }
+
+    .seller-profile-dialog {
+      width: min(560px, 100%);
+    }
+
+    .seller-profile-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--sand);
+    }
+
+    .seller-profile-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--sage);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    .seller-profile-name {
+      color: var(--ink);
+      font-size: 1.2rem;
+      font-weight: 850;
+      margin-bottom: 3px;
+    }
+
+    .seller-profile-subtitle {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .seller-profile-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .seller-profile-stat {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--linen);
+      padding: 12px;
+    }
+
+    .seller-profile-stat strong {
+      display: block;
+      color: var(--muted);
+      font-size: 0.74rem;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .seller-profile-stat span {
+      color: var(--ink);
+      font-size: 0.96rem;
+      font-weight: 750;
+    }
+
+    .seller-profile-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+    }
+
+    .seller-profile-section-title {
+      color: var(--ink);
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .seller-history-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .seller-history-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 700;
     }
 
     .details-meta-card {
@@ -527,7 +653,8 @@
       }
 
       .details-body,
-      .details-grid {
+      .details-grid,
+      .seller-profile-grid {
         grid-template-columns: 1fr;
       }
 
@@ -785,6 +912,21 @@
   </div>
 </div>
 
+<div class="details-modal" id="seller-modal" aria-hidden="true">
+  <div class="details-dialog seller-profile-dialog" role="dialog" aria-modal="true" aria-labelledby="seller-profile-title">
+    <div class="details-header">
+      <div>
+        <div class="details-title" id="seller-profile-title">Seller profile</div>
+        <div class="details-subtitle">Public marketplace details</div>
+      </div>
+      <button class="details-close" id="seller-modal-close" type="button" aria-label="Close seller profile">
+        <span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l8 8M14 6l-8 8" stroke-linecap="round"/></svg></span>
+      </button>
+    </div>
+    <div id="seller-profile-content"></div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script type="module">
     // Import modules
@@ -818,6 +960,7 @@
     savedListingsRemoteReady: false,
   };
   const modal = document.getElementById('listing-modal');
+  const sellerModal = document.getElementById('seller-modal');
 
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', function () {
@@ -866,6 +1009,7 @@
   clearFiltersBtn.addEventListener('click', clearFilters);
 
   document.getElementById('modal-close').addEventListener('click', closeListingModal);
+  document.getElementById('seller-modal-close').addEventListener('click', closeSellerModal);
   document.getElementById('buyer-message-input').addEventListener('input', updateBuyerMessageMeta);
   document.getElementById('offer-note-input').addEventListener('input', updateOfferMeta);
   document.getElementById('offer-amount-input').addEventListener('input', function () {
@@ -879,8 +1023,16 @@
   modal.addEventListener('click', function (event) {
     if (event.target === modal) closeListingModal();
   });
+  sellerModal.addEventListener('click', function (event) {
+    if (event.target === sellerModal) closeSellerModal();
+  });
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') closeListingModal();
+    if (event.key !== 'Escape') return;
+    if (sellerModal.classList.contains('show')) {
+      closeSellerModal();
+      return;
+    }
+    closeListingModal();
   });
 
   initPage().then(user => {
@@ -1081,9 +1233,11 @@
     document.getElementById('modal-condition').textContent = listing.condition;
     document.getElementById('modal-status').textContent = formatStatusLabel(listing.status);
     document.getElementById('modal-seller').innerHTML = `
-      <span>${escapeHtml(getSellerName(listing))}</span>
+      <button class="btn-reset seller-profile-link" id="modal-seller-profile-btn" type="button">${escapeHtml(getSellerName(listing))}</button>
       <span class="seller-rating-row">${renderSellerStars(listing)}<span>${escapeHtml(getSellerRatingText(listing))}</span></span>
+      <span class="seller-trust-line">${escapeHtml(getSellerTrustText(listing))}</span>
     `;
+    document.getElementById('modal-seller-profile-btn').addEventListener('click', () => openSellerModal(listing));
     document.getElementById('modal-date').textContent = formatDate(listing.createdAt);
     document.getElementById('modal-tags').innerHTML = `
       <span class="listing-tag">${escapeHtml(listing.condition)}</span>
@@ -1157,7 +1311,21 @@
   function closeListingModal() {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
+    closeSellerModal();
     state.selectedListing = null;
+  }
+
+  function openSellerModal(listing) {
+    if (!listing) return;
+    document.getElementById('seller-profile-title').textContent = getSellerName(listing);
+    document.getElementById('seller-profile-content').innerHTML = renderSellerProfile(listing);
+    sellerModal.classList.add('show');
+    sellerModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSellerModal() {
+    sellerModal.classList.remove('show');
+    sellerModal.setAttribute('aria-hidden', 'true');
   }
 
   document.querySelectorAll('[data-buyer-action]').forEach(button => {
@@ -1276,6 +1444,44 @@
     return shortId(listing.sellerId);
   }
 
+  function getSellerProfileName(listing) {
+    const username = String(listing.sellerUsername || '').trim();
+    if (username) return username.startsWith('@') ? username : `@${username}`;
+    const fullName = String(listing.sellerFullName || '').trim();
+    if (fullName) return fullName;
+    return getSellerName(listing);
+  }
+
+  function getSellerPublicFullName(listing) {
+    const fullName = String(listing.sellerFullName || '').trim();
+    const username = String(listing.sellerUsername || '').trim();
+    if (!fullName || !username) return '';
+    return fullName;
+  }
+
+  function getSellerCampusText(listing) {
+    const university = String(listing.sellerUniversity || '').trim();
+    const campus = String(listing.sellerCampus || '').trim();
+    if (university && campus) return `${university} - ${campus}`;
+    return university || campus || 'Campus not added yet';
+  }
+
+  function getSellerTrustText(listing) {
+    const completed = Number(listing.sellerCompletedTransactions || 0);
+    const reviewCount = Number(listing.sellerReviewCount || 0);
+    const reviewText = reviewCount ? `${Number(listing.sellerRatingAverage || 0).toFixed(1)} rating` : 'No reviews yet';
+    const tradeText = completed ? `${completed} completed ${completed === 1 ? 'trade' : 'trades'}` : 'No completed trades yet';
+    return `${reviewText} - ${tradeText}`;
+  }
+
+  function getSellerInitials(listing) {
+    const source = getSellerProfileName(listing).replace(/^@/, '') || getSellerName(listing);
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'U';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+
   function formatSellerRating(listing) {
     if (!listing.sellerReviewCount) return '';
     const average = Number(listing.sellerRatingAverage || 0).toFixed(1);
@@ -1296,6 +1502,73 @@
       <span class="seller-stars" aria-label="${escapeAttribute(getSellerRatingText(listing))}">
         ${[1, 2, 3, 4, 5].map(index => `<span class="${index <= filled ? '' : 'empty'}">★</span>`).join('')}
       </span>
+    `;
+  }
+
+  function renderSellerHistory(listing) {
+    const completed = Number(listing.sellerCompletedTransactions || 0);
+    const categories = Array.isArray(listing.sellerRecentCategories) ? listing.sellerRecentCategories : [];
+    const lastCompleted = listing.sellerLastCompletedAt ? `Last completed ${formatDate(listing.sellerLastCompletedAt)}` : '';
+    if (!completed) {
+      return `
+        <span>No completed trades yet</span>
+        <span class="seller-history-summary">
+          <span class="seller-history-pill">New seller history</span>
+        </span>
+      `;
+    }
+    return `
+      <span>${completed} completed ${completed === 1 ? 'trade' : 'trades'}${lastCompleted ? ` - ${escapeHtml(lastCompleted)}` : ''}</span>
+      <span class="seller-history-summary">
+        ${categories.length
+          ? categories.map(item => `<span class="seller-history-pill">${escapeHtml(item.label)}: ${Number(item.count) || 0}</span>`).join('')
+          : '<span class="seller-history-pill">Completed handovers</span>'}
+      </span>
+    `;
+  }
+
+  function renderSellerProfile(listing) {
+    const fullName = getSellerPublicFullName(listing);
+    const reviewCount = Number(listing.sellerReviewCount || 0);
+    const rating = reviewCount ? Number(listing.sellerRatingAverage || 0).toFixed(1) : 'No reviews yet';
+    const completed = Number(listing.sellerCompletedTransactions || 0);
+    const lastCompleted = listing.sellerLastCompletedAt ? formatDate(listing.sellerLastCompletedAt) : 'No completed handovers yet';
+    const categories = Array.isArray(listing.sellerRecentCategories) ? listing.sellerRecentCategories : [];
+
+    return `
+      <div class="seller-profile-head">
+        <div class="seller-profile-avatar" aria-hidden="true">${escapeHtml(getSellerInitials(listing))}</div>
+        <div>
+          <div class="seller-profile-name">${escapeHtml(getSellerProfileName(listing))}</div>
+          <div class="seller-profile-subtitle">
+            ${fullName ? `${escapeHtml(fullName)}<br>` : ''}
+            ${escapeHtml(getSellerCampusText(listing))}
+          </div>
+        </div>
+      </div>
+      <div class="seller-profile-grid">
+        <div class="seller-profile-stat">
+          <strong>Rating</strong>
+          <span>${reviewCount ? `${escapeHtml(rating)}/5 from ${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'}` : 'No reviews yet'}</span>
+        </div>
+        <div class="seller-profile-stat">
+          <strong>Completed trades</strong>
+          <span>${completed}</span>
+        </div>
+        <div class="seller-profile-stat">
+          <strong>Last handover</strong>
+          <span>${escapeHtml(lastCompleted)}</span>
+        </div>
+        <div class="seller-profile-stat">
+          <strong>Current listing</strong>
+          <span>${escapeHtml(listing.category || 'Marketplace item')}</span>
+        </div>
+      </div>
+      <div class="seller-profile-section">
+        <div class="seller-profile-section-title">Marketplace history</div>
+        ${renderSellerHistory(listing)}
+        ${categories.length ? '' : '<div class="seller-profile-subtitle" style="margin-top:8px;">Category history appears after completed handovers.</div>'}
+      </div>
     `;
   }
 
