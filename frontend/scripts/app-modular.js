@@ -154,10 +154,10 @@ function ensureNotificationPanel(user) {
         </svg>
         <span class="notification-dot" id="topbar-notification-count">0</span>
       </button>
-      <div class="dropdown-menu notification-menu" id="topbar-notification-menu">
-        <div class="notification-header">Notifications</div>
-        <div id="topbar-notification-list"></div>
-      </div>
+      <section class="dropdown-menu notification-menu" id="topbar-notification-menu">
+        <section class="notification-header">Notifications</section>
+        <section id="topbar-notification-list"></section>
+      </section>
     `;
     const avatar = actions.querySelector('.topbar-avatar');
     if (avatar) actions.insertBefore(wrap, avatar);
@@ -169,7 +169,7 @@ function ensureNotificationPanel(user) {
   if (trigger) trigger.setAttribute('data-dropdown-trigger', 'topbar-notification-menu');
   if (!document.getElementById('topbar-notification-list')) {
     const menu = document.getElementById('topbar-notification-menu');
-    if (menu) menu.innerHTML = '<div class="notification-header">Notifications</div><div id="topbar-notification-list"></div>';
+    if (menu) menu.innerHTML = '<section class="notification-header">Notifications</section><section id="topbar-notification-list"></section>';
   }
 }
 
@@ -221,10 +221,10 @@ function renderNotificationPanel(unreadConversations, unreadTotal) {
 
   if (!unreadConversations.length) {
     list.innerHTML = `
-      <div class="notification-empty">
+      <section class="notification-empty">
         <strong>No new messages</strong>
         <span>You are all caught up.</span>
-      </div>
+      </section>
     `;
     return;
   }

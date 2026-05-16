@@ -1,25 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Signing in - UniMart</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../styles/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/styles.css">
 </head>
 <body class="auth-page">
-  <div class="auth-card auth-status-card">
-    <div class="auth-logo">
-      <img src="../assets/unimart-logo.png" alt="UniMart Logo" class="logo-img" />
-    </div>
-    <div class="auth-header">
+  <article class="auth-card auth-status-card">
+    <figure class="auth-logo">
+      <img src="../assets/unimart-logo.png" alt="UniMart Logo" class="logo-img">
+    </figure>
+    <header class="auth-header">
       <h1>Signing you in</h1>
       <p id="callback-message">Please wait while UniMart finishes your Google sign-in.</p>
-    </div>
-    <div class="auth-spinner" aria-hidden="true"></div>
-    <div class="form-error" id="callback-error" style="text-align:center; margin-top:16px;"></div>
-  </div>
+    </header>
+    <figure class="auth-spinner" aria-hidden="true"></figure>
+    <p class="form-error" id="callback-error" style="text-align:center; margin-top:16px;"></p>
+  </article>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script type="module">
@@ -53,5 +51,6 @@
     })();
   
   </script>
-</body>
-</html>
+
+
+</body></html>

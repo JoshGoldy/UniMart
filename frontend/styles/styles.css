@@ -67,6 +67,52 @@ img {
   max-width: 100%;
 }
 
+/* Semantic refactor compatibility: keep former block wrappers visually stable. */
+.metric-label,
+.metric-value,
+.stat-value,
+.stat-label,
+.panel-title,
+.panel-copy,
+.panel-subtitle,
+.card-title,
+.card-copy,
+.listing-item-title,
+.listing-item-meta,
+.listing-item-price,
+.price-guide-title,
+.price-guide-range,
+.price-guide-copy,
+.board-meta,
+.report-title,
+.report-meta,
+.report-reason,
+.analytics-title,
+.recent-title,
+.recent-meta,
+.category-label,
+.category-value,
+.trend-value,
+.trend-label,
+.permission-cell,
+.slot-preview-item,
+.admin-note,
+.empty-row,
+.offer-title,
+.offer-meta,
+.message-meta,
+.message-bubble,
+.conversation-title,
+.conversation-meta,
+.conversation-date,
+.profile-name,
+.profile-email-display,
+.profile-badge,
+.section-title,
+.section-subtitle {
+  display: block;
+}
+
 /* ===== TYPOGRAPHY ===== */
 h1 {
   font-size: 1.6rem;

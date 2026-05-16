@@ -46,9 +46,9 @@ export function buildDynamicNavigation(user) {
 
   document.querySelectorAll('.sidebar-nav').forEach(nav => {
     nav.innerHTML = `
-      <div class="sidebar-section-label">Main</div>
+      <section class="sidebar-section-label">Main</section>
       ${mainItems.map(renderNavItem).join('')}
-      <div class="sidebar-section-label">Manage</div>
+      <section class="sidebar-section-label">Manage</section>
       ${manageItems.map(renderNavItem).join('')}
     `;
   });

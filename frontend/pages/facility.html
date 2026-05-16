@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trade Facility - UniMart</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../styles/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/styles.css">
   <style>
     .facility-grid {
       display: grid;
@@ -161,83 +159,83 @@
   </style>
 </head>
 <body>
-<div class="overlay" id="sidebar-overlay"></div>
-<div class="app-shell">
+<aside class="overlay" id="sidebar-overlay"></aside>
+<section class="app-shell">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo"><img src="../assets/unimart-logo.png" alt="UniMart Logo" class="logo-img" /></div>
+    <figure class="sidebar-logo"><img src="../assets/unimart-logo.png" alt="UniMart Logo" class="logo-img"></figure>
     <nav class="sidebar-nav"></nav>
-    <div class="sidebar-footer">
-      <div class="sidebar-user dropdown" data-dropdown-trigger="user-menu">
-        <div class="user-avatar" data-user-initials>?</div>
-        <div class="user-info"><div class="user-name" data-user-name>Loading...</div><div class="user-role" data-user-role></div></div>
-        <div class="dropdown-menu" id="user-menu">
+    <footer class="sidebar-footer">
+      <nav class="sidebar-user dropdown" data-dropdown-trigger="user-menu">
+        <figure class="user-avatar" data-user-initials="">?</figure>
+        <section class="user-info"><span class="user-name" data-user-name="">Loading...</span><span class="user-role" data-user-role=""></span></section>
+        <nav class="dropdown-menu" id="user-menu">
           <a class="dropdown-item" href="profile.html">My Profile</a>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-item danger" data-action="signout">Sign out</div>
-        </div>
-      </div>
-    </div>
+          <section class="dropdown-divider"></section>
+          <button class="dropdown-item danger" data-action="signout" type="button">Sign out</button>
+        </nav>
+      </nav>
+    </footer>
   </aside>
-  <div class="main-content">
+  <section class="main-content">
     <header class="topbar">
-      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"/></svg></button>
+      <button class="topbar-icon-btn" id="sidebar-toggle" style="display:none"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round"></path></svg></button>
       <span class="topbar-title">Trade Facility</span>
-      <div class="topbar-actions" style="margin-left:auto"><div class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials>?</div></div>
-      <div class="dropdown-menu" id="topbar-user-menu">
-        <a class="dropdown-item" href="profile.html"><span data-user-name>My Account</span></a>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item danger" data-action="signout">Sign out</div>
-      </div>
+      <nav class="topbar-actions" style="margin-left:auto"><figure class="topbar-avatar dropdown" data-dropdown-trigger="topbar-user-menu" data-user-initials="">?</figure></nav>
+      <nav class="dropdown-menu" id="topbar-user-menu">
+        <a class="dropdown-item" href="profile.html"><span data-user-name="">My Account</span></a>
+        <section class="dropdown-divider"></section>
+        <button class="dropdown-item danger" data-action="signout" type="button">Sign out</button>
+      </nav>
     </header>
     <main class="page-content">
-      <div class="page-header">
+      <header class="page-header">
         <h1>Trade Facility Staff Dashboard</h1>
         <p>Manage drop-offs, collections, and accountable staff handoffs.</p>
-      </div>
+      </header>
 
-      <div class="facility-info-banner" id="facility-info-banner">
-        <strong>Trade facility:</strong> 1 Jan Smuts Ave, Braamfontein, Johannesburg, 2017<br />
+      <section class="facility-info-banner" id="facility-info-banner">
+        <strong>Trade facility:</strong> 1 Jan Smuts Ave, Braamfontein, Johannesburg, 2017<br>
         <strong>Hours:</strong> Mon, Tue, Wed, Thu, Fri, 09:00-17:00
-      </div>
+      </section>
 
-      <div class="facility-grid">
-        <div class="metric-card"><div class="metric-label">Drop-offs due</div><div class="metric-value" id="metric-dropoffs">0</div></div>
-        <div class="metric-card"><div class="metric-label">Collections due</div><div class="metric-value" id="metric-collections">0</div></div>
-        <div class="metric-card"><div class="metric-label">Ready now</div><div class="metric-value" id="metric-ready">0</div></div>
-        <div class="metric-card"><div class="metric-label">Released</div><div class="metric-value" id="metric-completed">0</div></div>
-      </div>
+      <section class="facility-grid">
+        <article class="metric-card"><span class="metric-label">Drop-offs due</span><span class="metric-value" id="metric-dropoffs">0</span></article>
+        <article class="metric-card"><span class="metric-label">Collections due</span><span class="metric-value" id="metric-collections">0</span></article>
+        <article class="metric-card"><span class="metric-label">Ready now</span><span class="metric-value" id="metric-ready">0</span></article>
+        <article class="metric-card"><span class="metric-label">Released</span><span class="metric-value" id="metric-completed">0</span></article>
+      </section>
 
-      <div class="facility-layout">
+      <section class="facility-layout">
         <section class="facility-panel">
-          <div class="panel-header">
-            <div class="panel-title">Upcoming Drop-Off Bookings</div>
-            <div class="panel-copy">Confirm receipt when the seller drops the item at the facility.</div>
-          </div>
-          <div class="booking-list" id="dropoff-list"></div>
+          <header class="panel-header">
+            <span class="panel-title">Upcoming Drop-Off Bookings</span>
+            <span class="panel-copy">Confirm receipt when the seller drops the item at the facility.</span>
+          </header>
+          <section class="booking-list" id="dropoff-list"></section>
         </section>
 
         <section class="facility-panel">
-          <div class="panel-header">
-            <div class="panel-title">Upcoming Collection Bookings</div>
-            <div class="panel-copy">Mark items ready, then release them to the correct collector.</div>
-          </div>
-          <div class="booking-list" id="collection-list"></div>
+          <header class="panel-header">
+            <span class="panel-title">Upcoming Collection Bookings</span>
+            <span class="panel-copy">Mark items ready, then release them to the correct collector.</span>
+          </header>
+          <section class="booking-list" id="collection-list"></section>
         </section>
-      </div>
+      </section>
 
       <section class="facility-panel">
-        <div class="panel-header">
-          <div class="panel-title">Handover Guidelines</div>
-          <div class="panel-copy">Use these actions to keep each drop-off and collection moving clearly.</div>
-        </div>
-        <div class="workflow-note">
+        <header class="panel-header">
+          <span class="panel-title">Handover Guidelines</span>
+          <span class="panel-copy">Use these actions to keep each drop-off and collection moving clearly.</span>
+        </header>
+        <section class="workflow-note">
           Confirm receipt when the seller drops off the item. Mark it ready once the buyer can collect it. Release the item only after checking that the collector matches the expected buyer.
-        </div>
+        </section>
       </section>
     </main>
-  </div>
-</div>
-<div class="toast-container" id="toast-container"></div>
+  </section>
+</section>
+<aside class="toast-container" id="toast-container"></aside>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script type="module">
     // Import modules
@@ -320,18 +318,18 @@
   function renderBookingCard(booking, actions, scheduleLabel) {
     return `
       <article class="booking-card">
-        <div class="booking-thumb">${booking.imageUrl ? `<img src="${escapeAttribute(booking.imageUrl)}" alt="${escapeAttribute(booking.title)}" />` : 'Item'}</div>
-        <div>
-          <div class="booking-title">${escapeHtml(booking.title)}</div>
-          <div class="booking-meta">${escapeHtml(booking.category)} - ${escapeHtml(booking.condition)} - ${formatCurrency(booking.price)}</div>
-          <div class="booking-meta">Seller: ${escapeHtml(booking.sellerName)} | Buyer: ${escapeHtml(booking.buyerName)}</div>
-          <div class="booking-meta">${escapeHtml(scheduleLabel)}</div>
-          <div class="booking-meta">Online paid: ${formatCurrency(booking.onlinePaidAmount || 0)} | Cash due: ${formatCurrency(booking.cashDueAmount || 0)}${booking.cashSettledAt ? ' (settled)' : ''}</div>
-        </div>
-        <div class="booking-footer">
+        <section class="booking-thumb">${booking.imageUrl ? `<img src="${escapeAttribute(booking.imageUrl)}" alt="${escapeAttribute(booking.title)}" />` : 'Item'}</section>
+        <section>
+          <section class="booking-title">${escapeHtml(booking.title)}</section>
+          <section class="booking-meta">${escapeHtml(booking.category)} - ${escapeHtml(booking.condition)} - ${formatCurrency(booking.price)}</section>
+          <section class="booking-meta">Seller: ${escapeHtml(booking.sellerName)} | Buyer: ${escapeHtml(booking.buyerName)}</section>
+          <section class="booking-meta">${escapeHtml(scheduleLabel)}</section>
+          <section class="booking-meta">Online paid: ${formatCurrency(booking.onlinePaidAmount || 0)} | Cash due: ${formatCurrency(booking.cashDueAmount || 0)}${booking.cashSettledAt ? ' (settled)' : ''}</section>
+        </section>
+        <section class="booking-footer">
           <span class="status-pill">${escapeHtml(formatStatus(booking.status))}</span>
-          <div class="booking-actions">${actions}</div>
-        </div>
+          <section class="booking-actions">${actions}</section>
+        </section>
       </article>
     `;
   }
@@ -398,7 +396,7 @@
   }
 
   function renderEmpty(message) {
-    return `<div class="empty-state"><h3>${escapeHtml(message)}</h3></div>`;
+    return `<section class="empty-state"><h3>${escapeHtml(message)}</h3></section>`;
   }
 
   function formatStatus(value) {
@@ -439,5 +437,6 @@
   }
 
   </script>
-</body>
-</html>
+
+
+</body></html>

@@ -10,7 +10,7 @@ export function iconMarkup(name) {
     error: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l8 8M14 6l-8 8" stroke-linecap="round"/></svg>',
     info: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="7"/><path d="M10 9.25v4M10 6.75h.01" stroke-linecap="round"/></svg>'
   };
-  return \`<span class="ui-icon">\${icons[name] || icons.info}</span>\`;
+  return `<span class="ui-icon">${icons[name] || icons.info}</span>`;
 }
 
 // Account type checks
@@ -100,7 +100,7 @@ export function hasFeature(user, feature) {
   const permission = FEATURE_TO_PERMISSION[feature];
   if (!permission || !runtimePermissionMap) return defaultAllowed;
   
-  const key = \`\${role}:\${permission}\`;
+  const key = `${role}:${permission}`;
   return Object.prototype.hasOwnProperty.call(runtimePermissionMap, key)
     ? runtimePermissionMap[key]
     : defaultAllowed;
@@ -123,8 +123,8 @@ export function formatStatusLabel(value) {
 export function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container') || createNotificationContainer();
   const notification = document.createElement('div');
-  notification.className = \`notification notification-\${type}\`;
-  notification.innerHTML = \`\${iconMarkup(type)} <span>\${message}</span>\`;
+  notification.className = `notification notification-${type}`;
+  notification.innerHTML = `${iconMarkup(type)} <span>${message}</span>`;
   container.appendChild(notification);
   
   setTimeout(() => {
@@ -184,14 +184,14 @@ export function formatDateTime(dateString) {
 // Price formatting
 export function formatPrice(price) {
   if (typeof price !== 'number') return 'R0.00';
-  return \`R\${price.toFixed(2)}\`;
+  return `R${price.toFixed(2)}`;
 }
 
 // Image handling
 export function getImageUrl(path) {
   if (!path) return '/frontend/assets/placeholder.png';
   if (path.startsWith('http')) return path;
-  return \`/frontend/assets/\${path}\`;
+  return `/frontend/assets/${path}`;
 }
 
 // Local storage helpers

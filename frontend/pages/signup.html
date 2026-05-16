@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create Account — UniMart</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../styles/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/styles.css">
   <style>
     .auth-step { display: none; }
     .auth-step.active { display: block; }
@@ -16,132 +14,132 @@
 </head>
 <body class="auth-page">
  
-  <div class="auth-card">
+  <article class="auth-card">
  
     <!-- Logo -->
-    <div class="auth-logo">
-  <img src="../assets/unimart-logo.png" alt="UniMart Logo" class="logo-img" />
-</div>
+    <figure class="auth-logo">
+  <img src="../assets/unimart-logo.png" alt="UniMart Logo" class="logo-img">
+</figure>
  
     <!-- ===== STEP 1 — Account details ===== -->
-    <div id="step-details" class="auth-step active">
-      <div class="auth-header">
+    <section id="step-details" class="auth-step active">
+      <header class="auth-header">
         <h1>Create your account</h1>
         <p>Join your campus marketplace today</p>
-      </div>
+      </header>
  
-      <form class="auth-form" id="signup-form" novalidate>
+      <form class="auth-form" id="signup-form" novalidate="">
  
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label" for="full-name">Full name</label>
-          <input class="form-input" id="full-name" type="text" placeholder="Jane Smith" autocomplete="name" required />
+          <input class="form-input" id="full-name" type="text" placeholder="Jane Smith" autocomplete="name" required="">
           <span class="form-error" id="name-error"></span>
-        </div>
+        </section>
  
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label" for="signup-email">University email</label>
-          <input class="form-input" id="signup-email" type="email" placeholder="you@university.edu" autocomplete="email" required />
+          <input class="form-input" id="signup-email" type="email" placeholder="you@university.edu" autocomplete="email" required="">
           <span class="form-error" id="email-error"></span>
-        </div>
+        </section>
  
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label" for="signup-password">Password</label>
-          <div class="input-wrapper">
-            <input class="form-input" id="signup-password" type="password" placeholder="At least 8 characters" autocomplete="new-password" required />
+          <section class="input-wrapper">
+            <input class="form-input" id="signup-password" type="password" placeholder="At least 8 characters" autocomplete="new-password" required="">
             <button type="button" class="input-toggle" id="pw-toggle" aria-label="Toggle password visibility"></button>
-          </div>
-          <div class="password-strength">
-            <div class="password-strength-bar" id="pw-strength-bar"></div>
-          </div>
+          </section>
+          <section class="password-strength">
+            <section class="password-strength-bar" id="pw-strength-bar"></section>
+          </section>
           <span class="form-error" id="password-error"></span>
-        </div>
+        </section>
  
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label" for="confirm-password">Confirm password</label>
-          <div class="input-wrapper">
-            <input class="form-input" id="confirm-password" type="password" placeholder="Re-enter your password" autocomplete="new-password" required />
+          <section class="input-wrapper">
+            <input class="form-input" id="confirm-password" type="password" placeholder="Re-enter your password" autocomplete="new-password" required="">
             <button type="button" class="input-toggle" id="confirm-pw-toggle" aria-label="Toggle password visibility"></button>
-          </div>
+          </section>
           <span class="form-error" id="confirm-error"></span>
-        </div>
+        </section>
  
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label">What kind of account do you need?</label>
-          <div class="account-type-group" id="role-type-group">
+          <nav class="account-type-group" id="role-type-group">
             <label class="account-type-option selected" id="opt-role-student">
-              <input type="radio" name="user-role" value="student" checked />
-              <div class="account-type-radio"></div>
-              <div class="account-type-info">
+              <input type="radio" name="user-role" value="student" checked="">
+              <figure class="account-type-radio"></figure>
+              <section class="account-type-info">
                 <strong>Student</strong>
                 <span>Browse, buy, and list items on the marketplace</span>
-              </div>
+              </section>
             </label>
 
             <label class="account-type-option" id="opt-role-staff">
-              <input type="radio" name="user-role" value="staff" />
-              <div class="account-type-radio"></div>
-              <div class="account-type-info">
+              <input type="radio" name="user-role" value="staff">
+              <figure class="account-type-radio"></figure>
+              <section class="account-type-info">
                 <strong>Trade Facility Staff</strong>
                 <span>Manage drop-offs, collections, and handovers</span>
-              </div>
+              </section>
             </label>
-          </div>
+          </nav>
           <span class="form-error" id="role-error"></span>
-        </div>
+        </section>
 
-        <div class="form-group" id="student-account-type-section">
+        <section class="form-group" id="student-account-type-section">
           <label class="form-label">How will you use the marketplace?</label>
-          <div class="account-type-group" id="account-type-group">
+          <nav class="account-type-group" id="account-type-group">
  
             <label class="account-type-option" id="opt-buyer">
-              <input type="radio" name="account-type" value="buyer" />
-              <div class="account-type-radio"></div>
-              <div class="account-type-info">
+              <input type="radio" name="account-type" value="buyer">
+              <figure class="account-type-radio"></figure>
+              <section class="account-type-info">
                 <strong>Buyer Only</strong>
                 <span>Browse and purchase items from other students</span>
-              </div>
+              </section>
             </label>
 
             <label class="account-type-option" id="opt-seller">
-              <input type="radio" name="account-type" value="seller" />
-              <div class="account-type-radio"></div>
-              <div class="account-type-info">
+              <input type="radio" name="account-type" value="seller">
+              <figure class="account-type-radio"></figure>
+              <section class="account-type-info">
                 <strong>Seller Only</strong>
                 <span>List items and manage buyer messages</span>
-              </div>
+              </section>
             </label>
  
             <label class="account-type-option" id="opt-seller-buyer">
-              <input type="radio" name="account-type" value="seller_buyer" />
-              <div class="account-type-radio"></div>
-              <div class="account-type-info">
+              <input type="radio" name="account-type" value="seller_buyer">
+              <figure class="account-type-radio"></figure>
+              <section class="account-type-info">
                 <strong>Seller / Buyer</strong>
                 <span>List items for sale and buy from others</span>
-              </div>
+              </section>
             </label>
  
-          </div>
+          </nav>
           <span class="form-error" id="type-error"></span>
           <p style="font-size:.75rem; color:var(--muted); margin-top:.5rem;">You can change this later in your profile.</p>
-        </div>
+        </section>
  
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label" for="signup-university">University <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
           <select class="form-select" id="signup-university"></select>
-        </div>
+        </section>
 
-        <div class="form-group">
+        <section class="form-group">
           <label class="form-label">Student number <span style="font-weight:400; color:var(--muted); font-size:.75rem;">(optional)</span></label>
-          <input class="form-input" id="signup-student-number" type="text" placeholder="e.g. SMTJSH001" />
-        </div>
+          <input class="form-input" id="signup-student-number" type="text" placeholder="e.g. SMTJSH001">
+        </section>
  
-        <div class="form-error" id="signup-error" style="text-align:center; font-size:.85rem;"></div>
+        <p class="form-error" id="signup-error" style="text-align:center; font-size:.85rem;"></p>
  
         <button type="submit" class="btn btn-primary btn-full btn-lg auth-form-submit" id="signup-btn">
           Create account
         </button>
 
-        <div class="oauth-divider"><span>or</span></div>
+        <section class="oauth-divider"><span>or</span></section>
 
         <button type="button" class="btn btn-oauth btn-full btn-lg" id="google-signup-btn">
           <span class="google-mark" aria-hidden="true">G</span>
@@ -149,60 +147,60 @@
         </button>
       </form>
  
-      <div class="auth-footer">
+      <footer class="auth-footer">
         Already have an account? <a href="login.html">Sign in</a>
-      </div>
-    </div>
+      </footer>
+    </section>
  
     <!-- ===== STEP 2 — Email Verification ===== -->
-    <div id="step-verify" class="auth-step">
-        <div style="display:flex; flex-direction:column; align-items:center; text-align:center;">
-        <div class="verify-icon"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="14" height="10" rx="2"/><path d="m4.5 6.5 5.5 4 5.5-4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <section id="step-verify" class="auth-step">
+        <section style="display:flex; flex-direction:column; align-items:center; text-align:center;">
+        <figure class="verify-icon"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="14" height="10" rx="2"></rect><path d="m4.5 6.5 5.5 4 5.5-4" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></figure>
         <h2 style="margin-bottom:8px;">Verify your email</h2>
         <p style="max-width:300px; margin-bottom:24px;">
-          We've sent an 8-digit code to<br/>
+          We've sent an 8-digit code to<br>
           <strong id="verify-email-display" style="color:var(--ink)"></strong>
         </p>
  
-        <form class="auth-form" id="verify-form" novalidate style="width:100%">
-          <div class="otp-input-group">
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]" />
-          </div>
+        <form class="auth-form" id="verify-form" novalidate="" style="width:100%">
+          <section class="otp-input-group">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+            <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          </section>
  
-          <div class="form-error" id="otp-error" style="text-align:center; font-size:.85rem; margin-top:4px;"></div>
+          <p class="form-error" id="otp-error" style="text-align:center; font-size:.85rem; margin-top:4px;"></p>
  
           <button type="submit" class="btn btn-primary btn-full btn-lg" id="verify-btn" style="margin-top:8px;">
             Verify &amp; Continue
           </button>
         </form>
  
-        <div class="resend-link" style="margin-top:16px;">
+        <section class="resend-link" style="margin-top:16px;">
           Didn't get it? <a id="resend-btn" style="cursor:pointer;">Resend code</a>
-        </div>
-        <div style="margin-top:12px;">
-          <button type="button" class="btn btn-ghost btn-sm" id="back-btn"><span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11.5 5 6.5 10l5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Edit details</button>
-        </div>
-      </div>
-    </div>
+        </section>
+        <section style="margin-top:12px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="back-btn"><span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11.5 5 6.5 10l5 5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span> Edit details</button>
+        </section>
+      </section>
+    </section>
  
     <!-- ===== STEP 3 — Success ===== -->
-    <div id="step-success" class="auth-step">
-        <div style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:20px 0;">
-        <div class="verify-icon" style="background:var(--mint);"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 14.5 8.5 8l5 5-6.5 1.5Z" stroke-linejoin="round"/><path d="m11.5 6.5 2-2M13.5 8.5h3M12.5 10.5l2 2" stroke-linecap="round"/></svg></span></div>
+    <section id="step-success" class="auth-step">
+        <section style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:20px 0;">
+        <figure class="verify-icon" style="background:var(--mint);"><span class="ui-icon ui-icon-lg"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 14.5 8.5 8l5 5-6.5 1.5Z" stroke-linejoin="round"></path><path d="m11.5 6.5 2-2M13.5 8.5h3M12.5 10.5l2 2" stroke-linecap="round"></path></svg></span></figure>
         <h2 style="margin-bottom:8px;">Account created!</h2>
         <p style="max-width:280px; margin-bottom:28px;">
           Welcome to UniMart. Your account has been verified and you're ready to go.
         </p>
-        <a href="index.html" class="btn btn-primary btn-lg">Go to UniMart <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
-      </div>
-    </div>
+        <a href="index.html" class="btn btn-primary btn-lg">Go to UniMart <span class="inline-action-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m8.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a>
+      </section>
+    </section>
  
-  </div><!-- /auth-card -->
+  </article><!-- /auth-card -->
  
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script type="module">
@@ -486,5 +484,6 @@
     }
   
   </script>
-</body>
-</html>
+
+
+</body></html>
