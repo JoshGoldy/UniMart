@@ -959,13 +959,13 @@ async function _fetchListingsByIds(listingIds = []) {
 
   let { data, error } = await _sb
     .from('listings')
-    .select('listing_id,title,image_url')
+    .select('listing_id,title,image_url,status')
     .in('listing_id', ids);
 
   if (error) {
     const fallback = await _sb
       .from('listings')
-      .select('id,title,image_url')
+      .select('id,title,image_url,status')
       .in('id', ids);
     data = fallback.data || [];
     error = fallback.error;
@@ -977,6 +977,10 @@ async function _fetchListingsByIds(listingIds = []) {
   }
 
   return Object.fromEntries((data || []).map(listing => [listing.listing_id || listing.id, listing]));
+}
+
+function _isSoldListingStatus(status) {
+  return String(status || '').trim().toLowerCase() === 'sold';
 }
 
 async function _countUnreadMessagesForConversation(conversationId, currentUserId) {
@@ -1012,10 +1016,11 @@ function toConversation(row = {}, currentUserId) {
     listingId: row.listing_id,
     listingTitle: listing.title || row.listing_title || 'Listing',
     listingImageUrl: listing.image_url || listing.imageUrl || '',
+    listingStatus: listing.status || row.listing_status || null,
     buyerId: row.buyer_id,
     sellerId: row.seller_id,
     otherUserId: isBuyer ? row.seller_id : row.buyer_id,
-    otherDisplayName: other.full_name || other.username || other.email || null,
+    otherDisplayName: other.username || other.full_name || other.email || null,
     role: isBuyer ? 'buyer' : 'seller',
     status: row.status || 'open',
     lastMessageAt: row.last_message_at || row.created_at,
@@ -1051,7 +1056,8 @@ export async function getConversations(userId) {
 
   if (error) return { error: _userFacingError(error) };
 
-  const conversations = await _hydrateConversations(data || [], userId);
+  const conversations = (await _hydrateConversations(data || [], userId))
+    .filter(conversation => !_isSoldListingStatus(conversation.listingStatus));
   return { conversations };
 }
 
@@ -1131,6 +1137,7 @@ export async function getUnreadMessageNotifications(userId) {
   ]);
 
   const notifications = conversations
+    .filter(row => !_isSoldListingStatus(listingsById[row.listing_id]?.status))
     .map(row => {
       const conversationId = _conversationId(row);
       const unreadMessages = unreadByConversation.get(conversationId) || [];
