@@ -905,6 +905,46 @@ function _markConversationReadLocally(userId, conversationId, timestamp = new Da
   localStorage.setItem(_conversationReadWatermarkKey(userId), JSON.stringify(watermarks));
 }
 
+function _deletedConversationKey(userId) {
+  return `unimart_deleted_conversations:${userId}`;
+}
+
+function _getLocalDeletedConversationIds(userId) {
+  if (typeof localStorage === 'undefined' || !userId) return new Set();
+  try {
+    return new Set(JSON.parse(localStorage.getItem(_deletedConversationKey(userId)) || '[]'));
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function _markConversationDeletedLocally(userId, conversationId) {
+  if (typeof localStorage === 'undefined' || !userId || !conversationId) return;
+  const deleted = _getLocalDeletedConversationIds(userId);
+  deleted.add(conversationId);
+  localStorage.setItem(_deletedConversationKey(userId), JSON.stringify([...deleted]));
+}
+
+async function _getDeletedConversationIds(userId) {
+  const localDeleted = _getLocalDeletedConversationIds(userId);
+  if (!userId) return localDeleted;
+
+  const { data, error } = await _sb
+    .from('conversation_deletions')
+    .select('conversation_id')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.warn('Using local deleted conversation list:', error.message);
+    return localDeleted;
+  }
+
+  return new Set([
+    ...localDeleted,
+    ...(data || []).map(row => row.conversation_id).filter(Boolean),
+  ]);
+}
+
 function _afterLatestTimestamp(rows = [], fallback = new Date().toISOString()) {
   const latest = rows
     .map(row => new Date(row?.created_at || row?.createdAt || 0).getTime())
@@ -1056,7 +1096,9 @@ export async function getConversations(userId) {
 
   if (error) return { error: _userFacingError(error) };
 
+  const deletedConversationIds = await _getDeletedConversationIds(userId);
   const conversations = (await _hydrateConversations(data || [], userId))
+    .filter(conversation => !deletedConversationIds.has(conversation.id))
     .filter(conversation => !_isSoldListingStatus(conversation.listingStatus));
   return { conversations };
 }
@@ -1070,7 +1112,8 @@ export async function getUnreadMessageNotifications(userId) {
 
   if (conversationError) return { error: _userFacingError(conversationError), total: 0, notifications: [] };
 
-  const conversations = conversationRows || [];
+  const deletedConversationIds = await _getDeletedConversationIds(userId);
+  const conversations = (conversationRows || []).filter(row => !deletedConversationIds.has(_conversationId(row)));
   const conversationIds = _uniqueValues(conversations.map(row => _conversationId(row)));
   if (!conversationIds.length) return { total: 0, notifications: [] };
 
@@ -1179,6 +1222,33 @@ export async function getUnreadMessageNotifications(userId) {
     total: notifications.reduce((sum, item) => sum + Number(item.unreadCount || 0), 0),
     notifications,
   };
+}
+
+export async function deleteConversationForUser({ conversationId, userId } = {}) {
+  if (!conversationId || !userId) return { error: 'Choose a conversation to delete.' };
+
+  const convResult = await _getConversationById(conversationId);
+  if (convResult.error) return { error: _userFacingError(convResult.error) };
+  const conversation = convResult.data;
+  if (!conversation || ![conversation.buyer_id, conversation.seller_id].includes(userId)) {
+    return { error: 'Conversation not found.' };
+  }
+
+  _markConversationDeletedLocally(userId, conversationId);
+  _markConversationReadLocally(userId, conversationId);
+
+  const { error } = await _sb
+    .from('conversation_deletions')
+    .upsert(
+      { conversation_id: conversationId, user_id: userId, deleted_at: new Date().toISOString() },
+      { onConflict: 'conversation_id,user_id' },
+    );
+
+  if (error) {
+    console.warn('Conversation hidden locally only:', error.message);
+    return { success: true, localOnly: true };
+  }
+  return { success: true };
 }
 
 export async function getConversationMessages({ conversationId, userId, markRead = false }) {
@@ -2292,6 +2362,7 @@ export const Auth = {
   startConversation,
   startOffer,
   getConversations,
+  deleteConversationForUser,
   getUnreadMessageNotifications,
   getConversationMessages,
   sendMessage,

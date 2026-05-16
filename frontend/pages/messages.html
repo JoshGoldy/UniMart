@@ -50,6 +50,7 @@
       border-bottom: 1px solid var(--sand);
       background: #fff;
       transition: 0.18s ease;
+      cursor: pointer;
     }
 
     .conversation-item:hover,
@@ -107,6 +108,37 @@
       align-items: center;
       justify-content: center;
       align-self: center;
+    }
+
+    .conversation-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      align-self: center;
+    }
+
+    .conversation-delete-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid transparent;
+      color: #9f3c33;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0.76;
+    }
+
+    .conversation-delete-btn:hover {
+      background: #faece9;
+      border-color: rgba(159, 60, 51, 0.2);
+      opacity: 1;
+    }
+
+    .conversation-delete-btn svg {
+      width: 17px;
+      height: 17px;
     }
 
     .thread-panel {
@@ -531,7 +563,7 @@
     }
 
     stack.innerHTML = state.conversations.map(conversation => `
-      <button class="conversation-item ${conversation.id === state.activeConversationId ? 'active' : ''}" type="button" data-conversation-id="${escapeAttribute(conversation.id)}">
+      <article class="conversation-item ${conversation.id === state.activeConversationId ? 'active' : ''}" role="button" tabindex="0" data-conversation-id="${escapeAttribute(conversation.id)}" aria-label="Open ${escapeAttribute(conversation.listingTitle)} conversation">
         <section class="conversation-thumb">
           ${conversation.listingImageUrl ? `<img src="${escapeAttribute(conversation.listingImageUrl)}" alt="${escapeAttribute(conversation.listingTitle)}" />` : 'Item'}
         </section>
@@ -540,13 +572,72 @@
           <section class="conversation-meta">${conversation.role === 'buyer' ? 'Seller' : 'Buyer'}: ${escapeHtml(conversation.otherDisplayName || shortId(conversation.otherUserId))}</section>
           <section class="conversation-date">${formatDateTime(conversation.lastMessageAt)}</section>
         </section>
-        ${conversation.unreadCount ? `<span class="conversation-unread">${conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>` : ''}
-      </button>
+        <nav class="conversation-actions" aria-label="Conversation actions">
+          ${conversation.unreadCount ? `<span class="conversation-unread">${conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>` : ''}
+          <button class="conversation-delete-btn" type="button" data-delete-conversation="${escapeAttribute(conversation.id)}" aria-label="Delete ${escapeAttribute(conversation.listingTitle)} conversation">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4.5 6h11" stroke-linecap="round"/>
+              <path d="M8 6V4.5h4V6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6.5 8.25 7 16h6l.5-7.75" stroke-linejoin="round"/>
+              <path d="M9 9.5v4M11 9.5v4" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </nav>
+      </article>
     `).join('');
 
-    stack.querySelectorAll('[data-conversation-id]').forEach(button => {
-      button.addEventListener('click', () => openConversation(button.dataset.conversationId));
+    stack.querySelectorAll('[data-conversation-id]').forEach(item => {
+      item.addEventListener('click', event => {
+        if (event.target.closest('[data-delete-conversation]')) return;
+        openConversation(item.dataset.conversationId);
+      });
+      item.addEventListener('keydown', event => {
+        if (event.target.closest('[data-delete-conversation]')) return;
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openConversation(item.dataset.conversationId);
+      });
     });
+
+    stack.querySelectorAll('[data-delete-conversation]').forEach(button => {
+      button.addEventListener('click', deleteConversationFromInbox);
+    });
+  }
+
+  async function deleteConversationFromInbox(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const conversationId = event.currentTarget.dataset.deleteConversation;
+    const conversation = state.conversations.find(item => item.id === conversationId);
+    if (!conversation) return;
+
+    const confirmed = window.confirm(`Delete your conversation about "${conversation.listingTitle}"? This will remove it from your inbox.`);
+    if (!confirmed) return;
+
+    event.currentTarget.disabled = true;
+    const result = await Auth.deleteConversationForUser({ conversationId, userId: state.user.id });
+    event.currentTarget.disabled = false;
+
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+
+    state.conversations = state.conversations.filter(item => item.id !== conversationId);
+    if (state.activeConversationId === conversationId) {
+      state.activeConversationId = null;
+      window.__unimartActiveConversationId = null;
+      document.getElementById('thread-title').textContent = 'Select a conversation';
+      document.getElementById('thread-subtitle').textContent = 'Messages appear in chronological order.';
+      document.getElementById('thread-offers').innerHTML = '';
+      document.getElementById('message-stack').innerHTML = renderEmptyPanel('Choose another conversation to continue messaging.');
+      document.getElementById('message-input').disabled = true;
+      document.getElementById('send-message-btn').disabled = true;
+    }
+    state.conversationSignature = '';
+    renderConversations();
+    showToast(result.localOnly ? 'Conversation hidden on this device' : 'Conversation deleted from your inbox', 'success');
+    await loadConversations({ forceRender: true });
   }
 
   async function openConversation(conversationId) {
