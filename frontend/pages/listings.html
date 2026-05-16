@@ -67,13 +67,24 @@
 
     .form-textarea {
       min-height: 110px;
-      resize: vertical;
+      resize: none;
     }
 
     .form-select:focus,
     .form-textarea:focus {
       border-color: var(--sage);
       box-shadow: 0 0 0 3px rgba(58, 102, 69, 0.12);
+    }
+
+    .field-count {
+      align-self: flex-end;
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+
+    .field-count.limit {
+      color: #9f3c33;
+      font-weight: 700;
     }
 
     .switch-row {
@@ -477,13 +488,14 @@
           <form class="listing-form" id="listing-form" novalidate="">
             <section class="form-group">
               <label class="form-label" for="listing-title">Title</label>
-              <input class="form-input" id="listing-title" type="text" placeholder="e.g. Calculus textbook">
+              <input class="form-input" id="listing-title" type="text" maxlength="70" placeholder="e.g. Calculus textbook">
               <span class="form-error" id="title-error"></span>
             </section>
 
             <section class="form-group">
               <label class="form-label" for="listing-description">Description</label>
-              <textarea class="form-textarea" id="listing-description" placeholder="Add a short description of the item"></textarea>
+              <textarea class="form-textarea" id="listing-description" maxlength="300" placeholder="Add a short description of the item"></textarea>
+              <span class="field-count" id="listing-description-count">0/300</span>
             </section>
 
             <section class="form-group">
@@ -686,11 +698,13 @@
 
   document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
   document.getElementById('listing-image-file').addEventListener('change', updateImagePreview);
+  document.getElementById('listing-description').addEventListener('input', updateListingDescriptionCount);
   ['listing-title', 'listing-category', 'listing-condition'].forEach(id => {
     document.getElementById(id).addEventListener('input', updatePriceGuide);
     document.getElementById(id).addEventListener('change', updatePriceGuide);
   });
   updatePriceGuide();
+  updateListingDescriptionCount();
 
   async function loadMyListings() {
     if (!pageState.user) return;
@@ -816,6 +830,7 @@
     document.getElementById('cancel-edit-btn').style.display = 'inline-flex';
     updateImagePreview();
     updatePriceGuide();
+    updateListingDescriptionCount();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -833,6 +848,15 @@
     document.getElementById('cancel-edit-btn').style.display = 'none';
     updateImagePreview();
     updatePriceGuide();
+    updateListingDescriptionCount();
+  }
+
+  function updateListingDescriptionCount() {
+    const input = document.getElementById('listing-description');
+    const count = document.getElementById('listing-description-count');
+    const max = Number(input.getAttribute('maxlength')) || 300;
+    count.textContent = `${input.value.length}/${max}`;
+    count.classList.toggle('limit', input.value.length >= max);
   }
 
   function updatePriceGuide() {

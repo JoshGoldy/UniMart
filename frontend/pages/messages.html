@@ -205,7 +205,20 @@
 
     .message-compose-actions {
       display: flex;
+      align-items: center;
       justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .message-count {
+      color: var(--muted);
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .message-count.limit {
+      color: #9f3c33;
+      font-weight: 700;
     }
 
     .thread-offers {
@@ -422,9 +435,10 @@
             </aside>
           </nav>
           <form class="message-compose" id="message-form">
-            <textarea class="form-input" id="message-input" rows="3" placeholder="Write a message..." disabled=""></textarea>
+            <textarea class="form-input" id="message-input" rows="3" maxlength="500" placeholder="Write a message..." disabled=""></textarea>
             <span class="form-error" id="message-error"></span>
             <nav class="message-compose-actions">
+              <span class="message-count" id="message-count">0/500</span>
               <button class="btn btn-primary" id="send-message-btn" type="submit" disabled="">Send message</button>
             </nav>
           </form>
@@ -500,6 +514,8 @@
     event.preventDefault();
     await submitMessage();
   });
+  document.getElementById('message-input').addEventListener('input', updateMessageCount);
+  updateMessageCount();
 
   async function handlePaymentReturn() {
     const params = new URLSearchParams(window.location.search);
@@ -640,6 +656,25 @@
     if (result.error) showToast(result.error, 'error');
   }
 
+  function updateMessageCount() {
+    const input = document.getElementById('message-input');
+    const count = document.getElementById('message-count');
+    if (!input || !count) return;
+    const max = Number(input.getAttribute('maxlength')) || 500;
+    count.textContent = `${input.value.length}/${max}`;
+    count.classList.toggle('limit', input.value.length >= max);
+  }
+
+  function updateTextareaCount(event) {
+    const input = event.currentTarget;
+    const count = input.parentElement?.querySelector('.message-count');
+    if (!input || !count) return;
+    const max = Number(input.getAttribute('maxlength')) || 0;
+    if (!max) return;
+    count.textContent = `${input.value.length}/${max}`;
+    count.classList.toggle('limit', input.value.length >= max);
+  }
+
   async function openConversation(conversationId) {
     if (!conversationId || conversationId === 'undefined' || conversationId === 'null') return;
     state.activeConversationId = conversationId;
@@ -739,6 +774,11 @@
     if (paymentButton) paymentButton.addEventListener('click', startOnlinePayment);
     const reviewButton = document.getElementById('submit-review-btn');
     if (reviewButton) reviewButton.addEventListener('click', submitReview);
+    const reviewBody = document.getElementById('review-body');
+    if (reviewBody) {
+      reviewBody.addEventListener('input', updateTextareaCount);
+      updateTextareaCount({ currentTarget: reviewBody });
+    }
     wrap.querySelectorAll('[data-report-review]').forEach(button => {
       button.addEventListener('click', () => reportReview(button.dataset.reportReview));
     });
@@ -967,7 +1007,8 @@
             </section>
             <section class="form-group">
               <label class="form-label" for="review-body">Review</label>
-              <textarea class="form-input" id="review-body" rows="2" placeholder="How did the handover go?"></textarea>
+              <textarea class="form-input" id="review-body" rows="2" maxlength="180" placeholder="How did the handover go?"></textarea>
+              <span class="message-count">0/180</span>
             </section>
           </section>
           <span class="form-error" id="review-error"></span>
@@ -1022,6 +1063,7 @@
     }
 
     input.value = '';
+    updateMessageCount();
     await loadMessages(state.activeConversationId, false, { forceRender: true });
     await loadConversations({ forceRender: true });
   }

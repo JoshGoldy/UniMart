@@ -60,6 +60,7 @@ input,
 select,
 textarea {
   font-family: var(--font);
+  resize: none;
 }
 
 img {
