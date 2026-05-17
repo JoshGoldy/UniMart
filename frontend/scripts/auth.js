@@ -865,6 +865,11 @@ function _offerId(row = {}) {
   return row.offer_id || row.id;
 }
 
+function _offerNotificationKey(row = {}, status = row.status || 'pending') {
+  const id = _offerId(row);
+  return id ? `${id}:${status}` : '';
+}
+
 function _seenOfferNotificationKey(userId) {
   return `unimart_seen_offer_notifications:${userId}`;
 }
@@ -881,8 +886,18 @@ function _getSeenOfferNotificationIds(userId) {
 function _markOfferNotificationsSeen(userId, offers = []) {
   if (typeof localStorage === 'undefined' || !userId || !offers.length) return;
   const seen = _getSeenOfferNotificationIds(userId);
-  offers.map(_offerId).filter(Boolean).forEach(id => seen.add(id));
+  offers.map(offer => _offerNotificationKey(offer)).filter(Boolean).forEach(id => seen.add(id));
   localStorage.setItem(_seenOfferNotificationKey(userId), JSON.stringify([...seen].slice(-250)));
+}
+
+function _isOfferNotificationSeen(seenOfferIds, offer = {}, status = offer.status || 'pending', includeLegacyId = false) {
+  const key = _offerNotificationKey(offer, status);
+  const legacyId = _offerId(offer);
+  return Boolean((key && seenOfferIds.has(key)) || (includeLegacyId && legacyId && seenOfferIds.has(legacyId)));
+}
+
+function _offerResponseTimestamp(offer = {}) {
+  return offer.responded_at || offer.updated_at || '';
 }
 
 function _conversationReadWatermarkKey(userId) {
@@ -947,7 +962,8 @@ async function _getDeletedConversationIds(userId) {
 
 function _afterLatestTimestamp(rows = [], fallback = new Date().toISOString()) {
   const latest = rows
-    .map(row => new Date(row?.created_at || row?.createdAt || 0).getTime())
+    .flatMap(row => [row?.responded_at, row?.updated_at, row?.created_at, row?.respondedAt, row?.updatedAt, row?.createdAt])
+    .map(value => new Date(value || 0).getTime())
     .filter(value => Number.isFinite(value) && value > 0)
     .reduce((max, value) => Math.max(max, value), 0);
   return new Date((latest || new Date(fallback).getTime()) + 1).toISOString();
@@ -1130,6 +1146,7 @@ export async function getUnreadMessageNotifications(userId) {
     .from('offers')
     .select('*')
     .eq('seller_id', userId)
+    .in('conversation_id', conversationIds)
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(50);
@@ -1138,6 +1155,7 @@ export async function getUnreadMessageNotifications(userId) {
     .from('offers')
     .select('*')
     .eq('buyer_id', userId)
+    .in('conversation_id', conversationIds)
     .in('status', ['accepted', 'declined'])
     .order('updated_at', { ascending: false })
     .limit(50);
@@ -1157,7 +1175,7 @@ export async function getUnreadMessageNotifications(userId) {
   const pendingOffersByConversation = new Map();
   const seenOfferIds = _getSeenOfferNotificationIds(userId);
   (pendingOfferRows || [])
-    .filter(offer => !seenOfferIds.has(_offerId(offer)))
+    .filter(offer => !_isOfferNotificationSeen(seenOfferIds, offer, 'pending', true))
     .filter(offer => _isAfterLocalRead(userId, offer.conversation_id, offer.created_at))
     .forEach(offer => {
     if (!pendingOffersByConversation.has(offer.conversation_id)) pendingOffersByConversation.set(offer.conversation_id, []);
@@ -1166,7 +1184,11 @@ export async function getUnreadMessageNotifications(userId) {
 
   const buyerActionsByConversation = new Map();
   (buyerActionRows || [])
-    .filter(offer => _isAfterLocalRead(userId, offer.conversation_id, offer.responded_at || offer.updated_at || offer.created_at))
+    .filter(offer => !_isOfferNotificationSeen(seenOfferIds, offer, offer.status, false))
+    .filter(offer => {
+      const respondedAt = _offerResponseTimestamp(offer);
+      return respondedAt ? _isAfterLocalRead(userId, offer.conversation_id, respondedAt) : true;
+    })
     .forEach(offer => {
       if (!buyerActionsByConversation.has(offer.conversation_id)) buyerActionsByConversation.set(offer.conversation_id, []);
       buyerActionsByConversation.get(offer.conversation_id).push(offer);
@@ -1199,7 +1221,7 @@ export async function getUnreadMessageNotifications(userId) {
       const newestOffer = pendingOffers[0];
       const newestMessage = unreadMessages[0];
       const newestBuyerAction = buyerActions[0];
-      const newestActionAt = new Date(newestBuyerAction?.responded_at || newestBuyerAction?.updated_at || newestBuyerAction?.created_at || 0);
+      const newestActionAt = new Date(_offerResponseTimestamp(newestBuyerAction) || newestBuyerAction?.created_at || 0);
       const hasNewerAction = newestBuyerAction && (!newestMessage || newestActionAt >= new Date(newestMessage.created_at || 0));
       const hasNewerOffer = newestOffer && (!newestMessage || new Date(newestOffer.created_at || 0) >= new Date(newestMessage.created_at || 0)) && (!newestBuyerAction || new Date(newestOffer.created_at || 0) >= newestActionAt);
       const offerAmount = newestOffer?.amount ? `R ${Number(newestOffer.amount).toLocaleString('en-ZA')}` : 'a trade';
@@ -1212,7 +1234,7 @@ export async function getUnreadMessageNotifications(userId) {
           : hasNewerAction
             ? `Offer ${newestBuyerAction.status}`
             : newestMessage?.body || '',
-        lastMessageAt: (hasNewerOffer ? newestOffer?.created_at : hasNewerAction ? (newestBuyerAction.responded_at || newestBuyerAction.updated_at) : newestMessage?.created_at) || conversation.lastMessageAt,
+        lastMessageAt: (hasNewerOffer ? newestOffer?.created_at : hasNewerAction ? _offerResponseTimestamp(newestBuyerAction) : newestMessage?.created_at) || conversation.lastMessageAt,
       };
     })
     .filter(Boolean)
@@ -1285,7 +1307,12 @@ export async function getConversationMessages({ conversationId, userId, markRead
     .order('created_at', { ascending: false });
 
   if (markRead && !offersResult.error) {
-    _markOfferNotificationsSeen(userId, offersResult.data || []);
+    const visibleOfferNotifications = (offersResult.data || []).filter(offer => {
+      if (conversationRow.seller_id === userId) return offer.status === 'pending';
+      if (conversationRow.buyer_id === userId) return ['accepted', 'declined'].includes(offer.status);
+      return false;
+    });
+    _markOfferNotificationsSeen(userId, visibleOfferNotifications);
     _markConversationReadLocally(userId, resolvedConversationId, _afterLatestTimestamp([
       ...(data || []),
       ...(offersResult.data || []),

@@ -144,7 +144,7 @@ function ensureNotificationPanel(user) {
 
   let wrap = document.querySelector('.notification-wrap');
   if (!wrap) {
-    wrap = document.createElement('div');
+    wrap = document.createElement('section');
     wrap.className = 'notification-wrap dropdown';
     wrap.innerHTML = `
       <button class="topbar-icon-btn" type="button" title="Notifications" data-dropdown-trigger="topbar-notification-menu" aria-label="Notifications">
