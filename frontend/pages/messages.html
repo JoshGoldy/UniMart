@@ -508,6 +508,7 @@
     conversationSignature: '',
     refreshTimer: null,
     hiddenConversationIds: new Set(),
+    notificationCountsByConversation: new Map(),
   };
   const facilityAddress = '1 Jan Smuts Ave, Braamfontein, Johannesburg, 2017';
   const defaultFacilityConfig = {
@@ -585,16 +586,24 @@
     count.textContent = `${conversations.length} conversation${conversations.length === 1 ? '' : 's'}`;
     if (Auth.getUnreadMessageNotifications) {
       const unreadResult = await Auth.getUnreadMessageNotifications(state.user.id);
-      if (!unreadResult.error) setUnreadMessageBadge(Number(unreadResult.total || 0));
-      else setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
+      if (!unreadResult.error) {
+        state.notificationCountsByConversation = buildNotificationCountMap(unreadResult.notifications || []);
+        setUnreadMessageBadge(Number(unreadResult.total || 0));
+      } else {
+        state.notificationCountsByConversation = new Map();
+        setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
+      }
     } else {
+      state.notificationCountsByConversation = new Map();
       setUnreadMessageBadge(conversations.reduce((total, item) => total + item.unreadCount, 0));
     }
 
-    if (!forceRender && nextSignature === state.conversationSignature) return;
+    const notificationSignature = [...state.notificationCountsByConversation.entries()].map(([id, total]) => `${id}:${total}`).join('|');
+    const combinedSignature = `${nextSignature}::${notificationSignature}`;
+    if (!forceRender && combinedSignature === state.conversationSignature) return;
 
     state.conversations = conversations;
-    state.conversationSignature = nextSignature;
+    state.conversationSignature = combinedSignature;
     count.textContent = `${state.conversations.length} conversation${state.conversations.length === 1 ? '' : 's'}`;
     renderConversations();
   }
@@ -606,8 +615,10 @@
       return;
     }
 
-    stack.innerHTML = state.conversations.map(conversation => `
-      <article class="conversation-item ${conversation.id === state.activeConversationId ? 'active' : ''} ${conversation.unreadCount ? 'unread' : ''}" role="button" tabindex="0" data-conversation-id="${escapeAttribute(conversation.id)}" aria-label="Open ${escapeAttribute(conversation.listingTitle)} conversation${conversation.unreadCount ? `, ${conversation.unreadCount} unread update${conversation.unreadCount === 1 ? '' : 's'}` : ''}">
+    stack.innerHTML = state.conversations.map(conversation => {
+      const alertCount = getConversationAlertCount(conversation);
+      return `
+      <article class="conversation-item ${conversation.id === state.activeConversationId ? 'active' : ''} ${alertCount ? 'unread' : ''}" role="button" tabindex="0" data-conversation-id="${escapeAttribute(conversation.id)}" aria-label="Open ${escapeAttribute(conversation.listingTitle)} conversation${alertCount ? `, ${alertCount} unread update${alertCount === 1 ? '' : 's'}` : ''}">
         <section class="conversation-thumb">
           ${conversation.listingImageUrl ? `<img src="${escapeAttribute(conversation.listingImageUrl)}" alt="${escapeAttribute(conversation.listingTitle)}" />` : 'Item'}
         </section>
@@ -617,7 +628,7 @@
           <section class="conversation-date">${formatDateTime(conversation.lastMessageAt)}</section>
         </section>
         <nav class="conversation-actions" aria-label="Conversation actions">
-          ${conversation.unreadCount ? `<span class="conversation-unread-label">Unread</span><span class="conversation-unread">${conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</span>` : ''}
+          ${alertCount ? `<span class="conversation-unread-label">Unread</span><span class="conversation-unread">${alertCount > 99 ? '99+' : alertCount}</span>` : ''}
           <button class="conversation-delete-btn" type="button" data-delete-conversation="${escapeAttribute(conversation.id)}" aria-label="Delete ${escapeAttribute(conversation.listingTitle)} conversation">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M4.5 6h11" stroke-linecap="round"/>
@@ -628,7 +639,8 @@
           </button>
         </nav>
       </article>
-    `).join('');
+    `;
+    }).join('');
 
     stack.querySelectorAll('[data-conversation-id]').forEach(item => {
       item.addEventListener('click', event => {
@@ -648,6 +660,18 @@
     });
   }
 
+  function buildNotificationCountMap(notifications = []) {
+    return notifications.reduce((map, item) => {
+      if (!item?.id || state.hiddenConversationIds.has(item.id)) return map;
+      map.set(item.id, (map.get(item.id) || 0) + Number(item.unreadCount || 1));
+      return map;
+    }, new Map());
+  }
+
+  function getConversationAlertCount(conversation) {
+    return Number(state.notificationCountsByConversation.get(conversation.id) || conversation.unreadCount || 0);
+  }
+
   async function deleteConversationFromInbox(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -659,6 +683,7 @@
     if (!confirmed) return;
 
     state.hiddenConversationIds.add(conversationId);
+    state.notificationCountsByConversation.delete(conversationId);
     state.conversations = state.conversations.filter(item => item.id !== conversationId);
     if (state.activeConversationId === conversationId) {
       state.activeConversationId = null;
