@@ -1041,16 +1041,13 @@ function _isSoldListingStatus(status) {
 
 async function _countUnreadMessagesForConversation(conversationId, currentUserId) {
   const id = String(conversationId || '');
-  const readAt = _getConversationReadWatermarks(currentUserId)[id];
   const countUnread = async column => {
-    let query = _sb
+    return _sb
       .from('messages')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq(column, id)
       .neq('sender_id', currentUserId)
       .is('read_at', null);
-    if (readAt) query = query.gt('created_at', readAt);
-    return query;
   };
 
   let result = await countUnread('conversation_id');
@@ -1133,7 +1130,7 @@ export async function getUnreadMessageNotifications(userId) {
   const conversationIds = _uniqueValues(conversations.map(row => _conversationId(row)));
   if (!conversationIds.length) return { total: 0, notifications: [] };
 
-  const { data: unreadRows, error: unreadError } = await _sb
+  let { data: unreadRows, error: unreadError } = await _sb
     .from('messages')
     .select('id,conversation_id,sender_id,body,created_at,read_at')
     .in('conversation_id', conversationIds)
@@ -1141,6 +1138,19 @@ export async function getUnreadMessageNotifications(userId) {
     .is('read_at', null)
     .order('created_at', { ascending: false })
     .limit(100);
+
+  if (unreadError && /column .*id|id .*does not exist/i.test(unreadError.message || '')) {
+    const fallback = await _sb
+      .from('messages')
+      .select('message_id,conversation_id,sender_id,body,created_at,read_at')
+      .in('conversation_id', conversationIds)
+      .neq('sender_id', userId)
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    unreadRows = fallback.data;
+    unreadError = fallback.error;
+  }
 
   const { data: pendingOfferRows, error: offerError } = await _sb
     .from('offers')
@@ -1166,7 +1176,7 @@ export async function getUnreadMessageNotifications(userId) {
   if (buyerActionError) console.warn('Unable to load buyer action notifications:', buyerActionError.message);
 
   const unreadByConversation = new Map();
-  (unreadRows || []).filter(message => _isAfterLocalRead(userId, message.conversation_id, message.created_at)).forEach(message => {
+  (unreadRows || []).forEach(message => {
     const id = message.conversation_id;
     if (!unreadByConversation.has(id)) unreadByConversation.set(id, []);
     unreadByConversation.get(id).push(message);
@@ -1220,7 +1230,7 @@ export async function getUnreadMessageNotifications(userId) {
 
       const messageNotifications = unreadMessages.map(message => ({
         ...conversation,
-        notificationId: message.id,
+        notificationId: message.id || message.message_id,
         notificationKind: 'message',
         unreadCount: 1,
         preview: message.body || '',
