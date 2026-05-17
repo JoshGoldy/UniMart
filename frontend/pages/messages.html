@@ -1116,7 +1116,7 @@
 
     input.value = '';
     updateMessageCount();
-    await loadMessages(state.activeConversationId, false, { forceRender: true });
+    await loadMessages(state.activeConversationId, true, { forceRender: true });
     await loadConversations({ forceRender: true });
   }
 
@@ -1348,7 +1348,7 @@
 
   async function refreshActiveThread() {
     if (!state.user || !state.activeConversationId) return;
-    await loadMessages(state.activeConversationId, true);
+    await loadMessages(state.activeConversationId, false);
     await loadConversations();
   }
 

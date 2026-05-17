@@ -178,11 +178,10 @@ async function refreshMessageNotifications(user) {
   if (Auth.getUnreadMessageNotifications) {
     const notificationResult = await Auth.getUnreadMessageNotifications(user.id);
     if (!notificationResult.error) {
-      const unread = filterVisibleNotifications(notificationResult.notifications || []);
+      const unread = notificationResult.notifications || [];
       const unreadTotal = Number(notificationResult.total || 0);
-      const visibleTotal = unread.reduce((total, item) => total + Number(item.unreadCount || 0), 0);
-      setUnreadMessageBadge(Math.min(unreadTotal, visibleTotal));
-      renderNotificationPanel(unread, Math.min(unreadTotal, visibleTotal));
+      setUnreadMessageBadge(unreadTotal);
+      renderNotificationPanel(unread, unreadTotal);
       return;
     }
   }
@@ -195,18 +194,10 @@ async function refreshMessageNotifications(user) {
   }
 
   const conversations = result.conversations || [];
-  const unread = filterVisibleNotifications(conversations.filter(item => Number(item.unreadCount || 0) > 0));
+  const unread = conversations.filter(item => Number(item.unreadCount || 0) > 0);
   const unreadTotal = unread.reduce((total, item) => total + Number(item.unreadCount || 0), 0);
   setUnreadMessageBadge(unreadTotal);
   renderNotificationPanel(unread, unreadTotal);
-}
-
-function filterVisibleNotifications(items = []) {
-  const activeConversationId = window.__unimartActiveConversationId;
-  if ((getCurrentPage() || '').includes('messages') && activeConversationId) {
-    return items.filter(item => String(item.id) !== String(activeConversationId));
-  }
-  return items;
 }
 
 function renderNotificationPanel(unreadConversations, unreadTotal) {

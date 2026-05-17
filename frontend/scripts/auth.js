@@ -1203,41 +1203,53 @@ export async function getUnreadMessageNotifications(userId) {
 
   const notifications = conversations
     .filter(row => !_isSoldListingStatus(listingsById[row.listing_id]?.status))
-    .map(row => {
+    .flatMap(row => {
       const conversationId = _conversationId(row);
       const unreadMessages = unreadByConversation.get(conversationId) || [];
       const pendingOffers = pendingOffersByConversation.get(conversationId) || [];
       const buyerActions = buyerActionsByConversation.get(conversationId) || [];
-      if (!unreadMessages.length && !pendingOffers.length && !buyerActions.length) return null;
+      if (!unreadMessages.length && !pendingOffers.length && !buyerActions.length) return [];
 
       const conversation = toConversation({
         ...row,
         listing: listingsById[row.listing_id] || {},
         buyer: usersById[row.buyer_id] || {},
         seller: usersById[row.seller_id] || {},
-        unread_count: unreadMessages.length || pendingOffers.length || buyerActions.length,
+        unread_count: 1,
       }, userId);
 
-      const newestOffer = pendingOffers[0];
-      const newestMessage = unreadMessages[0];
-      const newestBuyerAction = buyerActions[0];
-      const newestActionAt = new Date(_offerResponseTimestamp(newestBuyerAction) || newestBuyerAction?.created_at || 0);
-      const hasNewerAction = newestBuyerAction && (!newestMessage || newestActionAt >= new Date(newestMessage.created_at || 0));
-      const hasNewerOffer = newestOffer && (!newestMessage || new Date(newestOffer.created_at || 0) >= new Date(newestMessage.created_at || 0)) && (!newestBuyerAction || new Date(newestOffer.created_at || 0) >= newestActionAt);
-      const offerAmount = newestOffer?.amount ? `R ${Number(newestOffer.amount).toLocaleString('en-ZA')}` : 'a trade';
-
-      return {
+      const messageNotifications = unreadMessages.map(message => ({
         ...conversation,
-        notificationKind: hasNewerOffer ? 'offer' : hasNewerAction ? 'offer-response' : 'message',
-        preview: hasNewerOffer
-          ? `New offer: ${offerAmount}`
-          : hasNewerAction
-            ? `Offer ${newestBuyerAction.status}`
-            : newestMessage?.body || '',
-        lastMessageAt: (hasNewerOffer ? newestOffer?.created_at : hasNewerAction ? _offerResponseTimestamp(newestBuyerAction) : newestMessage?.created_at) || conversation.lastMessageAt,
-      };
+        notificationId: message.id,
+        notificationKind: 'message',
+        unreadCount: 1,
+        preview: message.body || '',
+        lastMessageAt: message.created_at || conversation.lastMessageAt,
+      }));
+
+      const offerNotifications = pendingOffers.map(offer => {
+        const offerAmount = offer?.amount ? `R ${Number(offer.amount).toLocaleString('en-ZA')}` : 'a trade';
+        return {
+          ...conversation,
+          notificationId: _offerNotificationKey(offer, 'pending'),
+          notificationKind: 'offer',
+          unreadCount: 1,
+          preview: `New offer: ${offerAmount}`,
+          lastMessageAt: offer.created_at || conversation.lastMessageAt,
+        };
+      });
+
+      const actionNotifications = buyerActions.map(offer => ({
+        ...conversation,
+        notificationId: _offerNotificationKey(offer, offer.status),
+        notificationKind: 'offer-response',
+        unreadCount: 1,
+        preview: `Offer ${offer.status}`,
+        lastMessageAt: _offerResponseTimestamp(offer) || offer.created_at || conversation.lastMessageAt,
+      }));
+
+      return [...messageNotifications, ...offerNotifications, ...actionNotifications];
     })
-    .filter(Boolean)
     .sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
 
   return {
