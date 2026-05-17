@@ -92,16 +92,6 @@
       color: var(--sage);
       font-weight: 600;
     }
-    .profile-nav-item .soon-dot {
-      margin-left: auto;
-      font-size: 0.68rem;
-      font-weight: 700;
-      background: var(--sand);
-      color: var(--muted);
-      padding: 2px 7px;
-      border-radius: 999px;
-    }
-
     /* ---- Sections (right column) ---- */
     .profile-sections {
       display: flex;
@@ -141,44 +131,6 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
-    }
-
-    /* ---- Soon overlay on locked sections ---- */
-    .section-soon {
-      position: relative;
-    }
-    .section-soon .section-body {
-      opacity: 0.45;
-      pointer-events: none;
-      user-select: none;
-    }
-    .soon-banner {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      z-index: 2;
-    }
-    .soon-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--sand);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      padding: 6px 16px;
-      border-radius: 999px;
-    }
-    .soon-note {
-      font-size: 0.8rem;
-      color: var(--muted);
     }
 
     /* ---- Danger zone ---- */
@@ -355,16 +307,6 @@
               <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2l1.5 4.5H16l-3.6 2.6 1.4 4.4L10 11l-3.8 2.5 1.4-4.4L4 6.5h4.5z"></path></svg>
               University Info
             </section>
-            <section class="profile-nav-item" data-section="section-notifications">
-              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 2a5 5 0 0 1 5 5v1.5l1.5 2.5h-13L5 8.5V7a5 5 0 0 1 5-5z"></path><path d="M8 16a2 2 0 0 0 4 0" stroke-linecap="round"></path></svg>
-              Notifications
-              <span class="soon-dot">Soon</span>
-            </section>
-            <section class="profile-nav-item" data-section="section-privacy">
-              <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7"></circle><path d="M10 7v3l2 2" stroke-linecap="round"></path></svg>
-              Privacy
-              <span class="soon-dot">Soon</span>
-            </section>
           </nav>
         </article>
 
@@ -500,98 +442,6 @@
                 <button class="btn btn-primary" id="save-campus-btn">Save changes</button>
               </section>
             </section>
-          </article>
-
-          <!-- Notifications (coming soon) -->
-          <article class="section-card section-soon" id="section-notifications">
-            <header class="section-header">
-              <section>
-                <span class="section-title">Notifications</span>
-                <span class="section-subtitle">Choose what updates you receive</span>
-              </section>
-              <span class="soon-pill">
-                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"></circle></svg>
-                Coming soon
-              </span>
-            </header>
-            <section class="section-body">
-              <section style="display:flex; flex-direction:column; gap:14px;">
-                <section style="display:flex; align-items:center; justify-content:space-between;">
-                  <section>
-                    <section style="font-size:.875rem; font-weight:600; color:var(--ink);">New messages</section>
-                    <section style="font-size:.8rem; color:var(--muted);">Get notified when someone messages you</section>
-                  </section>
-                  <section style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></section>
-                </section>
-                <section style="display:flex; align-items:center; justify-content:space-between;">
-                  <section>
-                    <section style="font-size:.875rem; font-weight:600; color:var(--ink);">Price drops</section>
-                    <section style="font-size:.8rem; color:var(--muted);">Saved items drop in price</section>
-                  </section>
-                  <section style="width:42px; height:24px; background:var(--border); border-radius:999px;"></section>
-                </section>
-                <section style="display:flex; align-items:center; justify-content:space-between;">
-                  <section>
-                    <section style="font-size:.875rem; font-weight:600; color:var(--ink);">Listing views</section>
-                    <section style="font-size:.8rem; color:var(--muted);">Someone views your listing</section>
-                  </section>
-                  <section style="width:42px; height:24px; background:var(--border); border-radius:999px;"></section>
-                </section>
-                <section style="display:flex; align-items:center; justify-content:space-between;">
-                  <section>
-                    <section style="font-size:.875rem; font-weight:600; color:var(--ink);">UniMart updates</section>
-                    <section style="font-size:.8rem; color:var(--muted);">Platform news and feature releases</section>
-                  </section>
-                  <section style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></section>
-                </section>
-              </section>
-            </section>
-            <aside class="soon-banner">
-              <span class="soon-pill">
-                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"></circle></svg>
-                Coming soon
-              </span>
-              <span class="soon-note">Available Soon!</span>
-            </aside>
-          </article>
-
-          <!-- Privacy (coming soon) -->
-          <article class="section-card section-soon" id="section-privacy">
-            <header class="section-header">
-              <section>
-                <span class="section-title">Privacy &amp; Safety</span>
-                <span class="section-subtitle">Control who can see your information</span>
-              </section>
-              <span class="soon-pill">
-                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"></circle></svg>
-                Coming soon
-              </span>
-            </header>
-            <section class="section-body">
-              <section style="display:flex; flex-direction:column; gap:14px;">
-                <section style="display:flex; align-items:center; justify-content:space-between;">
-                  <section>
-                    <section style="font-size:.875rem; font-weight:600; color:var(--ink);">Show profile to all students</section>
-                    <section style="font-size:.8rem; color:var(--muted);">Students at your university can view your profile</section>
-                  </section>
-                  <section style="width:42px; height:24px; background:var(--sage); border-radius:999px;"></section>
-                </section>
-                <section style="display:flex; align-items:center; justify-content:space-between;">
-                  <section>
-                    <section style="font-size:.875rem; font-weight:600; color:var(--ink);">Show email to buyers</section>
-                    <section style="font-size:.8rem; color:var(--muted);">Buyers can see your email on listings</section>
-                  </section>
-                  <section style="width:42px; height:24px; background:var(--border); border-radius:999px;"></section>
-                </section>
-              </section>
-            </section>
-            <aside class="soon-banner">
-              <span class="soon-pill">
-                <svg width="8" height="8" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"></circle></svg>
-                Coming soon
-              </span>
-              <span class="soon-note">Available Soon!</span>
-            </aside>
           </article>
 
           <!-- Danger Zone -->
