@@ -209,11 +209,15 @@
     }
 
     .message-stack {
-      flex: 1;
       padding: 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      background: var(--linen);
+    }
+
+    .thread-scroll {
+      flex: 1;
       min-height: 0;
       overflow: auto;
       background: var(--linen);
@@ -290,9 +294,6 @@
       padding: 14px;
       border-bottom: 1px solid var(--border);
       background: #fff;
-      flex-shrink: 0;
-      max-height: 42%;
-      overflow: auto;
     }
 
     .thread-offers:empty {
@@ -520,14 +521,16 @@
             <h2 id="thread-title">Select a conversation</h2>
             <p class="thread-subtitle" id="thread-subtitle">Messages appear in chronological order.</p>
           </header>
-          <section class="thread-offers" id="thread-offers"></section>
-          <nav class="message-stack" id="message-stack">
-            <aside class="empty-state">
-              <figure class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"></path><path d="M7 8.5h6M7 11h4" stroke-linecap="round"></path></svg></span></figure>
-              <h3>No conversation selected</h3>
-              <p>Choose a thread from your inbox to read and reply.</p>
-            </aside>
-          </nav>
+          <section class="thread-scroll" id="thread-scroll">
+            <section class="thread-offers" id="thread-offers"></section>
+            <nav class="message-stack" id="message-stack">
+              <aside class="empty-state">
+                <figure class="empty-state-icon"><span class="ui-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h12v8H8l-4 3v-11Z" stroke-linejoin="round"></path><path d="M7 8.5h6M7 11h4" stroke-linecap="round"></path></svg></span></figure>
+                <h3>No conversation selected</h3>
+                <p>Choose a thread from your inbox to read and reply.</p>
+              </aside>
+            </nav>
+          </section>
           <form class="message-compose" id="message-form">
             <textarea class="form-input" id="message-input" rows="3" maxlength="500" placeholder="Write a message..." disabled=""></textarea>
             <span class="form-error" id="message-error"></span>
@@ -817,6 +820,7 @@
   async function loadMessages(conversationId, markRead, options = {}) {
     const { showLoading = false, forceRender = false } = options;
     const stack = document.getElementById('message-stack');
+    const threadScroll = document.getElementById('thread-scroll');
     if (showLoading) stack.innerHTML = renderEmptyPanel('Loading messages...');
 
     const result = await Auth.getConversationMessages({ conversationId, userId: state.user.id, markRead });
@@ -839,7 +843,8 @@
 
     if (!forceRender && nextSignature === state.messageSignature) return;
 
-    const nearBottom = stack.scrollHeight - stack.scrollTop - stack.clientHeight < 80;
+    const scrollTarget = threadScroll || stack;
+    const nearBottom = scrollTarget.scrollHeight - scrollTarget.scrollTop - scrollTarget.clientHeight < 80;
     state.messages = messages;
     state.offers = offers;
     state.transactions = transactions;
@@ -853,7 +858,7 @@
     }
 
     stack.innerHTML = state.messages.map(renderMessage).join('');
-    if (nearBottom || forceRender) stack.scrollTop = stack.scrollHeight;
+    if (nearBottom || forceRender) scrollTarget.scrollTop = scrollTarget.scrollHeight;
   }
 
   function renderOfferPanel(conversation) {
