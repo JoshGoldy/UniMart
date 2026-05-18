@@ -126,6 +126,33 @@
       border-radius: var(--radius);
       font: inherit;
     }
+    .payment-line {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .payment-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: var(--linen);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      font-size: 0.74rem;
+      font-weight: 800;
+    }
+    .payment-pill.warning {
+      background: #fff7e6;
+      border-color: #f2c879;
+      color: #8a5a00;
+    }
+    .payment-pill.success {
+      background: var(--mint);
+      border-color: rgba(35, 105, 75, 0.18);
+      color: var(--sage);
+    }
     .workflow-note {
       padding: 16px;
       color: var(--muted);
@@ -306,15 +333,17 @@
   }
 
   function renderCollectionBooking(booking) {
+    const cashAction = booking.cashDueAmount > 0 && !booking.cashSettledAt
+      ? `<button class="btn btn-secondary" type="button" data-cash-settle="${escapeAttribute(booking.transactionId)}" data-cash-amount="${escapeAttribute(booking.cashDueAmount)}">Confirm cash received</button>`
+      : '';
     const readyAction = booking.status === 'received'
       ? `<button class="btn btn-primary" type="button" data-workflow-action="mark_ready" data-booking-id="${escapeAttribute(booking.id)}">Mark ready</button>`
       : '';
     const releaseAction = booking.status === 'ready_for_collection'
-      ? `${booking.cashDueAmount > 0 && !booking.cashSettledAt ? `<button class="btn btn-secondary" type="button" data-cash-settle="${escapeAttribute(booking.transactionId)}">Confirm cash paid</button>` : ''}
-         <input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Expected collector ID" value="${escapeAttribute(booking.buyerId)}" />
-         <button class="btn btn-primary" type="button" data-workflow-action="release_item" data-booking-id="${escapeAttribute(booking.id)}">Release item</button>`
+      ? `<input class="release-input" data-release-input="${escapeAttribute(booking.id)}" placeholder="Expected collector ID" value="${escapeAttribute(booking.buyerId)}" />
+         <button class="btn btn-primary" type="button" data-workflow-action="release_item" data-booking-id="${escapeAttribute(booking.id)}" ${booking.cashDueAmount > 0 && !booking.cashSettledAt ? 'disabled title="Confirm the cash balance before release"' : ''}>Release item</button>`
       : '';
-    return renderBookingCard(booking, `${readyAction}${releaseAction}`, `Collection: ${formatDateTime(booking.collectionScheduledAt)}`);
+    return renderBookingCard(booking, `${cashAction}${readyAction}${releaseAction}`, `Collection: ${formatDateTime(booking.collectionScheduledAt)}`);
   }
 
   function renderBookingCard(booking, actions, scheduleLabel) {
@@ -326,7 +355,12 @@
           <section class="booking-meta">${escapeHtml(booking.category)} - ${escapeHtml(booking.condition)} - ${formatCurrency(booking.price)}</section>
           <section class="booking-meta">Seller: ${escapeHtml(booking.sellerName)} | Buyer: ${escapeHtml(booking.buyerName)}</section>
           <section class="booking-meta">${escapeHtml(scheduleLabel)}</section>
-          <section class="booking-meta">Online paid: ${formatCurrency(booking.onlinePaidAmount || 0)} | Cash due: ${formatCurrency(booking.cashDueAmount || 0)}${booking.cashSettledAt ? ' (settled)' : ''}</section>
+          <section class="booking-meta payment-line">
+            <span class="payment-pill success">Online paid: ${formatCurrency(booking.onlinePaidAmount || 0)}</span>
+            <span class="payment-pill ${booking.cashDueAmount > 0 && !booking.cashSettledAt ? 'warning' : 'success'}">
+              Cash ${booking.cashSettledAt ? 'received' : 'due'}: ${formatCurrency(booking.cashSettledAt ? 0 : booking.cashDueAmount || 0)}
+            </span>
+          </section>
         </section>
         <section class="booking-footer">
           <span class="status-pill">${escapeHtml(formatStatus(booking.status))}</span>
@@ -380,6 +414,9 @@
   async function confirmCashSettlement(button) {
     const transactionId = button.dataset.cashSettle;
     if (!transactionId) return;
+    const amount = Number(button.dataset.cashAmount || 0);
+    const confirmed = window.confirm(`Confirm that staff received ${formatCurrency(amount)} cash for this collection?`);
+    if (!confirmed) return;
     button.disabled = true;
     const originalText = button.textContent;
     button.textContent = 'Saving...';

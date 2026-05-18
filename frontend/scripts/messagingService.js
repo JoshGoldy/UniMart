@@ -1000,12 +1000,28 @@ export async function verifyPaymentCheckout({ transactionId, reference } = {}) {
 
 export async function markTransactionCashSettled({ transactionId, staffId } = {}) {
   if (!transactionId || !staffId) return { error: 'Missing cash settlement details.' };
+  const { data: transactionRow, error: transactionError } = await getSupabaseClient()
+    .from('transactions')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .maybeSingle();
+  if (transactionError) return { error: _userFacingError(transactionError, 'Could not load the cash balance.') };
+  if (!transactionRow) return { error: 'Transaction not found.' };
+
+  const transaction = toTransaction(transactionRow);
+  const currentPaymentStatus = String(transaction.paymentStatus || '').toLowerCase();
+  const paymentStatus = Number(transaction.amount || 0) <= 0
+    ? 'not_required'
+    : Number(transaction.onlinePaidAmount || 0) > 0 && ['pending', 'partial_pending'].includes(currentPaymentStatus)
+      ? currentPaymentStatus
+      : 'paid';
   const { error } = await getSupabaseClient()
     .from('transactions')
     .update({
       cash_due_amount: 0,
       cash_settled_at: new Date().toISOString(),
       cash_settled_by: staffId,
+      payment_status: paymentStatus,
       updated_at: new Date().toISOString(),
     })
     .eq('transaction_id', transactionId);
