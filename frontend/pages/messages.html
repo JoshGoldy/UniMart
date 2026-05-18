@@ -581,7 +581,7 @@
     messageSignature: '',
     conversationSignature: '',
     refreshTimer: null,
-    hiddenConversationIds: new Set(),
+    hiddenConversationDeletes: new Map(),
     notificationCountsByConversation: new Map(),
   };
   const facilityAddress = '1 Jan Smuts Ave, Braamfontein, Johannesburg, 2017';
@@ -654,7 +654,7 @@
       return;
     }
 
-    const conversations = (result.conversations || []).filter(item => !state.hiddenConversationIds.has(item.id));
+    const conversations = (result.conversations || []).filter(item => !isConversationHiddenLocally(item));
     const nextSignature = conversations.map(item => `${item.id}:${item.unreadCount}:${item.lastMessageAt || ''}:${item.status}`).join('|');
     count.textContent = `${conversations.length} conversation${conversations.length === 1 ? '' : 's'}`;
     if (Auth.getUnreadMessageNotifications) {
@@ -735,7 +735,7 @@
 
   function buildNotificationCountMap(notifications = []) {
     return notifications.reduce((map, item) => {
-      if (!item?.id || state.hiddenConversationIds.has(item.id)) return map;
+      if (!item?.id || isConversationHiddenLocally(item)) return map;
       map.set(item.id, (map.get(item.id) || 0) + Number(item.unreadCount || 1));
       return map;
     }, new Map());
@@ -743,6 +743,14 @@
 
   function getConversationAlertCount(conversation) {
     return Number(state.notificationCountsByConversation.get(conversation.id) || conversation.unreadCount || 0);
+  }
+
+  function isConversationHiddenLocally(conversation) {
+    const deletedAt = state.hiddenConversationDeletes.get(conversation?.id);
+    if (!deletedAt) return false;
+    const lastActivity = conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt;
+    if (!lastActivity) return true;
+    return new Date(lastActivity).getTime() <= new Date(deletedAt).getTime();
   }
 
   async function deleteConversationFromInbox(event) {
@@ -755,7 +763,7 @@
     const confirmed = window.confirm(`Delete your conversation about "${conversation.listingTitle}"? This will remove it from your inbox.`);
     if (!confirmed) return;
 
-    state.hiddenConversationIds.add(conversationId);
+    state.hiddenConversationDeletes.set(conversationId, new Date().toISOString());
     state.notificationCountsByConversation.delete(conversationId);
     state.conversations = state.conversations.filter(item => item.id !== conversationId);
     if (state.activeConversationId === conversationId) {
@@ -844,7 +852,7 @@
     const reviews = result.reviews || [];
     const offerSignature = offers.map(offer => `${offer.id}:${offer.status}:${offer.updatedAt || ''}`).join('|');
     const transactionSignature = transactions.map(transaction => `${transaction.id}:${transaction.status}:${transaction.facilityBookingId || ''}`).join('|');
-    const reviewSignature = reviews.map(review => `${review.id}:${review.rating}:${review.status}:${review.createdAt || ''}`).join('|');
+    const reviewSignature = reviews.map(review => `${review.id}:${review.rating}:${review.status}:${review.updatedAt || review.createdAt || ''}`).join('|');
     const nextSignature = `${messages.map(message => `${message.id}:${message.createdAt}:${message.readAt || ''}`).join('|')}::${offerSignature}::${transactionSignature}::${reviewSignature}`;
     document.getElementById('thread-title').textContent = result.conversation.listingTitle;
     document.getElementById('thread-subtitle').textContent = `${result.conversation.role === 'buyer' ? 'Conversation with seller' : 'Conversation with buyer'} ${result.conversation.otherDisplayName || shortId(result.conversation.otherUserId)}`;
@@ -885,7 +893,7 @@
     const bookingHtml = acceptedTransaction
       ? renderBookingCard(acceptedTransaction)
       : '';
-    const reviewHtml = acceptedTransaction && ['facility_booked', 'completed'].includes(acceptedTransaction.status)
+    const reviewHtml = acceptedTransaction && canReviewTransaction(acceptedTransaction)
       ? renderReviewCard(acceptedTransaction, conversation)
       : '';
     wrap.innerHTML = `${offerHtml}${paymentHtml}${bookingHtml}${reviewHtml}`;
@@ -992,6 +1000,13 @@
 
   function isTradeDeal(transaction) {
     return transaction.amount === null || transaction.amount === undefined || Number(transaction.amount) <= 0;
+  }
+
+  function canReviewTransaction(transaction) {
+    const status = String(transaction?.status || '').toLowerCase();
+    if (['facility_booked', 'completed', 'released', 'collected'].includes(status)) return true;
+    const booking = transaction?.facilityBooking || {};
+    return Boolean(transaction?.facilityBookingId && booking.dropoffScheduledAt && booking.collectionScheduledAt);
   }
 
   function renderBookingCard(transaction) {

@@ -174,6 +174,9 @@ export async function signUp({ fullName, email, password, accountType, userRole 
     }
   });
   if (error) return { error: _userFacingError(error) };
+  if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return { error: 'An account already exists for this email. Sign in or use Forgot password.' };
+  }
   return { success: true, requiresEmailVerification: !data?.session };
 }
 
@@ -209,6 +212,20 @@ export async function signInWithGoogle({ redirectTo } = {}) {
 }
 
 export async function handleOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  const code = params.get('code') || hash.get('code');
+  const accessToken = hash.get('access_token') || params.get('access_token');
+  const refreshToken = hash.get('refresh_token') || params.get('refresh_token');
+
+  if (code && _sb.auth.exchangeCodeForSession) {
+    const { error: exchangeError } = await _sb.auth.exchangeCodeForSession(code);
+    if (exchangeError) return { error: _userFacingError(exchangeError, 'We could not complete Google sign-in. Please try again.') };
+  } else if (accessToken && refreshToken) {
+    const { error: sessionError } = await _sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    if (sessionError) return { error: _userFacingError(sessionError, 'We could not complete Google sign-in. Please try again.') };
+  }
+
   const { data: { session }, error } = await _sb.auth.getSession();
   if (error) return { error: _userFacingError(error) };
   if (!session?.user) return { error: 'We could not complete Google sign-in. Please try again.' };
@@ -297,7 +314,7 @@ export async function updatePassword({ currentPassword, newPassword, email }) {
 }
 
 export async function requestPasswordReset({ email, redirectTo }) {
-  const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: redirectTo || getPageUrl('login.html') });
   if (error) return { error: _userFacingError(error) };
   return { success: true };
 }

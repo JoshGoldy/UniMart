@@ -58,6 +58,7 @@ export function toOffer(row = {}) {
     status: row.status || 'pending',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    respondedAt: row.responded_at || null,
   };
 }
 
@@ -99,6 +100,7 @@ export function toReview(row = {}) {
     body: row.body || '',
     status: row.status || 'visible',
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -170,8 +172,17 @@ export async function startOffer({ listingId, buyerId, offerText, messageText = 
   const conversationId = _conversationId(conversation);
   const amount = _parseOfferAmount(cleanOffer);
   const offerType = amount === null ? 'trade' : 'purchase';
+  const now = new Date().toISOString();
 
-  const { data, error } = await getSupabaseClient()
+  await getSupabaseClient()
+    .from('offers')
+    .update({ status: 'declined', updated_at: now })
+    .eq('conversation_id', conversationId)
+    .eq('buyer_id', conversation.buyer_id)
+    .eq('seller_id', conversation.seller_id)
+    .eq('status', 'pending');
+
+  let { data, error } = await getSupabaseClient()
     .from('offers')
     .insert({
       conversation_id: conversationId,
@@ -182,9 +193,31 @@ export async function startOffer({ listingId, buyerId, offerText, messageText = 
       amount,
       note: cleanOffer,
       status: 'pending',
+      created_at: now,
+      updated_at: now,
     })
     .select()
     .single();
+
+  if (error && /duplicate key|violates .*constraint|on conflict/i.test(error.message || '')) {
+    const fallback = await getSupabaseClient()
+      .from('offers')
+      .update({
+        offer_type: offerType,
+        amount,
+        note: cleanOffer,
+        status: 'pending',
+        responded_at: null,
+        updated_at: now,
+      })
+      .eq('conversation_id', conversationId)
+      .eq('buyer_id', conversation.buyer_id)
+      .eq('seller_id', conversation.seller_id)
+      .select()
+      .single();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) return { error: _userFacingError(error) };
   return { success: true, conversation: { ...conversation, id: conversationId }, offer: toOffer(data) };
@@ -204,7 +237,8 @@ function _offerId(row = {}) {
 
 function _offerNotificationKey(row = {}, status = row.status || 'pending') {
   const id = _offerId(row);
-  return id ? `${id}:${status}` : '';
+  const timestamp = row.responded_at || row.respondedAt || row.updated_at || row.updatedAt || row.created_at || row.createdAt || '';
+  return id ? `${id}:${status}:${timestamp}` : '';
 }
 
 function _seenOfferNotificationKey(userId) {
@@ -230,7 +264,8 @@ function _markOfferNotificationsSeen(userId, offers = []) {
 function _isOfferNotificationSeen(seenOfferIds, offer = {}, status = offer.status || 'pending', includeLegacyId = false) {
   const key = _offerNotificationKey(offer, status);
   const legacyId = _offerId(offer);
-  return Boolean((key && seenOfferIds.has(key)) || (includeLegacyId && legacyId && seenOfferIds.has(legacyId)));
+  const legacyStatusKey = legacyId ? `${legacyId}:${status}` : '';
+  return Boolean((key && seenOfferIds.has(key)) || (legacyStatusKey && seenOfferIds.has(legacyStatusKey)) || (includeLegacyId && legacyId && seenOfferIds.has(legacyId)));
 }
 
 function _offerResponseTimestamp(offer = {}) {
@@ -261,40 +296,65 @@ function _deletedConversationKey(userId) {
   return `unimart_deleted_conversations:${userId}`;
 }
 
-function _getLocalDeletedConversationIds(userId) {
-  if (typeof localStorage === 'undefined' || !userId) return new Set();
+function _getLocalDeletedConversationMap(userId) {
+  if (typeof localStorage === 'undefined' || !userId) return new Map();
   try {
-    return new Set(JSON.parse(localStorage.getItem(_deletedConversationKey(userId)) || '[]'));
+    const parsed = JSON.parse(localStorage.getItem(_deletedConversationKey(userId)) || '{}');
+    if (Array.isArray(parsed)) {
+      const migratedAt = new Date().toISOString();
+      return new Map(parsed.filter(Boolean).map(id => [id, migratedAt]));
+    }
+    return new Map(Object.entries(parsed || {}).filter(([id]) => Boolean(id)));
   } catch (_) {
-    return new Set();
+    return new Map();
   }
 }
 
-function _markConversationDeletedLocally(userId, conversationId) {
+function _markConversationDeletedLocally(userId, conversationId, deletedAt = new Date().toISOString()) {
   if (typeof localStorage === 'undefined' || !userId || !conversationId) return;
-  const deleted = _getLocalDeletedConversationIds(userId);
-  deleted.add(conversationId);
-  localStorage.setItem(_deletedConversationKey(userId), JSON.stringify([...deleted]));
+  const deleted = _getLocalDeletedConversationMap(userId);
+  deleted.set(conversationId, deletedAt);
+  localStorage.setItem(_deletedConversationKey(userId), JSON.stringify(Object.fromEntries(deleted)));
 }
 
-async function _getDeletedConversationIds(userId) {
-  const localDeleted = _getLocalDeletedConversationIds(userId);
+async function _getDeletedConversationMap(userId) {
+  const localDeleted = _getLocalDeletedConversationMap(userId);
   if (!userId) return localDeleted;
 
-  const { data, error } = await getSupabaseClient()
+  let { data, error } = await getSupabaseClient()
     .from('conversation_deletions')
-    .select('conversation_id')
+    .select('conversation_id,deleted_at')
     .eq('user_id', userId);
+
+  if (error && /deleted_at|column .* does not exist|schema cache/i.test(error.message || '')) {
+    const fallback = await getSupabaseClient()
+      .from('conversation_deletions')
+      .select('conversation_id')
+      .eq('user_id', userId);
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.warn('Using local deleted conversation list:', error.message);
     return localDeleted;
   }
 
-  return new Set([
-    ...localDeleted,
-    ...(data || []).map(row => row.conversation_id).filter(Boolean),
-  ]);
+  const deleted = new Map(localDeleted);
+  const fallbackDeletedAt = new Date().toISOString();
+  (data || []).forEach(row => {
+    if (row.conversation_id) deleted.set(row.conversation_id, row.deleted_at || fallbackDeletedAt);
+  });
+  return deleted;
+}
+
+function _isConversationHiddenByDelete(rowOrConversation = {}, deletedConversationMap = new Map()) {
+  const conversationId = _conversationId(rowOrConversation);
+  const deletedAt = deletedConversationMap.get(conversationId);
+  if (!deletedAt) return false;
+  const lastActivity = rowOrConversation.last_message_at || rowOrConversation.lastMessageAt || rowOrConversation.updated_at || rowOrConversation.created_at || rowOrConversation.createdAt;
+  if (!lastActivity) return true;
+  return new Date(lastActivity).getTime() <= new Date(deletedAt).getTime();
 }
 
 function _afterLatestTimestamp(rows = [], fallback = new Date().toISOString()) {
@@ -461,9 +521,9 @@ export async function getConversations(userId) {
 
   if (error) return { error: _userFacingError(error) };
 
-  const deletedConversationIds = await _getDeletedConversationIds(userId);
+  const deletedConversationMap = await _getDeletedConversationMap(userId);
   const conversations = (await _hydrateConversations(data || [], userId))
-    .filter(conversation => !deletedConversationIds.has(conversation.id))
+    .filter(conversation => !_isConversationHiddenByDelete(conversation, deletedConversationMap))
     .filter(conversation => !_isSoldListingStatus(conversation.listingStatus));
   return { conversations };
 }
@@ -477,8 +537,8 @@ export async function getUnreadMessageNotifications(userId) {
 
   if (conversationError) return { error: _userFacingError(conversationError), total: 0, notifications: [] };
 
-  const deletedConversationIds = await _getDeletedConversationIds(userId);
-  const conversations = (conversationRows || []).filter(row => !deletedConversationIds.has(_conversationId(row)));
+  const deletedConversationMap = await _getDeletedConversationMap(userId);
+  const conversations = (conversationRows || []).filter(row => !_isConversationHiddenByDelete(row, deletedConversationMap));
   const conversationIds = _uniqueValues(conversations.map(row => _conversationId(row)));
   if (!conversationIds.length) return { total: 0, notifications: [] };
 
@@ -630,13 +690,14 @@ export async function deleteConversationForUser({ conversationId, userId } = {})
     return { error: 'Conversation not found.' };
   }
 
-  _markConversationDeletedLocally(userId, conversationId);
+  const deletedAt = new Date().toISOString();
+  _markConversationDeletedLocally(userId, conversationId, deletedAt);
   _markConversationReadLocally(userId, conversationId);
 
   const { error } = await getSupabaseClient()
     .from('conversation_deletions')
     .upsert(
-      { conversation_id: conversationId, user_id: userId, deleted_at: new Date().toISOString() },
+      { conversation_id: conversationId, user_id: userId, deleted_at: deletedAt },
       { onConflict: 'conversation_id,user_id' },
     );
 
@@ -957,20 +1018,49 @@ export async function createReview({ transactionId, reviewerId, revieweeId, list
   if (!transactionId || !reviewerId || !revieweeId || !listingId) return { error: 'Missing review details.' };
   if (!Number.isInteger(cleanRating) || cleanRating < 1 || cleanRating > 5) return { error: 'Rating must be between 1 and 5.' };
 
-  const { data, error } = await getSupabaseClient()
+  const values = {
+    transaction_id: transactionId,
+    reviewer_id: reviewerId,
+    reviewee_id: revieweeId,
+    listing_id: listingId,
+    rating: cleanRating,
+    body: body || null,
+    status: 'visible',
+    updated_at: new Date().toISOString(),
+  };
+
+  let { data, error } = await getSupabaseClient()
     .from('reviews')
-    .upsert({
-      transaction_id: transactionId,
-      reviewer_id: reviewerId,
-      reviewee_id: revieweeId,
-      listing_id: listingId,
-      rating: cleanRating,
-      body: body || null,
-      status: 'visible',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'transaction_id,reviewer_id,reviewee_id' })
+    .upsert(values, { onConflict: 'transaction_id,reviewer_id,reviewee_id' })
     .select()
     .single();
+
+  if (error && /unique|constraint|on conflict|schema cache/i.test(error.message || '')) {
+    const existing = await getSupabaseClient()
+      .from('reviews')
+      .select('*')
+      .eq('transaction_id', transactionId)
+      .eq('reviewer_id', reviewerId)
+      .eq('reviewee_id', revieweeId)
+      .maybeSingle();
+
+    const fallback = existing.data
+      ? await getSupabaseClient()
+          .from('reviews')
+          .update(values)
+          .eq(existing.data.review_id ? 'review_id' : 'id', existing.data.review_id || existing.data.id)
+          .select()
+          .single()
+      : await getSupabaseClient()
+          .from('reviews')
+          .insert({ ...values, created_at: new Date().toISOString() })
+          .select()
+          .single();
+
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) return { error: _userFacingError(error) };
   return { success: true, review: toReview(data) };
 }
@@ -1024,4 +1114,3 @@ export async function sendMessage({ conversationId, senderId, body }) {
 
   return { error: _userFacingError(lastError) };
 }
-
