@@ -602,7 +602,6 @@
     state.user = user;
     loadConversations({ showLoading: true, forceRender: true }).then(async () => {
       await handlePaymentReturn();
-      if (state.activeConversationId) await loadMessages(state.activeConversationId, false, { forceRender: true });
       if (state.activeConversationId) openConversation(state.activeConversationId);
     });
     state.refreshTimer = setInterval(refreshActiveThread, 12000);
@@ -825,7 +824,14 @@
     const threadScroll = document.getElementById('thread-scroll');
     if (showLoading) stack.innerHTML = renderEmptyPanel('Loading messages...');
 
-    const result = await Auth.getConversationMessages({ conversationId, userId: state.user.id, markRead });
+    let result;
+    try {
+      result = await Auth.getConversationMessages({ conversationId, userId: state.user.id, markRead });
+    } catch (err) {
+      console.error('Message thread failed:', err);
+      result = { error: 'Messages could not be loaded. Please refresh and try again.' };
+    }
+
     if (result.error) {
       if (showLoading || !state.messages.length) stack.innerHTML = renderEmptyPanel(result.error);
       else showToast(result.error, 'error');
@@ -984,17 +990,29 @@
     return note.replace(pricePrefix, '').trim();
   }
 
+  function isTradeDeal(transaction) {
+    return transaction.amount === null || transaction.amount === undefined || Number(transaction.amount) <= 0;
+  }
+
   function renderBookingCard(transaction) {
     const booking = transaction.facilityBooking || {};
     const hasDropoff = Boolean(booking.dropoffScheduledAt);
     const hasCollection = Boolean(booking.collectionScheduledAt);
+    const tradeDeal = isTradeDeal(transaction);
 
     if (transaction.facilityBookingId && hasCollection) {
+      const title = tradeDeal ? 'Trade facility handover booked' : 'Collection booked';
+      const scheduleText = tradeDeal
+        ? `Shared handover time: ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}.`
+        : `Seller drop-off: ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}. Buyer collection: ${escapeHtml(formatSlot(booking.collectionScheduledAt))}.`;
+      const instructionText = tradeDeal
+        ? (state.user.id === transaction.buyerId ? 'Meet the seller at this time to complete the transfer. Bring proof of identity.' : 'Meet the buyer at this time to complete the transfer.')
+        : (state.user.id === transaction.buyerId ? 'Collect your item at your selected time. Bring proof of identity.' : 'Drop off the item at your selected time. The buyer will collect at their selected time.');
       return `
         <section class="booking-card-inline">
-          <section class="offer-title">Trade facility handover booked</section>
-          <section class="offer-meta">Shared handover time: ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}.</section>
-          <section class="offer-meta">${state.user.id === transaction.buyerId ? 'Meet the seller at this time to complete the transfer. Bring proof of identity.' : 'Meet the buyer at this time to complete the transfer.'}</section>
+          <section class="offer-title">${escapeHtml(title)}</section>
+          <section class="offer-meta">${scheduleText}</section>
+          <section class="offer-meta">${escapeHtml(instructionText)}</section>
           ${renderFacilityInfo()}
         </section>
       `;
@@ -1004,7 +1022,7 @@
       return `
         <section class="booking-card-inline">
           <section class="offer-title">Waiting for seller drop-off time</section>
-          <section class="offer-meta">Payment does not complete the handover. The seller still needs to choose the shared trade facility handover time.</section>
+          <section class="offer-meta">${tradeDeal ? 'The seller still needs to choose the shared trade facility handover time.' : 'The seller still needs to choose their drop-off time. After that, you can choose your own collection time.'}</section>
           ${renderFacilityInfo()}
         </section>
       `;
@@ -1014,18 +1032,18 @@
       return `
         <section class="booking-card-inline">
           <section>
-            <section class="offer-title">Choose your drop-off time</section>
-            <section class="offer-meta">Pick the shared time when you and the buyer will meet at the trade facility to complete the transfer.</section>
+            <section class="offer-title">${tradeDeal ? 'Choose shared handover time' : 'Choose your drop-off time'}</section>
+            <section class="offer-meta">${tradeDeal ? 'Pick the shared time when you and the buyer will meet at the trade facility to complete the transfer.' : 'Pick when you will drop the item at the trade facility. The buyer will choose their own collection time after this.'}</section>
             ${renderFacilityInfo()}
           </section>
           <section class="booking-slot-grid">
             <section class="form-group">
-              <label class="form-label" for="handover-dropoff-slot">Shared handover time</label>
+              <label class="form-label" for="handover-dropoff-slot">${tradeDeal ? 'Shared handover time' : 'Your drop-off time'}</label>
               <select class="form-input" id="handover-dropoff-slot"></select>
             </section>
           </section>
           <span class="form-error" id="handover-booking-error"></span>
-          <button class="btn btn-primary" id="set-seller-dropoff-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">Set handover time</button>
+          <button class="btn btn-primary" id="set-seller-dropoff-btn" data-transaction-id="${escapeAttribute(transaction.id)}" type="button">${tradeDeal ? 'Set handover time' : 'Set drop-off time'}</button>
         </section>
       `;
     }
@@ -1054,7 +1072,7 @@
       return `
         <section class="booking-card-inline">
           <section class="offer-title">Waiting for buyer collection time</section>
-          <section class="offer-meta">Your drop-off is set for ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}. The buyer now needs to choose collection.</section>
+          <section class="offer-meta">Your drop-off is set for ${escapeHtml(formatSlot(booking.dropoffScheduledAt))}. The buyer now needs to choose their collection time.</section>
           ${renderFacilityInfo()}
         </section>
       `;
@@ -1176,11 +1194,17 @@
     button.disabled = true;
     button.textContent = 'Sending...';
 
-    const result = await Auth.sendMessage({
-      conversationId: state.activeConversationId,
-      senderId: state.user.id,
-      body,
-    });
+    let result;
+    try {
+      result = await Auth.sendMessage({
+        conversationId: state.activeConversationId,
+        senderId: state.user.id,
+        body,
+      });
+    } catch (err) {
+      console.error('Send message failed:', err);
+      result = { error: 'Message could not be sent. Please try again.' };
+    }
 
     button.disabled = false;
     button.textContent = 'Send message';
@@ -1316,20 +1340,21 @@
     error.textContent = '';
 
     if (!transaction || !dropoffScheduledAt) {
-      error.textContent = 'Choose the shared handover time.';
+      error.textContent = isTradeDeal(transaction) ? 'Choose the shared handover time.' : 'Choose your drop-off time.';
       return;
     }
 
     button.disabled = true;
     button.textContent = 'Saving...';
+    const tradeDeal = isTradeDeal(transaction);
     const result = await Auth.createFacilityBooking({
       transactionId: transaction.id,
       listingId: transaction.listingId,
       actorId: state.user.id,
       dropoffScheduledAt,
-      collectionScheduledAt: dropoffScheduledAt,
+      collectionScheduledAt: tradeDeal ? dropoffScheduledAt : null,
     });
-    button.textContent = 'Set handover time';
+    button.textContent = tradeDeal ? 'Set handover time' : 'Set drop-off time';
 
     if (result.error) {
       button.disabled = false;
@@ -1337,7 +1362,7 @@
       return;
     }
 
-    showToast('Handover time set', 'success');
+    showToast(isTradeDeal(transaction) ? 'Handover time set' : 'Drop-off time set', 'success');
     await loadMessages(state.activeConversationId, false, { forceRender: true });
   }
 

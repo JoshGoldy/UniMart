@@ -9,7 +9,7 @@ import {
   validateRequired,
   validatePrice,
   validateStudentNumber
-} from '../../frontend/scripts/utils/validators.js';
+} from '../../../frontend/scripts/utils/validators.js';
 
 describe('Validators Module', () => {
   describe('validateEmail', () => {

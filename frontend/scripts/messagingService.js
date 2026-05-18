@@ -1,11 +1,11 @@
-import { _sb, _userFacingError, _edgeFunctionErrorMessage } from './authService.js';
+import { getSupabaseClient, _userFacingError, _edgeFunctionErrorMessage } from './authService.js';
 import { toListing } from './listingService.js';
 
 export async function startConversation({ listingId, buyerId, initialMessage }) {
-  const listingsResult = await _sb.from('listings').select('*').eq('listing_id', listingId).maybeSingle();
+  const listingsResult = await getSupabaseClient().from('listings').select('*').eq('listing_id', listingId).maybeSingle();
   let listing = listingsResult.data;
   if (listingsResult.error || !listing) {
-    const fallback = await _sb.from('listings').select('*').eq('id', listingId).maybeSingle();
+    const fallback = await getSupabaseClient().from('listings').select('*').eq('id', listingId).maybeSingle();
     listing = fallback.data;
     if (fallback.error || !listing) return { error: (fallback.error || listingsResult.error)?.message || 'Listing not found.' };
   }
@@ -13,7 +13,7 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
   const sellerId = listing.seller_id;
   if (!sellerId || sellerId === buyerId) return { error: 'You cannot message yourself about your own listing.' };
 
-  let { data: conversation, error: findErr } = await _sb
+  let { data: conversation, error: findErr } = await getSupabaseClient()
     .from('conversations')
     .select('*')
     .eq('listing_id', listingId)
@@ -24,7 +24,7 @@ export async function startConversation({ listingId, buyerId, initialMessage }) 
   if (findErr) return { error: _userFacingError(findErr) };
 
   if (!conversation) {
-    const inserted = await _sb
+    const inserted = await getSupabaseClient()
       .from('conversations')
       .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId, status: 'open', last_message_at: new Date().toISOString() })
       .select()
@@ -135,18 +135,21 @@ export function toModerationAction(row = {}) {
 
 
 async function _getConversationById(conversationId) {
-  let result = await _sb
+  // Try conversation_id column first
+  let result = await getSupabaseClient()
     .from('conversations')
     .select('*')
     .eq('conversation_id', conversationId)
     .maybeSingle();
 
-  if (result.error && /conversation_id/i.test(result.error.message || '')) {
-    result = await _sb
+  // If that column doesn't exist or returned no row, try id column
+  if (result.error || !result.data) {
+    const fallback = await getSupabaseClient()
       .from('conversations')
       .select('*')
       .eq('id', conversationId)
       .maybeSingle();
+    if (!fallback.error && fallback.data) return fallback;
   }
 
   return result;
@@ -168,7 +171,7 @@ export async function startOffer({ listingId, buyerId, offerText, messageText = 
   const amount = _parseOfferAmount(cleanOffer);
   const offerType = amount === null ? 'trade' : 'purchase';
 
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('offers')
     .insert({
       conversation_id: conversationId,
@@ -278,7 +281,7 @@ async function _getDeletedConversationIds(userId) {
   const localDeleted = _getLocalDeletedConversationIds(userId);
   if (!userId) return localDeleted;
 
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('conversation_deletions')
     .select('conversation_id')
     .eq('user_id', userId);
@@ -310,13 +313,13 @@ function _isAfterLocalRead(userId, conversationId, createdAt) {
 }
 
 async function _updateConversationTimestamp(conversationId, timestamp) {
-  let { error } = await _sb
+  let { error } = await getSupabaseClient()
     .from('conversations')
     .update({ last_message_at: timestamp })
     .eq('conversation_id', conversationId);
 
   if (error && /conversation_id/i.test(error.message || '')) {
-    const fallback = await _sb
+    const fallback = await getSupabaseClient()
       .from('conversations')
       .update({ last_message_at: timestamp })
       .eq('id', conversationId);
@@ -330,7 +333,7 @@ async function _fetchUsersByIds(userIds = []) {
   const ids = _uniqueValues(userIds);
   if (!ids.length) return {};
 
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('users')
     .select('id,full_name,email,username')
     .in('id', ids);
@@ -347,36 +350,48 @@ async function _fetchListingsByIds(listingIds = []) {
   const ids = _uniqueValues(listingIds);
   if (!ids.length) return {};
 
-  let { data, error } = await _sb
-    .from('listings')
-    .select('listing_id,title,image_url,status')
-    .in('listing_id', ids);
-
-  if (error) {
-    const fallback = await _sb
+  // Keep this tolerant. The project has been run against schemas that use either
+  // listing_id or id as the PK. Selecting * avoids breaking when one of those
+  // columns does not exist after a schema/import reset.
+  const map = {};
+  for (const column of ['listing_id', 'id']) {
+    const { data, error } = await getSupabaseClient()
       .from('listings')
-      .select('id,title,image_url,status')
-      .in('id', ids);
-    data = fallback.data || [];
-    error = fallback.error;
+      .select('*')
+      .in(column, ids);
+
+    if (error) {
+      console.warn(`Listing hydration skipped for ${column}:`, error.message);
+      continue;
+    }
+
+    (data || []).forEach(listing => {
+      const normalised = {
+        ...listing,
+        title: listing.title || 'Listing',
+        image_url: listing.image_url || listing.imageUrl || '',
+        status: listing.status || null,
+      };
+      if (normalised.listing_id) map[normalised.listing_id] = normalised;
+      if (normalised.id) map[normalised.id] = normalised;
+    });
   }
 
-  if (error) {
-    console.warn('Failed to hydrate conversation listings:', error.message);
-    return {};
-  }
-
-  return Object.fromEntries((data || []).map(listing => [listing.listing_id || listing.id, listing]));
+  return map;
 }
 
 function _isSoldListingStatus(status) {
-  return String(status || '').trim().toLowerCase() === 'sold';
+  // Only filter out conversations where we positively know the listing is sold.
+  // When status is null (listing lookup failed), keep the conversation visible
+  // so buyers can still see their inbox after making an offer.
+  if (!status) return false;
+  return String(status).trim().toLowerCase() === 'sold';
 }
 
 async function _countUnreadMessagesForConversation(conversationId, currentUserId) {
   const id = String(conversationId || '');
   const countUnread = async column => {
-    return _sb
+    return getSupabaseClient()
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq(column, id)
@@ -385,9 +400,10 @@ async function _countUnreadMessagesForConversation(conversationId, currentUserId
   };
 
   let result = await countUnread('conversation_id');
-  if ((result.error && /invalid input syntax|uuid/i.test(result.error.message || '')) || result.count === 0) {
+  // Only fall back if there was an actual column error, not just zero results
+  if (result.error && /invalid input syntax|uuid|column.*does not exist/i.test(result.error.message || '')) {
     const fallback = await countUnread('id');
-    if (!fallback.error && Number(fallback.count || 0) > 0) result = fallback;
+    if (!fallback.error) result = fallback;
   }
   return Number(result.count || 0);
 }
@@ -423,10 +439,12 @@ async function _hydrateConversations(rows = [], currentUserId) {
 
   return Promise.all(rows.map(async row => {
     const unreadCount = await _countUnreadMessagesForConversation(_conversationId(row), currentUserId);
+    const listingKey = row.listing_id;
+    const listing = listingsById[listingKey] || {};
 
     return toConversation({
       ...row,
-      listing: listingsById[row.listing_id] || {},
+      listing,
       buyer: usersById[row.buyer_id] || {},
       seller: usersById[row.seller_id] || {},
       unread_count: unreadCount,
@@ -435,7 +453,7 @@ async function _hydrateConversations(rows = [], currentUserId) {
 }
 
 export async function getConversations(userId) {
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('conversations')
     .select('*')
     .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
@@ -451,7 +469,7 @@ export async function getConversations(userId) {
 }
 
 export async function getUnreadMessageNotifications(userId) {
-  const { data: conversationRows, error: conversationError } = await _sb
+  const { data: conversationRows, error: conversationError } = await getSupabaseClient()
     .from('conversations')
     .select('*')
     .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
@@ -464,7 +482,7 @@ export async function getUnreadMessageNotifications(userId) {
   const conversationIds = _uniqueValues(conversations.map(row => _conversationId(row)));
   if (!conversationIds.length) return { total: 0, notifications: [] };
 
-  let { data: unreadRows, error: unreadError } = await _sb
+  let { data: unreadRows, error: unreadError } = await getSupabaseClient()
     .from('messages')
     .select('id,conversation_id,sender_id,body,created_at,read_at')
     .in('conversation_id', conversationIds)
@@ -474,7 +492,7 @@ export async function getUnreadMessageNotifications(userId) {
     .limit(100);
 
   if (unreadError && /column .*id|id .*does not exist/i.test(unreadError.message || '')) {
-    const fallback = await _sb
+    const fallback = await getSupabaseClient()
       .from('messages')
       .select('message_id,conversation_id,sender_id,body,created_at,read_at')
       .in('conversation_id', conversationIds)
@@ -486,7 +504,7 @@ export async function getUnreadMessageNotifications(userId) {
     unreadError = fallback.error;
   }
 
-  const { data: pendingOfferRows, error: offerError } = await _sb
+  const { data: pendingOfferRows, error: offerError } = await getSupabaseClient()
     .from('offers')
     .select('*')
     .eq('seller_id', userId)
@@ -495,7 +513,7 @@ export async function getUnreadMessageNotifications(userId) {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  const { data: buyerActionRows, error: buyerActionError } = await _sb
+  const { data: buyerActionRows, error: buyerActionError } = await getSupabaseClient()
     .from('offers')
     .select('*')
     .eq('buyer_id', userId)
@@ -615,7 +633,7 @@ export async function deleteConversationForUser({ conversationId, userId } = {})
   _markConversationDeletedLocally(userId, conversationId);
   _markConversationReadLocally(userId, conversationId);
 
-  const { error } = await _sb
+  const { error } = await getSupabaseClient()
     .from('conversation_deletions')
     .upsert(
       { conversation_id: conversationId, user_id: userId, deleted_at: new Date().toISOString() },
@@ -630,114 +648,148 @@ export async function deleteConversationForUser({ conversationId, userId } = {})
 }
 
 export async function getConversationMessages({ conversationId, userId, markRead = false }) {
-  let convResult = await _getConversationById(conversationId);
+  try {
+    const convResult = await _getConversationById(conversationId);
 
-  if (convResult.error) return { error: _userFacingError(convResult.error) };
-  const conversationRow = convResult.data;
-  if (!conversationRow || ![conversationRow.buyer_id, conversationRow.seller_id].includes(userId)) return { error: 'Conversation not found.' };
-
-  const resolvedConversationId = _conversationId(conversationRow);
-
-  if (markRead) {
-    _markConversationReadLocally(userId, resolvedConversationId);
-    await _sb
-      .from('messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('conversation_id', resolvedConversationId)
-      .neq('sender_id', userId)
-      .is('read_at', null);
-  }
-
-  const { data, error } = await _sb
-    .from('messages')
-    .select('*')
-    .eq('conversation_id', resolvedConversationId)
-    .order('created_at', { ascending: true });
-
-  if (error) return { error: _userFacingError(error) };
-
-  const offersResult = await _sb
-    .from('offers')
-    .select('*')
-    .eq('conversation_id', resolvedConversationId)
-    .order('created_at', { ascending: false });
-
-  if (markRead && !offersResult.error) {
-    const visibleOfferNotifications = (offersResult.data || []).filter(offer => {
-      if (conversationRow.seller_id === userId) return offer.status === 'pending';
-      if (conversationRow.buyer_id === userId) return ['accepted', 'declined'].includes(offer.status);
-      return false;
-    });
-    _markOfferNotificationsSeen(userId, visibleOfferNotifications);
-    _markConversationReadLocally(userId, resolvedConversationId, _afterLatestTimestamp([
-      ...(data || []),
-      ...(offersResult.data || []),
-    ]));
-  }
-
-  const transactionsResult = await _sb
-    .from('transactions')
-    .select('*')
-    .eq('conversation_id', resolvedConversationId)
-    .order('created_at', { ascending: false });
-
-  let transactions = transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction);
-  let transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
-  const bookingIds = transactions.map(transaction => transaction.facilityBookingId).filter(Boolean);
-  if (bookingIds.length || transactions.length) {
-    let bookingQuery = _sb.from('facility_bookings').select('*');
-    if (bookingIds.length) bookingQuery = bookingQuery.in('booking_id', bookingIds);
-    else bookingQuery = bookingQuery.in('transaction_id', transactionIds);
-    const bookingsResult = await bookingQuery;
-    let bookingRows = bookingsResult.error ? [] : (bookingsResult.data || []);
-    if (bookingIds.length && transactions.length) {
-      const byTransactionResult = await _sb
-        .from('facility_bookings')
-        .select('*')
-        .in('transaction_id', transactionIds);
-      if (!byTransactionResult.error) bookingRows = [...bookingRows, ...(byTransactionResult.data || [])];
+    if (convResult.error) return { error: _userFacingError(convResult.error) };
+    const conversationRow = convResult.data;
+    if (!conversationRow || ![conversationRow.buyer_id, conversationRow.seller_id].includes(userId)) {
+      return { error: 'Conversation not found.' };
     }
-    const bookingsById = new Map(bookingRows.map(row => [row.booking_id || row.id, _toFacilityBooking(row)]));
-    const bookingsByTransaction = new Map(bookingRows.map(row => [row.transaction_id, _toFacilityBooking(row)]));
-    transactions = transactions.map(transaction => {
-      const booking = bookingsById.get(transaction.facilityBookingId) || bookingsByTransaction.get(transaction.id) || null;
-      return {
-        ...transaction,
-        facilityBookingId: transaction.facilityBookingId || booking?.id || null,
-        facilityBooking: booking,
-      };
-    });
-  }
-  transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
-  const reviewsResult = transactionIds.length
-    ? await _sb
-        .from('reviews')
-        .select('*')
-        .in('transaction_id', transactionIds)
-        .order('created_at', { ascending: false })
-    : { data: [], error: null };
 
-  const [conversation] = await _hydrateConversations([conversationRow], userId);
-  return {
-    conversation,
-    offers: offersResult.error ? [] : (offersResult.data || []).map(toOffer),
-    transactions,
-    reviews: reviewsResult.error ? [] : (reviewsResult.data || []).map(toReview),
-    messages: (data || []).map(message => ({
-      id: message.message_id || message.id,
-      conversationId: message.conversation_id,
-      senderId: message.sender_id,
-      body: message.body || message.message || message.content || '',
-      createdAt: message.created_at,
-      readAt: message.read_at,
-    })),
-  };
+    const resolvedConversationId = _conversationId(conversationRow);
+
+    if (markRead) {
+      _markConversationReadLocally(userId, resolvedConversationId);
+      const readResult = await getSupabaseClient()
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('conversation_id', resolvedConversationId)
+        .neq('sender_id', userId)
+        .is('read_at', null);
+      if (readResult?.error) console.warn('Could not mark messages as read:', readResult.error.message);
+    }
+
+    let { data, error } = await getSupabaseClient()
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', resolvedConversationId)
+      .order('created_at', { ascending: true });
+
+    if (error) return { error: _userFacingError(error) };
+
+    // Optional messaging side-panels must never stop the core message thread
+    // from rendering. After auth.js was split, several environments had some
+    // of these tables/columns missing, which left the UI stuck on "Loading".
+    let offersResult = { data: [], error: null };
+    try {
+      offersResult = await getSupabaseClient()
+        .from('offers')
+        .select('*')
+        .eq('conversation_id', resolvedConversationId)
+        .order('created_at', { ascending: false });
+      if (offersResult.error) console.warn('Offers unavailable for this thread:', offersResult.error.message);
+    } catch (err) {
+      console.warn('Offers unavailable for this thread:', err?.message || err);
+    }
+
+    if (markRead && !offersResult.error) {
+      const visibleOfferNotifications = (offersResult.data || []).filter(offer => {
+        if (conversationRow.seller_id === userId) return offer.status === 'pending';
+        if (conversationRow.buyer_id === userId) return ['accepted', 'declined'].includes(offer.status);
+        return false;
+      });
+      _markOfferNotificationsSeen(userId, visibleOfferNotifications);
+      _markConversationReadLocally(userId, resolvedConversationId, _afterLatestTimestamp([
+        ...(data || []),
+        ...(offersResult.data || []),
+      ]));
+    }
+
+    let transactionsResult = { data: [], error: null };
+    try {
+      transactionsResult = await getSupabaseClient()
+        .from('transactions')
+        .select('*')
+        .eq('conversation_id', resolvedConversationId)
+        .order('created_at', { ascending: false });
+      if (transactionsResult.error) console.warn('Transactions unavailable for this thread:', transactionsResult.error.message);
+    } catch (err) {
+      console.warn('Transactions unavailable for this thread:', err?.message || err);
+    }
+
+    let transactions = transactionsResult.error ? [] : (transactionsResult.data || []).map(toTransaction);
+    let transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
+    const bookingIds = transactions.map(transaction => transaction.facilityBookingId).filter(Boolean);
+    if (bookingIds.length || transactionIds.length) {
+      try {
+        let bookingQuery = getSupabaseClient().from('facility_bookings').select('*');
+        if (bookingIds.length) bookingQuery = bookingQuery.in('booking_id', bookingIds);
+        else bookingQuery = bookingQuery.in('transaction_id', transactionIds);
+        const bookingsResult = await bookingQuery;
+        let bookingRows = bookingsResult.error ? [] : (bookingsResult.data || []);
+        if (bookingIds.length && transactionIds.length) {
+          const byTransactionResult = await getSupabaseClient()
+            .from('facility_bookings')
+            .select('*')
+            .in('transaction_id', transactionIds);
+          if (!byTransactionResult.error) bookingRows = [...bookingRows, ...(byTransactionResult.data || [])];
+        }
+        const bookingsById = new Map(bookingRows.map(row => [row.booking_id || row.id, _toFacilityBooking(row)]));
+        const bookingsByTransaction = new Map(bookingRows.map(row => [row.transaction_id, _toFacilityBooking(row)]));
+        transactions = transactions.map(transaction => {
+          const booking = bookingsById.get(transaction.facilityBookingId) || bookingsByTransaction.get(transaction.id) || null;
+          return {
+            ...transaction,
+            facilityBookingId: transaction.facilityBookingId || booking?.id || null,
+            facilityBooking: booking,
+          };
+        });
+      } catch (err) {
+        console.warn('Facility booking details unavailable for this thread:', err?.message || err);
+      }
+    }
+
+    transactionIds = transactions.map(transaction => transaction.id).filter(Boolean);
+    let reviewsResult = { data: [], error: null };
+    if (transactionIds.length) {
+      try {
+        reviewsResult = await getSupabaseClient()
+          .from('reviews')
+          .select('*')
+          .in('transaction_id', transactionIds)
+          .order('created_at', { ascending: false });
+        if (reviewsResult.error) console.warn('Reviews unavailable for this thread:', reviewsResult.error.message);
+      } catch (err) {
+        console.warn('Reviews unavailable for this thread:', err?.message || err);
+      }
+    }
+
+    const [conversation] = await _hydrateConversations([conversationRow], userId);
+    return {
+      conversation,
+      offers: offersResult.error ? [] : (offersResult.data || []).map(toOffer),
+      transactions,
+      reviews: reviewsResult.error ? [] : (reviewsResult.data || []).map(toReview),
+      messages: (data || []).map(message => ({
+        id: message.message_id || message.id,
+        conversationId: message.conversation_id,
+        senderId: message.sender_id,
+        body: message.body || message.message || message.content || '',
+        createdAt: message.created_at,
+        readAt: message.read_at,
+      })),
+    };
+  } catch (err) {
+    console.error('Failed to load conversation messages:', err);
+    return { error: _userFacingError(err, 'Messages could not be loaded. Please refresh and try again.') };
+  }
 }
 
 export async function updateOfferStatus({ offerId, userId, status }) {
   if (!['accepted', 'declined'].includes(status)) return { error: 'Unknown offer action.' };
 
-  const { data: offerRow, error: offerError } = await _sb
+  const { data: offerRow, error: offerError } = await getSupabaseClient()
     .from('offers')
     .select('*')
     .eq('offer_id', offerId)
@@ -748,7 +800,7 @@ export async function updateOfferStatus({ offerId, userId, status }) {
   if (offerRow.status !== 'pending') return { error: 'This offer has already been handled.' };
 
   const now = new Date().toISOString();
-  const { data: updatedOffer, error: updateError } = await _sb
+  const { data: updatedOffer, error: updateError } = await getSupabaseClient()
     .from('offers')
     .update({ status, responded_at: now, updated_at: now })
     .eq('offer_id', offerId)
@@ -758,14 +810,14 @@ export async function updateOfferStatus({ offerId, userId, status }) {
 
   let transaction = null;
   if (status === 'accepted') {
-    await _sb
+    await getSupabaseClient()
       .from('offers')
       .update({ status: 'declined', updated_at: now })
       .eq('conversation_id', offerRow.conversation_id)
       .neq('offer_id', offerId)
       .eq('status', 'pending');
 
-    const inserted = await _sb
+    const inserted = await getSupabaseClient()
       .from('transactions')
       .insert({
         offer_id: offerRow.offer_id,
@@ -795,7 +847,7 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
   if (!transactionId || !buyerId) return { error: 'Missing payment details.' };
   const amountToPay = Math.max(0, Number(onlineAmount) || 0);
 
-  const { data: transactionRow, error: transactionError } = await _sb
+  const { data: transactionRow, error: transactionError } = await getSupabaseClient()
     .from('transactions')
     .select('*')
     .eq('transaction_id', transactionId)
@@ -805,7 +857,7 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
 
   const transaction = toTransaction(transactionRow);
   if (transaction.buyerId !== buyerId) return { error: 'Only the buyer can make this payment.' };
-  const { data: offerRow, error: offerError } = await _sb
+  const { data: offerRow, error: offerError } = await getSupabaseClient()
     .from('offers')
     .select('offer_id,status')
     .eq('offer_id', transaction.offerId)
@@ -819,7 +871,7 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
   const paymentStatus = cashDueAmount > 0 ? 'partial_pending' : 'pending';
   const now = new Date().toISOString();
 
-  const { data: paymentRow, error: paymentError } = await _sb
+  const { data: paymentRow, error: paymentError } = await getSupabaseClient()
     .from('payment_records')
     .insert({
       transaction_id: transaction.id,
@@ -835,7 +887,7 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
     .single();
   if (paymentError) return { error: _userFacingError(paymentError, 'Payment records are not set up yet. Run the payments SQL first.') };
 
-  await _sb
+  await getSupabaseClient()
     .from('transactions')
     .update({
       payment_status: paymentStatus,
@@ -847,7 +899,7 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
     })
     .eq('transaction_id', transaction.id);
 
-  const checkoutResult = await _sb.functions.invoke('create-paystack-checkout', {
+  const checkoutResult = await getSupabaseClient().functions.invoke('create-paystack-checkout', {
     body: {
       paymentId: paymentRow.payment_id || paymentRow.id,
       transactionId: transaction.id,
@@ -877,7 +929,7 @@ export async function createPaymentCheckout({ transactionId, buyerId, onlineAmou
 
 export async function verifyPaymentCheckout({ transactionId, reference } = {}) {
   if (!transactionId) return { error: 'Missing payment details.' };
-  const result = await _sb.functions.invoke('verify-paystack-payment', {
+  const result = await getSupabaseClient().functions.invoke('verify-paystack-payment', {
     body: { transactionId, reference },
   });
   if (result.error) return { error: await _edgeFunctionErrorMessage(result.error, 'Payment could not be verified yet.') };
@@ -887,7 +939,7 @@ export async function verifyPaymentCheckout({ transactionId, reference } = {}) {
 
 export async function markTransactionCashSettled({ transactionId, staffId } = {}) {
   if (!transactionId || !staffId) return { error: 'Missing cash settlement details.' };
-  const { error } = await _sb
+  const { error } = await getSupabaseClient()
     .from('transactions')
     .update({
       cash_due_amount: 0,
@@ -905,7 +957,7 @@ export async function createReview({ transactionId, reviewerId, revieweeId, list
   if (!transactionId || !reviewerId || !revieweeId || !listingId) return { error: 'Missing review details.' };
   if (!Number.isInteger(cleanRating) || cleanRating < 1 || cleanRating > 5) return { error: 'Rating must be between 1 and 5.' };
 
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('reviews')
     .upsert({
       transaction_id: transactionId,
@@ -926,7 +978,7 @@ export async function createReview({ transactionId, reviewerId, revieweeId, list
 export async function reportContent({ reporterId, targetType, targetId, listingId, reason } = {}) {
   const cleanTargetType = ['listing', 'review'].includes(targetType) ? targetType : 'listing';
   if (!reporterId || !targetId || !reason) return { error: 'Choose what you are reporting and add a reason.' };
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('content_reports')
     .insert({
       reporter_id: reporterId,
@@ -944,13 +996,32 @@ export async function reportContent({ reporterId, targetType, targetId, listingI
 
 export async function sendMessage({ conversationId, senderId, body }) {
   const now = new Date().toISOString();
-  const { data, error } = await _sb
-    .from('messages')
-    .insert({ conversation_id: conversationId, sender_id: senderId, body, created_at: now })
-    .select()
-    .single();
-  if (error) return { error: _userFacingError(error) };
-  await _updateConversationTimestamp(conversationId, now);
-  return { success: true, message: data };
+  const cleanBody = String(body || '').trim();
+  if (!conversationId || !senderId || !cleanBody) return { error: 'Message cannot be empty.' };
+
+  const payloads = [
+    { conversation_id: conversationId, sender_id: senderId, body: cleanBody, created_at: now },
+    { conversation_id: conversationId, sender_id: senderId, message: cleanBody, created_at: now },
+    { conversation_id: conversationId, sender_id: senderId, content: cleanBody, created_at: now },
+  ];
+
+  let lastError = null;
+  for (const payload of payloads) {
+    const { data, error } = await getSupabaseClient()
+      .from('messages')
+      .insert(payload)
+      .select()
+      .single();
+
+    if (!error) {
+      await _updateConversationTimestamp(conversationId, now);
+      return { success: true, message: data };
+    }
+
+    lastError = error;
+    if (!/column .* does not exist|schema cache|Could not find.*column/i.test(error.message || '')) break;
+  }
+
+  return { error: _userFacingError(lastError) };
 }
 

@@ -8,7 +8,7 @@ import {
   buildDynamicNavigation,
   setActiveNav,
   setUnreadMessageBadge
-} from '../../frontend/scripts/services/navigation.js';
+} from '../../../frontend/scripts/services/navigation.js';
 
 describe('Navigation Service Module', () => {
   beforeEach(() => {

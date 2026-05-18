@@ -1,21 +1,54 @@
-import { _sb, _userFacingError } from './authService.js';
+import { getSupabaseClient, _userFacingError } from './authService.js';
 import { toUser, toListing, updateListingById } from './listingService.js';
-import { toTransaction, toReview, toContentReport, toModerationAction, _uniqueValues } from './messagingService.js';
+// Row mappers (local copies to avoid circular dependency with messagingService.js)
+function toTransaction(row = {}) {
+  const amount = row.amount === null || row.amount === undefined ? null : Number(row.amount);
+  const onlinePaidAmount = Number(row.online_paid_amount || 0);
+  const cashDueAmount = Number(row.cash_due_amount || Math.max(0, (amount || 0) - onlinePaidAmount));
+  return {
+    id: row.transaction_id || row.id, offerId: row.offer_id, conversationId: row.conversation_id,
+    listingId: row.listing_id, buyerId: row.buyer_id, sellerId: row.seller_id, amount,
+    status: row.status || 'accepted', paymentStatus: row.payment_status || (amount ? 'unpaid' : 'not_required'),
+    onlinePaidAmount, cashDueAmount, cashSettledAt: row.cash_settled_at || null,
+    cashSettledBy: row.cash_settled_by || null, facilityBookingId: row.facility_booking_id || null,
+    createdAt: row.created_at, updatedAt: row.updated_at,
+  };
+}
+function toReview(row = {}) {
+  return { id: row.review_id || row.id, transactionId: row.transaction_id, reviewerId: row.reviewer_id,
+    revieweeId: row.reviewee_id, listingId: row.listing_id, rating: Number(row.rating) || 0,
+    body: row.body || '', status: row.status || 'visible', createdAt: row.created_at };
+}
+function toContentReport(row = {}) {
+  return { id: row.report_id || row.id, reporterId: row.reporter_id,
+    targetType: row.target_type || 'listing', targetId: row.target_id || row.targetId,
+    listingId: row.listing_id || (row.target_type === 'listing' ? row.target_id : null),
+    reason: row.reason || '', status: row.status || 'open', createdAt: row.created_at,
+    updatedAt: row.updated_at, reporterName: row.reporter_name || null,
+    targetTitle: row.target_title || null, targetSnippet: row.target_snippet || null,
+    targetStatus: row.target_status || null };
+}
+function toModerationAction(row = {}) {
+  return { id: row.action_id || row.id, adminId: row.admin_id, action: row.action || '',
+    targetType: row.target_type || '', targetId: row.target_id, note: row.note || '',
+    createdAt: row.created_at, adminName: row.admin_name || null };
+}
+function _uniqueValues(values = []) { return [...new Set(values.filter(Boolean))]; }
 
 export async function getRolePermissions() {
-  const { data, error } = await _sb.from('role_permissions').select('*');
+  const { data, error } = await getSupabaseClient().from('role_permissions').select('*');
   if (error) return { permissions: [] };
   return { permissions: data || [] };
 }
 
 export async function updateRolePermission({ role, permission, enabled }) {
-  const { error } = await _sb.from('role_permissions').upsert({ role, permission, enabled }, { onConflict: 'role,permission' });
+  const { error } = await getSupabaseClient().from('role_permissions').upsert({ role, permission, enabled }, { onConflict: 'role,permission' });
   if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
 
 export async function updateUserRole({ userId, role }) {
-  const { error } = await _sb.from('users').update({ user_role: role }).eq('id', userId);
+  const { error } = await getSupabaseClient().from('users').update({ user_role: role }).eq('id', userId);
   if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
@@ -136,7 +169,7 @@ function _buildAdminAnalytics({ transactions = [], facilityRows = [], reports = 
 }
 
 async function _loadFacilityConfig() {
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('facility_config')
     .select('*')
     .eq('config_id', 'default')
@@ -147,13 +180,13 @@ async function _loadFacilityConfig() {
 
 export async function getAdminOverview() {
   const [usersRes, listingsRes, permsRes, facilityConfigRes, reportsRes, actionsRes, transactionsRes, facilityBookingsRes] = await Promise.all([
-    _sb.from('users').select('*').order('full_name'),
-    _sb.from('listings').select('*').order('created_at', { ascending: false }).limit(20),
-    _sb.from('role_permissions').select('*'),
+    getSupabaseClient().from('users').select('*').order('full_name'),
+    getSupabaseClient().from('listings').select('*').order('created_at', { ascending: false }).limit(20),
+    getSupabaseClient().from('role_permissions').select('*'),
     _loadFacilityConfig(),
-    _sb.from('content_reports').select('*').order('created_at', { ascending: false }).limit(50),
-    _sb.from('moderation_actions').select('*').order('created_at', { ascending: false }).limit(50),
-    _sb.from('transactions').select('*').order('created_at', { ascending: false }).limit(500),
+    getSupabaseClient().from('content_reports').select('*').order('created_at', { ascending: false }).limit(50),
+    getSupabaseClient().from('moderation_actions').select('*').order('created_at', { ascending: false }).limit(50),
+    getSupabaseClient().from('transactions').select('*').order('created_at', { ascending: false }).limit(500),
     _loadFacilityBookingRows(),
   ]);
   if (usersRes.error) return { error: _userFacingError(usersRes.error) };
@@ -166,7 +199,7 @@ export async function getAdminOverview() {
     .flatMap(report => [report.listing_id, report.target_type === 'listing' ? report.target_id : null])
     .filter(Boolean);
   const [reportedReviewsRes, reportedListings] = await Promise.all([
-    reviewIds.length ? _sb.from('reviews').select('*').in('review_id', reviewIds) : { data: [], error: null },
+    reviewIds.length ? getSupabaseClient().from('reviews').select('*').in('review_id', reviewIds) : { data: [], error: null },
     _loadListingsByIds(reportListingIds),
   ]);
   const reportedReviews = (reportedReviewsRes.data || []).map(toReview);
@@ -224,7 +257,7 @@ export async function getAdminOverview() {
 }
 
 async function _recordModerationAction({ adminId, action, targetType, targetId, note }) {
-  const { error } = await _sb.from('moderation_actions').insert({
+  const { error } = await getSupabaseClient().from('moderation_actions').insert({
     admin_id: adminId || null,
     action,
     target_type: targetType,
@@ -247,7 +280,7 @@ export async function removeListingAsAdmin({ listingId, adminId, note }) {
     lastError = error;
   }
   if (!removed) return { error: _userFacingError(lastError, 'Unable to remove listing.') };
-  await _sb
+  await getSupabaseClient()
     .from('content_reports')
     .update({ status: 'resolved', updated_at: new Date().toISOString() })
     .eq('target_type', 'listing')
@@ -261,7 +294,7 @@ export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
   let lastError = null;
   let removed = false;
   for (const status of statusCandidates) {
-    const { error } = await _sb
+    const { error } = await getSupabaseClient()
       .from('reviews')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('review_id', reviewId);
@@ -272,7 +305,7 @@ export async function removeReviewAsAdmin({ reviewId, adminId, note } = {}) {
     lastError = error;
   }
   if (!removed) return { error: _userFacingError(lastError, 'Unable to remove review.') };
-  await _sb
+  await getSupabaseClient()
     .from('content_reports')
     .update({ status: 'resolved', updated_at: new Date().toISOString() })
     .eq('target_type', 'review')
@@ -292,7 +325,7 @@ export async function updateContentReport({ reportId, adminId, status, note } = 
 
   for (const payload of payloads) {
     for (const column of idColumns) {
-      const result = await _sb
+      const result = await getSupabaseClient()
         .from('content_reports')
         .update(payload)
         .eq(column, reportId)
@@ -329,7 +362,7 @@ function _firstValue(row = {}, keys = []) {
 async function _loadFacilityBookingRows() {
   let lastError = null;
   for (const table of FACILITY_BOOKING_TABLES) {
-    const { data, error } = await _sb.from(table).select('*');
+    const { data, error } = await getSupabaseClient().from(table).select('*');
     if (!error) return { table, rows: data || [] };
     lastError = error;
   }
@@ -368,7 +401,7 @@ function _countSlots(rows = [], column) {
 async function _loadUsersByIds(ids = []) {
   const uniqueIds = [...new Set(ids.filter(Boolean))];
   if (!uniqueIds.length) return new Map();
-  const { data, error } = await _sb.from('users').select('*').in('id', uniqueIds);
+  const { data, error } = await getSupabaseClient().from('users').select('*').in('id', uniqueIds);
   if (error) return new Map();
   return new Map((data || []).map(row => [row.id, toUser(row)]));
 }
@@ -377,8 +410,8 @@ async function _loadListingsByIds(ids = []) {
   const uniqueIds = [...new Set(ids.filter(Boolean))];
   if (!uniqueIds.length) return new Map();
 
-  let { data, error } = await _sb.from('listings').select('*').in('listing_id', uniqueIds);
-  if (error) ({ data, error } = await _sb.from('listings').select('*').in('id', uniqueIds));
+  let { data, error } = await getSupabaseClient().from('listings').select('*').in('listing_id', uniqueIds);
+  if (error) ({ data, error } = await getSupabaseClient().from('listings').select('*').in('id', uniqueIds));
   if (error) return new Map();
 
   return new Map((data || []).map(row => [row.listing_id || row.id, toListing(row)]));
@@ -503,7 +536,7 @@ export async function getFacilityOverview() {
 
   const listingsById = await _loadListingsByIds(listingIds);
   const { data: transactionRows } = transactionIds.length
-    ? await _sb.from('transactions').select('*').in('transaction_id', transactionIds)
+    ? await getSupabaseClient().from('transactions').select('*').in('transaction_id', transactionIds)
     : { data: [] };
   const transactionsById = new Map((transactionRows || []).map(row => [row.transaction_id || row.id, toTransaction(row)]));
   const sellerIds = [
@@ -543,7 +576,7 @@ export async function updateFacilityConfig({ opensAt, closesAt, slotMinutes, slo
     operating_days: Array.isArray(operatingDays) && operatingDays.length ? operatingDays : DEFAULT_FACILITY_CONFIG.operatingDays,
     updated_at: new Date().toISOString(),
   };
-  const { error } = await _sb.from('facility_config').upsert(values, { onConflict: 'config_id' });
+  const { error } = await getSupabaseClient().from('facility_config').upsert(values, { onConflict: 'config_id' });
   if (error) return { error: _userFacingError(error) };
   return { success: true };
 }
@@ -553,7 +586,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
   if (!listingId) return { error: 'Missing listing details.' };
   if (!dropoffScheduledAt) return { error: 'Choose the seller drop-off time.' };
 
-  const { data: transactionRow, error: transactionError } = await _sb
+  const { data: transactionRow, error: transactionError } = await getSupabaseClient()
     .from('transactions')
     .select('*')
     .eq('transaction_id', transactionId)
@@ -566,10 +599,10 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
   const resolvedBuyerId = buyerId || transaction.buyerId;
   if (resolvedActorId !== transaction.sellerId) return { error: 'The seller must choose the drop-off time first.' };
 
-  const listingsResult = await _sb.from('listings').select('*').eq('listing_id', listingId).maybeSingle();
+  const listingsResult = await getSupabaseClient().from('listings').select('*').eq('listing_id', listingId).maybeSingle();
   let listing = listingsResult.data;
   if (listingsResult.error || !listing) {
-    const fallback = await _sb.from('listings').select('*').eq('id', listingId).maybeSingle();
+    const fallback = await getSupabaseClient().from('listings').select('*').eq('id', listingId).maybeSingle();
     listing = fallback.data;
     if (fallback.error || !listing) return { error: (fallback.error || listingsResult.error)?.message || 'Listing not found.' };
   }
@@ -585,7 +618,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
   if (collection && !Number.isFinite(collection.getTime())) return { error: 'Choose a valid collection time.' };
   if (collection && collection < dropoff) return { error: 'Collection cannot be before the handover time.' };
 
-  const { data: existingRows } = await _sb
+  const { data: existingRows } = await getSupabaseClient()
     .from('facility_bookings')
     .select('booking_id,status')
     .eq('listing_id', mappedListing.id)
@@ -593,7 +626,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
   const existing = (existingRows || []).find(row => ['pending_dropoff', 'received', 'ready_for_collection'].includes(_normaliseFacilityStatus(row.status)));
   if (existing) return { error: 'You already have an active facility booking for this listing.' };
 
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('facility_bookings')
     .insert({
       transaction_id: transactionId,
@@ -612,7 +645,7 @@ export async function createFacilityBooking({ transactionId, listingId, actorId,
       updated_at: new Date().toISOString(),
     };
     if (collection) transactionValues.status = 'facility_booked';
-    await _sb
+    await getSupabaseClient()
       .from('transactions')
       .update(transactionValues)
       .eq('transaction_id', transactionId);
@@ -624,7 +657,7 @@ export async function confirmFacilityCollection({ transactionId, bookingId, buye
   if (!transactionId || !bookingId || !buyerId) return { error: 'Missing collection booking details.' };
   if (!collectionScheduledAt) return { error: 'Choose your collection time.' };
 
-  const { data: bookingRow, error: bookingError } = await _sb
+  const { data: bookingRow, error: bookingError } = await getSupabaseClient()
     .from('facility_bookings')
     .select('*')
     .eq('booking_id', bookingId)
@@ -638,13 +671,13 @@ export async function confirmFacilityCollection({ transactionId, bookingId, buye
   if (!Number.isFinite(collection.getTime())) return { error: 'Choose a valid collection time.' };
   if (Number.isFinite(dropoff.getTime()) && collection < dropoff) return { error: 'Collection cannot be before the handover time.' };
 
-  const { error } = await _sb
+  const { error } = await getSupabaseClient()
     .from('facility_bookings')
     .update({ collection_scheduled_at: collection.toISOString(), updated_at: new Date().toISOString() })
     .eq('booking_id', bookingId);
   if (error) return { error: _userFacingError(error) };
 
-  await _sb
+  await getSupabaseClient()
     .from('transactions')
     .update({ status: 'facility_booked', updated_at: new Date().toISOString() })
     .eq('transaction_id', transactionId);
@@ -661,7 +694,7 @@ function _columnCompatiblePayload(values, row) {
 
 async function _updateFacilityRow(table, bookingId, values, statusCandidates = []) {
   const idColumns = ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'];
-  const rowsResult = await _sb.from(table).select('*');
+  const rowsResult = await getSupabaseClient().from(table).select('*');
   const rows = rowsResult.error ? [] : (rowsResult.data || []);
   const targetRow = rows.find(row => idColumns.some(column => String(row[column] || '') === String(bookingId)));
   const availableIdColumns = targetRow
@@ -674,7 +707,7 @@ async function _updateFacilityRow(table, bookingId, values, statusCandidates = [
   for (const status of statuses) {
     const payload = { ...basePayload, status };
     for (const idColumn of availableIdColumns) {
-      let { error } = await _sb.from(table).update(payload).eq(idColumn, bookingId);
+      let { error } = await getSupabaseClient().from(table).update(payload).eq(idColumn, bookingId);
       if (!error) return { success: true };
       lastError = error;
     }
@@ -685,7 +718,7 @@ async function _updateFacilityRow(table, bookingId, values, statusCandidates = [
     const releasePayload = _columnCompatiblePayload(withoutStatus, targetRow);
     if (Object.keys(releasePayload).length) {
       for (const idColumn of availableIdColumns) {
-        let { error } = await _sb.from(table).update(releasePayload).eq(idColumn, bookingId);
+        let { error } = await getSupabaseClient().from(table).update(releasePayload).eq(idColumn, bookingId);
         if (!error) return { success: true, statusFallbackUsed: true };
         lastError = error;
       }
@@ -716,7 +749,7 @@ export async function updateFacilityBooking({ bookingId, staffId, action, releas
     const bookingRow = (loaded.rows || []).find(item => ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'].some(column => String(item[column] || '') === String(bookingId)));
     const transactionId = bookingRow?.transaction_id;
     if (transactionId) {
-      const { data: transactionRow } = await _sb.from('transactions').select('*').eq('transaction_id', transactionId).maybeSingle();
+      const { data: transactionRow } = await getSupabaseClient().from('transactions').select('*').eq('transaction_id', transactionId).maybeSingle();
       const transaction = toTransaction(transactionRow || {});
       if (Number(transaction.cashDueAmount || 0) > 0 && !transaction.cashSettledAt) {
         return { error: `Outstanding cash of R ${Number(transaction.cashDueAmount).toLocaleString('en-ZA')} must be confirmed before release.` };
@@ -741,13 +774,13 @@ export async function updateFacilityBooking({ bookingId, staffId, action, releas
 
   const result = await _updateFacilityRow(loaded.table, bookingId, values, statusFallbacks[action] || []);
   if (result.success && action === 'release_item') {
-    const rowsResult = await _sb.from(loaded.table).select('*');
+    const rowsResult = await getSupabaseClient().from(loaded.table).select('*');
     const row = (rowsResult.data || []).find(item => {
       return ['booking_id', 'facility_booking_id', 'trade_booking_id', 'handover_id', 'id'].some(column => String(item[column] || '') === String(bookingId));
     });
     const transactionId = row?.transaction_id;
     if (transactionId) {
-      await _sb
+      await getSupabaseClient()
         .from('transactions')
         .update({ status: 'completed', updated_at: new Date().toISOString() })
         .eq('transaction_id', transactionId);

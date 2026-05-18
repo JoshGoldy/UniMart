@@ -616,6 +616,8 @@ p {
 }
 
 .user-name {
+  display: block;
+  max-width: 100%;
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--ink);
@@ -625,8 +627,15 @@ p {
 }
 
 .user-role {
+  display: block;
+  max-width: 100%;
+  margin-top: 2px;
   font-size: 0.74rem;
   color: var(--muted);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-chevron {

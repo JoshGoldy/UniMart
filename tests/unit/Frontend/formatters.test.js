@@ -9,7 +9,7 @@ import {
   formatPrice, 
   formatStatusLabel,
   escapeHtml
-} from '../../frontend/scripts/utils/formatters.js';
+} from '../../../frontend/scripts/utils/formatters.js';
 
 describe('Formatters Module', () => {
   describe('formatPrice', () => {

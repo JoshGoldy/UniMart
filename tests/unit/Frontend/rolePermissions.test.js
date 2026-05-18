@@ -12,7 +12,7 @@ import {
   getAllowedPages,
   getRoleLandingPage,
   ROLE_PERMISSIONS
-} from '../../frontend/scripts/permissions/rolePermissions.js';
+} from '../../../frontend/scripts/permissions/rolePermissions.js';
 
 describe('Role Permissions Module', () => {
   describe('getUserRole', () => {

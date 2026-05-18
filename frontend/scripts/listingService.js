@@ -1,4 +1,4 @@
-import { _sb, _userFacingError, LISTING_IMAGE_BUCKET, LISTING_IMAGE_MAX_BYTES } from './authService.js';
+import { getSupabaseClient, _userFacingError, LISTING_IMAGE_BUCKET, LISTING_IMAGE_MAX_BYTES } from './authService.js';
 
 export function toUser(row = {}) {
   return {
@@ -74,41 +74,41 @@ function isMissingListingTypeError(error) {
 }
 
 async function tryListingSelect(baseSelect) {
-  let query = _sb.from('listings').select(`${baseSelect}, users:seller_id(full_name,email,username,university,uni_campus)`);
+  let query = getSupabaseClient().from('listings').select(`${baseSelect}, users:seller_id(full_name,email,username,university,uni_campus)`);
   let { data, error } = await query;
   if (!error) return { data, error };
-  return _sb.from('listings').select(baseSelect);
+  return getSupabaseClient().from('listings').select(baseSelect);
 }
 
 export async function updateListingById(listingId, values, sellerId) {
-  let q = _sb.from('listings').update(values).eq('listing_id', listingId);
+  let q = getSupabaseClient().from('listings').update(values).eq('listing_id', listingId);
   if (sellerId) q = q.eq('seller_id', sellerId);
   let { data, error } = await q.select().maybeSingle();
   if (!error) return { data, error };
-  q = _sb.from('listings').update(values).eq('id', listingId);
+  q = getSupabaseClient().from('listings').update(values).eq('id', listingId);
   if (sellerId) q = q.eq('seller_id', sellerId);
   return q.select().maybeSingle();
 }
 
 export async function deleteListingById(listingId, sellerId) {
-  let q = _sb.from('listings').delete().eq('listing_id', listingId);
+  let q = getSupabaseClient().from('listings').delete().eq('listing_id', listingId);
   if (sellerId) q = q.eq('seller_id', sellerId);
   let { error } = await q;
   if (!error) return { error };
-  q = _sb.from('listings').delete().eq('id', listingId);
+  q = getSupabaseClient().from('listings').delete().eq('id', listingId);
   if (sellerId) q = q.eq('seller_id', sellerId);
   return q;
 }
 
 export async function getMarketplaceListings() {
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('listings')
     .select('*, users:seller_id(full_name,email,username,university,uni_campus)')
     .eq('status', 'active')
     .order('created_at', { ascending: false });
 
   if (error) {
-    const fallback = await _sb.from('listings').select('*').eq('status', 'active').order('created_at', { ascending: false });
+    const fallback = await getSupabaseClient().from('listings').select('*').eq('status', 'active').order('created_at', { ascending: false });
     if (fallback.error) return { error: _userFacingError(fallback.error) };
     return { listings: await attachSellerRatings((fallback.data || []).map(toListing)) };
   }
@@ -117,7 +117,7 @@ export async function getMarketplaceListings() {
 
 export async function getSavedListingIds(userId) {
   if (!userId) return { listingIds: [] };
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('saved_listings')
     .select('listing_id')
     .eq('user_id', userId);
@@ -127,7 +127,7 @@ export async function getSavedListingIds(userId) {
 
 export async function saveListing({ userId, listingId } = {}) {
   if (!userId || !listingId) return { error: 'Choose a listing to save.' };
-  const { error } = await _sb
+  const { error } = await getSupabaseClient()
     .from('saved_listings')
     .upsert({ user_id: userId, listing_id: listingId }, { onConflict: 'user_id,listing_id' });
   if (error) return { error: _userFacingError(error) };
@@ -136,7 +136,7 @@ export async function saveListing({ userId, listingId } = {}) {
 
 export async function unsaveListing({ userId, listingId } = {}) {
   if (!userId || !listingId) return { error: 'Choose a listing to remove.' };
-  const { error } = await _sb
+  const { error } = await getSupabaseClient()
     .from('saved_listings')
     .delete()
     .eq('user_id', userId)
@@ -146,7 +146,7 @@ export async function unsaveListing({ userId, listingId } = {}) {
 }
 
 export async function getMyListings(sellerId) {
-  const { data, error } = await _sb
+  const { data, error } = await getSupabaseClient()
     .from('listings')
     .select('*')
     .eq('seller_id', sellerId)
@@ -156,13 +156,13 @@ export async function getMyListings(sellerId) {
 }
 
 export async function createListing(payload) {
-  let { data, error } = await _sb
+  let { data, error } = await getSupabaseClient()
     .from('listings')
     .insert(listingPayload(payload))
     .select()
     .single();
   if (isMissingListingTypeError(error)) {
-    ({ data, error } = await _sb
+    ({ data, error } = await getSupabaseClient()
       .from('listings')
       .insert(legacyListingPayload(payload))
       .select()
@@ -191,12 +191,12 @@ export async function uploadListingImage(file, userId) {
   if (!file) return { imageUrl: '' };
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-  const { error } = await _sb.storage.from(LISTING_IMAGE_BUCKET).upload(path, file, {
+  const { error } = await getSupabaseClient().storage.from(LISTING_IMAGE_BUCKET).upload(path, file, {
     cacheControl: '3600',
     upsert: false,
   });
   if (error) return { error: _userFacingError(error) };
-  const { data } = _sb.storage.from(LISTING_IMAGE_BUCKET).getPublicUrl(path);
+  const { data } = getSupabaseClient().storage.from(LISTING_IMAGE_BUCKET).getPublicUrl(path);
   return { imageUrl: data.publicUrl };
 }
 
@@ -245,18 +245,18 @@ async function attachSellerTrustStats(listings) {
   if (!sellerIds.length) return listings || [];
 
   const [reviewsResult, transactionsResult, soldListingsResult] = await Promise.all([
-    _sb
+    getSupabaseClient()
     .from('reviews')
     .select('reviewee_id,rating')
     .eq('status', 'visible')
       .in('reviewee_id', sellerIds),
-    _sb
+    getSupabaseClient()
       .from('transactions')
       .select('seller_id,listing_id,updated_at,created_at,status')
       .eq('status', 'completed')
       .in('seller_id', sellerIds)
       .limit(500),
-    _sb
+    getSupabaseClient()
       .from('listings')
       .select('listing_id,category')
       .in('seller_id', sellerIds),

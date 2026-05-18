@@ -9,7 +9,7 @@ import {
   showToast,
   initDropdowns,
   initMobileSidebar
-} from '../../frontend/scripts/ui/components.js';
+} from '../../../frontend/scripts/ui/components.js';
 
 describe('UI Components Module', () => {
   beforeEach(() => {

@@ -75,6 +75,16 @@ Object.defineProperty(window, 'sessionStorage', {
   writable: true
 });
 
+// Suppress jsdom "Not implemented: navigation" console errors.
+// jsdom cannot actually navigate; this just silences the noisy error output.
+// The navigation itself is a no-op in jsdom — tests still pass correctly.
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const msg = args[0] && args[0].toString ? args[0].toString() : '';
+  if (msg.includes('Not implemented: navigation')) return;
+  originalConsoleError(...args);
+};
+
 // Clean up after each test
 afterEach(() => {
   document.body.innerHTML = '';
